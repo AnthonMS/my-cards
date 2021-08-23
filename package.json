@@ -10,7 +10,7 @@
     "lovelace",
     "custom-cards"
   ],
-  "module": "my-slider.js",
+  "module": "my-cards.js",
   "repository": "https://github.com/AnthonMS/my-cards.git",
   "author": "Anthon Steiness <Anthon@Steiness.info>",
   "license": "MIT",
