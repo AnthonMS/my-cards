@@ -231,6 +231,6 @@ For the colors, you can use HEX colors ('#111111'), color names supported by CSS
 4. Build it by running `npm run build`
 5. Add this to your Home Assistant Configuration (IP is the local IP of the machine you're hosting the card on):
 ```yaml
-    - url: http://<IP>:5000/my-slider.js?v=001
+    - url: http://<IP>:5000/my-cards.js?v=001
       type: module
 ```
