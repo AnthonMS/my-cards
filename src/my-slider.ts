@@ -30,8 +30,8 @@ import { localize } from './localize/localize';
 /* eslint no-console: 0 */
 console.info(
 	`%c  MY-SLIDER \n%c  ${localize('common.version')} ${SLIDER_VERSION}    `,
-	'color: orange; font-weight: bold; background: green',
-	'color: white; font-weight: bold; background: dimgray',
+	'color: orange; font-weight: bold; background: black',
+	'color: white; font-weight: bold; background: green',
 );
 
 // This puts your card into the UI card picker dialog
