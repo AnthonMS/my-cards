@@ -7,7 +7,7 @@ import { CARD_VERSION } from './const';
 import { localize } from './localize/localize';
 
 console.info(
-	`%c  MY-CARDS \n%c  ${localize('common.version')} ${CARD_VERSION}    `,
+	`%c  ---- MY-CARDS ---- \n%c  ${localize('common.version')} ${CARD_VERSION}    `,
 	'color: orange; font-weight: bold; background: black',
 	'color: white; font-weight: bold; background: green',
 );

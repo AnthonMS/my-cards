@@ -29,7 +29,7 @@ import { localize } from './localize/localize';
 
 /* eslint no-console: 0 */
 console.info(
-	`%c  MY-SLIDER \n%c  ${localize('common.version')} ${SLIDER_VERSION}    `,
+	`%c  ---- MY-SLIDER ---- \n%c  ${localize('common.version')} ${SLIDER_VERSION}    `,
 	'color: orange; font-weight: bold; background: black',
 	'color: white; font-weight: bold; background: green',
 );
