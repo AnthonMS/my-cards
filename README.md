@@ -6,6 +6,9 @@ This is the new repo for all my upcoming cards.
 Right now it only has the "my-slider" card.
 It will have a lot of other cards in the future.
 
+## I HAVE NOT TESTED THIS CARD OUT AT ALL, I HAVE JUST CREATeD IT FOR LATER
+So don't come yelling at me when it doesn't work and this text is still here. If this text is still here, that means I haven't installed this card on my own system. But it should theoretically work.
+
 ## Description
 
 Slider Card is a customizable card for light, input_number, covers, fans, switches, locks & media_player volume_level entity sliders, for the Home Assistant Lovelace frontend.
