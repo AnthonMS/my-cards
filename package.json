@@ -1,6 +1,6 @@
 {
   "name": "my-cards",
-  "version": "1.9.0",
+  "version": "1.0.1",
   "description": "Bundle of my own custom Lovalace cards",
   "keywords": [
     "home-assistant",
@@ -45,7 +45,8 @@
   },
   "scripts": {
     "start": "rollup -c rollup.config.dev.js --watch",
-    "build": "npm run lint && npm run rollup",
+    "build": "npm run rollup",
+    "build:lint": "npm run lint && npm run rollup",
     "lint": "eslint src/*.ts",
     "rollup": "rollup -c"
   }
