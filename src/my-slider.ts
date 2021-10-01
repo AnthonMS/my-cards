@@ -193,7 +193,7 @@ export class MySlider extends LitElement {
 				return html`
 					<ha-card>
 						<div class="slider-container" style="${styleStr}">
-							<input name="foo" type="range" class="${entity.state}" style="${styleStr}" .value="${entity.state === "off" ? 0 : entity.attributes.color_temp}" min="${entity.attributes.min_mireds}" max="${entity.attributes.max_mireds}" step="${step}" @change=${e => this._setWarmth(entity, e.target, minSet, maxSet)}>
+							<input name="foo" type="range" class="${entity.state}" style="${styleStr}" min="${entity.attributes.min_mireds}" max="${entity.attributes.max_mireds}" step="${step}" .value="${entity.state === "off" ? 0 : entity.attributes.color_temp}" @change=${e => this._setWarmth(entity, e.target, minSet, maxSet)}>
 						</div>
 					</ha-card>
 				`;
@@ -202,7 +202,7 @@ export class MySlider extends LitElement {
 				return html`
 					<ha-card>
 						<div class="slider-container" style="${styleStr}">
-							<input name="foo" type="range" class="${entity.state}" style="${styleStr}" .value="${entity.state === "off" ? 0 : Math.round(entity.attributes.brightness / 2.55)}" step="${step}" @change=${e => this._setBrightness(entity, e.target, minSet, maxSet)}>
+							<input name="foo" type="range" class="${entity.state}" style="${styleStr}" step="${step}" .value="${entity.state === "off" ? 0 : Math.round(entity.attributes.brightness / 2.55)}" @change=${e => this._setBrightness(entity, e.target, minSet, maxSet)}>
 						</div>
 					</ha-card>
 				`;
@@ -213,7 +213,7 @@ export class MySlider extends LitElement {
 			return html`
 				<ha-card>
 					<div class="slider-container" style="${styleStr}">
-						<input name="foo" type="range" class="${entity.state}" style="${styleStr}" .value="${entity.state}" min="${entity.attributes.min}" max="${entity.attributes.max}" step="${step}" @change=${e => this._setInputNumber(entity, e.target, minSet, maxSet)}>
+						<input name="foo" type="range" class="${entity.state}" style="${styleStr}" min="${entity.attributes.min}" max="${entity.attributes.max}" step="${step}" .value="${entity.state}" @change=${e => this._setInputNumber(entity, e.target, minSet, maxSet)}>
 					</div>
 				</ha-card>
 			`;
@@ -228,7 +228,7 @@ export class MySlider extends LitElement {
 			return html`
 				<ha-card>
 					<div class="slider-container" style="${styleStr}">
-						<input name="foo" type="range" class="${entity.state}" style="${styleStr}" .value="${num}" min="${minBar}" max="${maxBar}" step="${step}" @change=${e => this._setMediaVolume(entity, e.target, minSet, maxSet)}>
+						<input name="foo" type="range" class="${entity.state}" style="${styleStr}" min="${minBar}" max="${maxBar}" step="${step}" .value="${num}" @change=${e => this._setMediaVolume(entity, e.target, minSet, maxSet)}>
 					</div>
 				</ha-card>
 			`;
@@ -238,7 +238,7 @@ export class MySlider extends LitElement {
 			return html`
 				<ha-card>
 					<div class="slider-container" style="${styleStr}">
-						<input name="foo" type="range" class="${entity.state}" style="${styleStr}" .value="${entity.attributes.current_position}" min="${minBar}" max="${maxBar}" step="${step}" @change=${e => this._setCover(entity, e.target, minSet, maxSet)}>
+						<input name="foo" type="range" class="${entity.state}" style="${styleStr}" min="${minBar}" max="${maxBar}" step="${step}" .value="${entity.attributes.current_position}" @change=${e => this._setCover(entity, e.target, minSet, maxSet)}>
 					</div>
 				</ha-card>
 			`;
@@ -248,7 +248,7 @@ export class MySlider extends LitElement {
 			return html`
 				<ha-card>
 					<div class="slider-container" style="${styleStr}">
-						<input name="foo" type="range" class="${entity.state}" style="${styleStr}" .value="${entity.attributes.percentage}" min="${minBar}" max="${maxBar}" step="${step}" @change=${e => this._setFan(entity, e.target, minSet, maxSet)}>
+						<input name="foo" type="range" class="${entity.state}" style="${styleStr}" min="${minBar}" max="${maxBar}" step="${step}" .value="${entity.attributes.percentage}" @change=${e => this._setFan(entity, e.target, minSet, maxSet)}>
 					</div>
 				</ha-card>
 			`;
@@ -258,7 +258,7 @@ export class MySlider extends LitElement {
 			return html`
 				<ha-card>
 					<div class="slider-container" style="${styleStr}">
-						<input name="foo" type="range" class="${entity.state}" style="${styleStr}" .value="${minBar}" min="${minBar}" max="${maxBar}" step="${step}" @change=${e => this._setSwitch(entity, e.target, minSet, maxSet, minBar, maxBar)}>
+						<input name="foo" type="range" class="${entity.state}" style="${styleStr}" min="${minBar}" max="${maxBar}" step="${step}" .value="${minBar}" @change=${e => this._setSwitch(entity, e.target, minSet, maxSet, minBar, maxBar)}>
 					</div>
 				</ha-card>
 			`;
@@ -268,7 +268,7 @@ export class MySlider extends LitElement {
 			return html`
 				<ha-card>
 					<div class="slider-container" style="${styleStr}">
-						<input name="foo" type="range" class="${entity.state}" style="${styleStr}" .value="${minBar}" min="${minBar}" max="${maxBar}" step="${step}" @change=${e => this._setLock(entity, e.target, minSet, maxSet, minBar, maxBar)}>
+						<input name="foo" type="range" class="${entity.state}" style="${styleStr}" min="${minBar}" max="${maxBar}" step="${step}" .value="${minBar}" @change=${e => this._setLock(entity, e.target, minSet, maxSet, minBar, maxBar)}>
 					</div>
 				</ha-card>
 			`;
