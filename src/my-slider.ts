@@ -202,7 +202,7 @@ export class MySlider extends LitElement {
 				return html`
 					<ha-card>
 						<div class="slider-container" style="${styleStr}">
-							<input name="foo" type="range" class="${entity.state}" style="${styleStr}" step="${step}" .value="${entity.state === "off" ? 0 : Math.round(entity.attributes.brightness / 2.55)}" @change=${e => this._setBrightness(entity, e.target, minSet, maxSet)}>
+							<input name="foo" type="range" class="${entity.state}" style="${styleStr}" step="${step}" .value="${entity.state === "off" ? 0 : Math.round(entity.attributes.brightness / 2.56)}" @change=${e => this._setBrightness(entity, e.target, minSet, maxSet)}>
 						</div>
 					</ha-card>
 				`;
@@ -293,7 +293,7 @@ export class MySlider extends LitElement {
 		
 		this.hass.callService("light", "turn_on", {
 			entity_id: _entity.entity_id,
-			brightness: val * 2.55
+			brightness: val * 2.56
 		})
 
 		_target.value = val
@@ -310,7 +310,7 @@ export class MySlider extends LitElement {
 	
 		this.hass.callService("homeassistant", "turn_on", {
 			entity_id: _entity.entity_id,
-			brightness: value * 2.55
+			brightness: value * 2.56
 		});
 	
 		_target.value = value;
