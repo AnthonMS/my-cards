@@ -35,6 +35,7 @@ Everything under function in the options table is css styling, so it is possible
 | ---- | ---- | ------- | ----------- |
 | type | string | **Required** | `custom:my-slider` |
 | entity | string | **Required** | `light.living_room` |
+| intermediate | boolean | false | If set to `true` the slider sends immediate updates while sliding. Not recommended by default, since it may generate too many updates. |
 |minBar| int | 0 | Set minimum value slider bar will display for `media_player`, `fan`, and `cover` entities |
 |maxBar| int | 100 | Set maximum value slider bar will display for `media_player`, `fan`, and `cover` entities |
 |minSet| int | 0 | Set minimum value entity can change |

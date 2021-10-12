@@ -188,12 +188,45 @@ export class MySlider extends LitElement {
 			--thumb-border-bottom: ${thumbBorderBotton};
 		`;
 
+		const updateValue = (e) => {
+			if (entityId.includes("light.")) {
+				if (conf.function == "Warmth") {
+					this._setWarmth(entity, e.target, minSet, maxSet);
+				} else {
+					this._setBrightness(entity, e.target, minSet, maxSet)
+				}
+			} else if (entityId.includes("input_number.")) {
+				this._setInputNumber(entity, e.target, minSet, maxSet)
+			} else if (entityId.includes("media_player.")) {
+				this._setMediaVolume(entity, e.target, minSet, maxSet)
+			} else if (entityId.includes("cover.")) {
+				this._setCover(entity, e.target, minSet, maxSet)
+			} else if (entityId.includes("fan.")) {
+				this._setFan(entity, e.target, minSet, maxSet)
+			} else if (entityId.includes("switch.")) {
+				this._setSwitch(entity, e.target, minSet, maxSet, minBar, maxBar)
+			} else if (entityId.includes("lock.")) {
+				this._setLock(entity, e.target, minSet, maxSet, minBar, maxBar)
+			}
+		};
+
+		const handleInput = (e) => {
+			if (conf.intermediate) {
+				updateValue(e);
+			}
+		};
+		const handleChange = (e) => {
+			if (!conf.intermediate) {
+				updateValue(e);
+			}
+		};
+
 		if (entityId.includes("light.")) {
 			if (conf.function == "Warmth") {
 				return html`
 					<ha-card>
 						<div class="slider-container" style="${styleStr}">
-							<input name="foo" type="range" class="${entity.state}" style="${styleStr}" min="${entity.attributes.min_mireds}" max="${entity.attributes.max_mireds}" step="${step}" .value="${entity.state === "off" ? 0 : entity.attributes.color_temp}" @change=${e => this._setWarmth(entity, e.target, minSet, maxSet)}>
+							<input name="foo" type="range" class="${entity.state}" style="${styleStr}" min="${entity.attributes.min_mireds}" max="${entity.attributes.max_mireds}" step="${step}" .value="${entity.state === "off" ? 0 : entity.attributes.color_temp}" @input=${handleInput} @change=${handleChange}>
 						</div>
 					</ha-card>
 				`;
@@ -202,7 +235,7 @@ export class MySlider extends LitElement {
 				return html`
 					<ha-card>
 						<div class="slider-container" style="${styleStr}">
-							<input name="foo" type="range" class="${entity.state}" style="${styleStr}" step="${step}" .value="${entity.state === "off" ? 0 : Math.round(entity.attributes.brightness / 2.56)}" @change=${e => this._setBrightness(entity, e.target, minSet, maxSet)}>
+							<input name="foo" type="range" class="${entity.state}" style="${styleStr}" step="${step}" .value="${entity.state === "off" ? 0 : Math.round(entity.attributes.brightness / 2.56)}" @input=${handleInput} @change=${handleChange}>
 						</div>
 					</ha-card>
 				`;
@@ -213,7 +246,7 @@ export class MySlider extends LitElement {
 			return html`
 				<ha-card>
 					<div class="slider-container" style="${styleStr}">
-						<input name="foo" type="range" class="${entity.state}" style="${styleStr}" min="${entity.attributes.min}" max="${entity.attributes.max}" step="${step}" .value="${entity.state}" @change=${e => this._setInputNumber(entity, e.target, minSet, maxSet)}>
+						<input name="foo" type="range" class="${entity.state}" style="${styleStr}" min="${entity.attributes.min}" max="${entity.attributes.max}" step="${step}" .value="${entity.state}" @input=${handleInput} @change=${handleChange}>
 					</div>
 				</ha-card>
 			`;
@@ -228,7 +261,7 @@ export class MySlider extends LitElement {
 			return html`
 				<ha-card>
 					<div class="slider-container" style="${styleStr}">
-						<input name="foo" type="range" class="${entity.state}" style="${styleStr}" min="${minBar}" max="${maxBar}" step="${step}" .value="${num}" @change=${e => this._setMediaVolume(entity, e.target, minSet, maxSet)}>
+						<input name="foo" type="range" class="${entity.state}" style="${styleStr}" min="${minBar}" max="${maxBar}" step="${step}" .value="${num}" @input=${handleInput} @change=${handleChange}>
 					</div>
 				</ha-card>
 			`;
@@ -238,7 +271,7 @@ export class MySlider extends LitElement {
 			return html`
 				<ha-card>
 					<div class="slider-container" style="${styleStr}">
-						<input name="foo" type="range" class="${entity.state}" style="${styleStr}" min="${minBar}" max="${maxBar}" step="${step}" .value="${entity.attributes.current_position}" @change=${e => this._setCover(entity, e.target, minSet, maxSet)}>
+						<input name="foo" type="range" class="${entity.state}" style="${styleStr}" min="${minBar}" max="${maxBar}" step="${step}" .value="${entity.attributes.current_position}" @input=${handleInput} @change=${handleChange}>
 					</div>
 				</ha-card>
 			`;
@@ -248,7 +281,7 @@ export class MySlider extends LitElement {
 			return html`
 				<ha-card>
 					<div class="slider-container" style="${styleStr}">
-						<input name="foo" type="range" class="${entity.state}" style="${styleStr}" min="${minBar}" max="${maxBar}" step="${step}" .value="${entity.attributes.percentage}" @change=${e => this._setFan(entity, e.target, minSet, maxSet)}>
+						<input name="foo" type="range" class="${entity.state}" style="${styleStr}" min="${minBar}" max="${maxBar}" step="${step}" .value="${entity.attributes.percentage}" @input=${handleInput} @change=${handleChange}>
 					</div>
 				</ha-card>
 			`;
@@ -258,7 +291,7 @@ export class MySlider extends LitElement {
 			return html`
 				<ha-card>
 					<div class="slider-container" style="${styleStr}">
-						<input name="foo" type="range" class="${entity.state}" style="${styleStr}" min="${minBar}" max="${maxBar}" step="${step}" .value="${minBar}" @change=${e => this._setSwitch(entity, e.target, minSet, maxSet, minBar, maxBar)}>
+						<input name="foo" type="range" class="${entity.state}" style="${styleStr}" min="${minBar}" max="${maxBar}" step="${step}" .value="${minBar}" @input=${handleInput} @change=${handleChange}>
 					</div>
 				</ha-card>
 			`;
@@ -268,14 +301,13 @@ export class MySlider extends LitElement {
 			return html`
 				<ha-card>
 					<div class="slider-container" style="${styleStr}">
-						<input name="foo" type="range" class="${entity.state}" style="${styleStr}" min="${minBar}" max="${maxBar}" step="${step}" .value="${minBar}" @change=${e => this._setLock(entity, e.target, minSet, maxSet, minBar, maxBar)}>
+						<input name="foo" type="range" class="${entity.state}" style="${styleStr}" min="${minBar}" max="${maxBar}" step="${step}" .value="${minBar}" @input=${handleInput} @change=${handleChange}>
 					</div>
 				</ha-card>
 			`;
 		}
 	}
 
-	
 
 	private _handleAction(ev: ActionHandlerEvent): void {
 		if (this.hass && this.config && ev.detail.action) {
