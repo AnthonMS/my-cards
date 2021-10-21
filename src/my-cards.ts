@@ -15,4 +15,4 @@ console.info(
 
 export { MySlider } from './my-slider'
 
-// export { MyFooter } from './my-footer'
+export { MyFooter } from './my-footer'
