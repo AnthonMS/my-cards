@@ -19,6 +19,7 @@ import {
 	LovelaceCardEditor,
 	getLovelace,
 } from 'custom-card-helpers'; // This is a community maintained npm module with common helper functions/types
+import { disableBodyScroll, enableBodyScroll } from 'body-scroll-lock'
 
 import './editor';
 
@@ -78,6 +79,7 @@ export class MySlider extends LitElement {
 
 		this.config = {
 			name: 'MySlider',
+			disabled_scroll: false,
 			...config,
 		};
 	}
@@ -221,12 +223,25 @@ export class MySlider extends LitElement {
 			}
 		};
 
+		
+		const toggleScroll = () => {
+			this.config.disabled_scroll = !this.config.disabled_scroll
+			if (this.config.disabled_scroll) {
+				disableBodyScroll(window)
+			} else { 
+				enableBodyScroll(window)
+			}
+		}
+
 		if (entityId.includes("light.")) {
 			if (conf.function == "Warmth") {
 				return html`
 					<ha-card>
 						<div class="slider-container" style="${styleStr}">
-							<input name="foo" type="range" class="${entity.state}" style="${styleStr}" min="${entity.attributes.min_mireds}" max="${entity.attributes.max_mireds}" step="${step}" .value="${entity.state === "off" ? 0 : entity.attributes.color_temp}" @input=${handleInput} @change=${handleChange}>
+							<input name="foo" type="range" class="${entity.state}" style="${styleStr}" 
+								min="${entity.attributes.min_mireds}" max="${entity.attributes.max_mireds}" 
+								step="${step}" .value="${entity.state === "off" ? 0 : entity.attributes.color_temp}" 
+								@input=${handleInput} @change=${handleChange} >
 						</div>
 					</ha-card>
 				`;
@@ -235,7 +250,9 @@ export class MySlider extends LitElement {
 				return html`
 					<ha-card>
 						<div class="slider-container" style="${styleStr}">
-							<input name="foo" type="range" class="${entity.state}" style="${styleStr}" step="${step}" .value="${entity.state === "off" ? 0 : Math.round(entity.attributes.brightness / 2.56)}" @input=${handleInput} @change=${handleChange}>
+							<input name="foo" type="range" class="${entity.state}" style="${styleStr}" 
+								step="${step}" .value="${entity.state === "off" ? 0 : Math.round(entity.attributes.brightness / 2.56)}" 
+								@input=${handleInput} @change=${handleChange} >
 						</div>
 					</ha-card>
 				`;
@@ -271,7 +288,12 @@ export class MySlider extends LitElement {
 			return html`
 				<ha-card>
 					<div class="slider-container" style="${styleStr}">
-						<input name="foo" type="range" class="${entity.state}" style="${styleStr}" min="${minBar}" max="${maxBar}" step="${step}" .value="${entity.attributes.current_position}" @input=${handleInput} @change=${handleChange}>
+						<input name="foo" type="range" class="${entity.state}" style="${styleStr}" 
+							min="${minBar}" max="${maxBar}" step="${step}" 
+							.value="${entity.attributes.current_position}" 
+							@input=${handleInput} @change=${handleChange}
+							@mousedown=${conf.toggle_scroll ? toggleScroll : null}
+							@mouseup=${conf.toggle_scroll ? toggleScroll : null} >
 					</div>
 				</ha-card>
 			`;
