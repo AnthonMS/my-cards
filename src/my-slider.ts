@@ -82,6 +82,8 @@ export class MySlider extends LitElement {
 			disabled_scroll: false,
 			...config,
 		};
+
+		// console.log('this.config initial:', this.config)
 	}
 
 	// https://lit-element.polymer-project.org/guide/lifecycle#shouldupdate
@@ -104,6 +106,7 @@ export class MySlider extends LitElement {
 		const entityId = this.config.entity ? this.config.entity : "ERROR: NO ENTITY ID"
 		const entityName = this.config.entity?.split(".")[1]
 		const entity = this.hass.states[`${entityId}`]
+
 
   		// // Size Variables
 		var step = conf.step ? conf.step: "1";
@@ -241,7 +244,9 @@ export class MySlider extends LitElement {
 							<input name="foo" type="range" class="${entity.state}" style="${styleStr}" 
 								min="${entity.attributes.min_mireds}" max="${entity.attributes.max_mireds}" 
 								step="${step}" .value="${entity.state === "off" ? 0 : entity.attributes.color_temp}" 
-								@input=${handleInput} @change=${handleChange} >
+								@input=${handleInput} @change=${handleChange}
+								@touchstart=${conf.toggle_scroll ? toggleScroll : null}
+								@touchend=${conf.toggle_scroll ? toggleScroll : null} >
 						</div>
 					</ha-card>
 				`;
@@ -252,7 +257,9 @@ export class MySlider extends LitElement {
 						<div class="slider-container" style="${styleStr}">
 							<input name="foo" type="range" class="${entity.state}" style="${styleStr}" 
 								step="${step}" .value="${entity.state === "off" ? 0 : Math.round(entity.attributes.brightness / 2.56)}" 
-								@input=${handleInput} @change=${handleChange} >
+								@input=${handleInput} @change=${handleChange}
+								@touchstart=${conf.toggle_scroll ? toggleScroll : null}
+								@touchend=${conf.toggle_scroll ? toggleScroll : null} >
 						</div>
 					</ha-card>
 				`;
@@ -263,7 +270,12 @@ export class MySlider extends LitElement {
 			return html`
 				<ha-card>
 					<div class="slider-container" style="${styleStr}">
-						<input name="foo" type="range" class="${entity.state}" style="${styleStr}" min="${entity.attributes.min}" max="${entity.attributes.max}" step="${step}" .value="${entity.state}" @input=${handleInput} @change=${handleChange}>
+						<input name="foo" type="range" class="${entity.state}" style="${styleStr}" 
+							min="${entity.attributes.min}" max="${entity.attributes.max}" 
+							step="${step}" .value="${entity.state}" 
+							@input=${handleInput} @change=${handleChange}
+							@touchstart=${conf.toggle_scroll ? toggleScroll : null}
+							@touchend=${conf.toggle_scroll ? toggleScroll : null} >
 					</div>
 				</ha-card>
 			`;
@@ -278,7 +290,11 @@ export class MySlider extends LitElement {
 			return html`
 				<ha-card>
 					<div class="slider-container" style="${styleStr}">
-						<input name="foo" type="range" class="${entity.state}" style="${styleStr}" min="${minBar}" max="${maxBar}" step="${step}" .value="${num}" @input=${handleInput} @change=${handleChange}>
+						<input name="foo" type="range" class="${entity.state}" style="${styleStr}" 
+							min="${minBar}" max="${maxBar}" step="${step}" .value="${num}" 
+							@input=${handleInput} @change=${handleChange}
+							@touchstart=${conf.toggle_scroll ? toggleScroll : null}
+							@touchend=${conf.toggle_scroll ? toggleScroll : null} >
 					</div>
 				</ha-card>
 			`;
@@ -292,8 +308,8 @@ export class MySlider extends LitElement {
 							min="${minBar}" max="${maxBar}" step="${step}" 
 							.value="${entity.attributes.current_position}" 
 							@input=${handleInput} @change=${handleChange}
-							@mousedown=${conf.toggle_scroll ? toggleScroll : null}
-							@mouseup=${conf.toggle_scroll ? toggleScroll : null} >
+							@touchstart=${conf.toggle_scroll ? toggleScroll : null}
+							@touchend=${conf.toggle_scroll ? toggleScroll : null} >
 					</div>
 				</ha-card>
 			`;
@@ -303,7 +319,12 @@ export class MySlider extends LitElement {
 			return html`
 				<ha-card>
 					<div class="slider-container" style="${styleStr}">
-						<input name="foo" type="range" class="${entity.state}" style="${styleStr}" min="${minBar}" max="${maxBar}" step="${step}" .value="${entity.attributes.percentage}" @input=${handleInput} @change=${handleChange}>
+						<input name="foo" type="range" class="${entity.state}" style="${styleStr}" 
+							min="${minBar}" max="${maxBar}" step="${step}" 
+							.value="${entity.attributes.percentage}" 
+							@input=${handleInput} @change=${handleChange}
+							@touchstart=${conf.toggle_scroll ? toggleScroll : null}
+							@touchend=${conf.toggle_scroll ? toggleScroll : null} >
 					</div>
 				</ha-card>
 			`;
@@ -313,7 +334,11 @@ export class MySlider extends LitElement {
 			return html`
 				<ha-card>
 					<div class="slider-container" style="${styleStr}">
-						<input name="foo" type="range" class="${entity.state}" style="${styleStr}" min="${minBar}" max="${maxBar}" step="${step}" .value="${minBar}" @input=${handleInput} @change=${handleChange}>
+						<input name="foo" type="range" class="${entity.state}" style="${styleStr}" 
+							min="${minBar}" max="${maxBar}" step="${step}" .value="${minBar}" 
+							@input=${handleInput} @change=${handleChange}
+							@touchstart=${conf.toggle_scroll ? toggleScroll : null}
+							@touchend=${conf.toggle_scroll ? toggleScroll : null} >
 					</div>
 				</ha-card>
 			`;
@@ -323,7 +348,11 @@ export class MySlider extends LitElement {
 			return html`
 				<ha-card>
 					<div class="slider-container" style="${styleStr}">
-						<input name="foo" type="range" class="${entity.state}" style="${styleStr}" min="${minBar}" max="${maxBar}" step="${step}" .value="${minBar}" @input=${handleInput} @change=${handleChange}>
+						<input name="foo" type="range" class="${entity.state}" style="${styleStr}" 
+							min="${minBar}" max="${maxBar}" step="${step}" .value="${minBar}" 
+							@input=${handleInput} @change=${handleChange}
+							@touchstart=${conf.toggle_scroll ? toggleScroll : null}
+							@touchend=${conf.toggle_scroll ? toggleScroll : null} >
 					</div>
 				</ha-card>
 			`;
@@ -331,28 +360,11 @@ export class MySlider extends LitElement {
 	}
 
 
-	private _handleAction(ev: ActionHandlerEvent): void {
-		if (this.hass && this.config && ev.detail.action) {
-			handleAction(this, this.hass, this.config, ev.detail.action);
-		}
-	}
-
-	private _handleSliderAction(_entity, _target, _minSet, _maxSet): void {
-		let val = _target.value
-		if (val > _maxSet) {
-		  val = _maxSet;
-		} else if (val < _minSet) {
-			val = _minSet;
-		}
-		
-		this.hass.callService("light", "turn_on", {
-			entity_id: _entity.entity_id,
-			brightness: val * 2.56
-		})
-
-		_target.value = val
-
-	}
+	// private _handleAction(ev: ActionHandlerEvent): void {
+	// 	if (this.hass && this.config && ev.detail.action) {
+	// 		handleAction(this, this.hass, this.config, ev.detail.action);
+	// 	}
+	// }
 	
 	private _setBrightness(_entity, _target, _minSet, _maxSet): void {
 		var value = _target.value;

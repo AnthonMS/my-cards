@@ -75,7 +75,7 @@ export class MyFooter extends LitElement {
 		this.applyTemplate(config.content ? config.content : '')
 			.then(res => {
 				// .replace(/\n/g, '<br>\n')
-				console.log('Parsed:', '"' + Response + '"')
+				// console.log('Parsed:', '"' + Response + '"')
 
 				this.config = {
 					name: 'MyFooter',
@@ -110,7 +110,7 @@ export class MyFooter extends LitElement {
 		// -- Make copy of the config, this way we can add empty -- //
 		// -- objects and save ourselves a lot of if statements -- //
 		var conf = JSON.parse(JSON.stringify(this.config));
-		console.log('CONFIG:::', conf)
+		// console.log('CONFIG:::', conf)
 		// const entityId = this.config.test_entity ? this.config.test_entity : "ERROR: NO ENTITY ID"
 		// const entityName = this.config.test_entity?.split(".")[1]
 		// const entity = this.hass.states[`${entityId}`]
@@ -142,14 +142,10 @@ export class MyFooter extends LitElement {
 		} 
 
 		const toggleScroll = () => {
-			// scrollDisabled = true
-			console.log('tester:', this.config.disabled_scroll)
 			this.config.disabled_scroll = !this.config.disabled_scroll
 			if (this.config.disabled_scroll) {
-				console.log('Disable Scroll')
 				disableBodyScroll(window)
-			} else { 
-				console.log('Enable Scroll')
+			} else {
 				enableBodyScroll(window)
 			}
 		}
