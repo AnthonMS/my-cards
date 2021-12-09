@@ -65,7 +65,7 @@ Everything under function in the options table is css styling, so it is possible
 
 ## Installation
 ### HACS
-1. Add this repo to HACS
+1. Add this repo to HACS (Please DON'T open an issue asking how. Google it, I know you can do it!)
 2. Install
 3. Add something in the line of this to the configuration:
 ```yaml
