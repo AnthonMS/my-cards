@@ -83,9 +83,9 @@ export class MyFooter extends LitElement {
 					...config,
 				}
 			})
-	
+
 		// // Old code to set config, use if not parsing jinja2
-		// this.config = { 
+		// this.config = {
 		// 	name: 'MyFooter',
 		// 	...config,
 		// };
@@ -116,7 +116,7 @@ export class MyFooter extends LitElement {
 		// console.log('Entity Name:', entityName)
 		// console.log('Entity:', entity)
 		// conf.buttons[0]
-		
+
 		const styles = conf.styles ? conf.styles : {}
 		const buttons = conf.buttons ? conf.buttons : []
 
@@ -138,7 +138,7 @@ export class MyFooter extends LitElement {
 			return Object.keys(style).reduce((acc, key) => (
 				acc + key.split(/(?=[A-Z])/).join('-').toLowerCase() + ':' + style[key] + ';'
 			), '');
-		} 
+		}
 
 		const toggleScroll = () => {
 			this.config.disabled_scroll = !this.config.disabled_scroll
@@ -160,7 +160,7 @@ export class MyFooter extends LitElement {
 
 					<div class="button-container">
 						<div class="button">
-							<ha-icon class="icon" icon="mdi:cog-outline" style="" 
+							<ha-icon class="icon" icon="mdi:cog-outline" style=""
 								@action=${e => {
 									this._handleDynamicButton(e, {toggle: this.config.scroll_disabled})
 									// console.log('Testing!!!')
@@ -174,7 +174,7 @@ export class MyFooter extends LitElement {
 							buttons.map((item, index) => {
 								return html`
 									<div class="button">
-										<ha-icon class="icon" key="${index}" icon="${item.button.icon}" style="" 
+										<ha-icon class="icon" key="${index}" icon="${item.button.icon}" style=""
 											@action=${e => this._handleDynamicButton(e, item.button)}
 											.actionHandler=${actionHandler({
 												hasHold: hasAction(item.hold_action),
@@ -205,7 +205,7 @@ export class MyFooter extends LitElement {
 		}
 	}
 
-	
+
 	  // Promisified wrapper around subscribeRenderTemplate to allow this to be called as an async function
 	private parseTemplate(template, variables): Promise<string> {
 		return new Promise((resolve, reject) => {
@@ -213,10 +213,10 @@ export class MyFooter extends LitElement {
 				async (result) => {
 					resolve(result);
 				},
-				{template: template, variables: variables, 
+				{template: template, variables: variables,
 				entity_ids: []}, false);
 				let unsub = console.log;
-				
+
 				// Catch any errors and unsubscribe
 				(async () => {
 					try {
@@ -228,18 +228,18 @@ export class MyFooter extends LitElement {
 			})();
 		})
 	}
-	 
+
 	private async applyTemplate(template): Promise<string>{
 		try{
-				const _templateVariables = { 
+				const _templateVariables = {
 					user: {
-						name: 'Anthon', 
+						name: 'Anthon',
 						is_admin: true,
 						is_owner: true
 					},
 					page: {
 						...location,
-						path: location.pathname			
+						path: location.pathname
 					},
 					// theme: this.hass.selectedTheme ? this.hass.selectedTheme : this.hass.themes.default_theme
 					theme: 'Dark - Wooden'
@@ -262,16 +262,16 @@ export class MyFooter extends LitElement {
 			.footer-container {
 				display: flex;
 			}
-			
+
 			.text-container {
-				
+
 			}
 			.text-container p {
 				border: inherit;
 				margin: 0;
 				padding: 0;
 			}
-			
+
 			.button-container {
 				flex-grow: 1;
 				padding-right: 20px;
