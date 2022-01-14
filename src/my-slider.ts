@@ -19,7 +19,7 @@ import { disableBodyScroll, enableBodyScroll } from 'body-scroll-lock'
 
 import './editor';
 
-import type { BoilerplateCardConfig } from './types';
+import type { MySliderCardConfig } from './types';
 import { SLIDER_VERSION } from './const';
 import { localize } from './localize/localize';
 
@@ -59,10 +59,10 @@ export class MySlider extends LitElement {
 	}
 
 	@property({ attribute: false }) public hass!: HomeAssistant;
-	@internalProperty() private config!: BoilerplateCardConfig;
+	@internalProperty() private config!: MySliderCardConfig;
 
 	// https://lit-element.polymer-project.org/guide/properties#accessors-custom
-	public setConfig(config: BoilerplateCardConfig): void {
+	public setConfig(config: MySliderCardConfig): void {
 
 		if (!config.entity) {
 			throw new Error("You need to define entity");

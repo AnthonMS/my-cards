@@ -7,6 +7,11 @@ declare global {
   }
 }
 
+export interface MySliderCardConfig extends LovelaceCardConfig {
+  type: string;
+  entity: string;
+}
+
 // TODO Add your configuration elements here for type-checking
 export interface BoilerplateCardConfig extends LovelaceCardConfig {
   type: string;
