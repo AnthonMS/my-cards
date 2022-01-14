@@ -55,8 +55,8 @@ const options = {
   },
 };
 
-@customElement('boilerplate-card-editor')
-export class BoilerplateCardEditor extends LitElement implements LovelaceCardEditor {
+@customElement('my-footer-card-editor')
+export class MyFooterCardEditor extends LitElement implements LovelaceCardEditor {
   @property({ attribute: false }) public hass?: HomeAssistant;
   @internalProperty() private _config?: MyFooterCardConfig;
   @internalProperty() private _toggle?: boolean;
@@ -114,7 +114,9 @@ export class BoilerplateCardEditor extends LitElement implements LovelaceCardEdi
     this._helpers.importMoreInfoControl('climate');
 
     // You can restrict on domain type
-    const entities = Object.keys(this.hass.states).filter(eid => eid.substr(0, eid.indexOf('.')) === 'sun');
+    const entities = Object.keys(this.hass.states).filter(
+      (eid) => eid.substr(0, eid.indexOf('.')) === 'sun'
+    );
 
     return html`
       <div class="card-config">
@@ -133,8 +135,11 @@ export class BoilerplateCardEditor extends LitElement implements LovelaceCardEdi
                   @value-changed=${this._valueChanged}
                   .configValue=${'entity'}
                 >
-                  <paper-listbox slot="dropdown-content" .selected=${entities.indexOf(this._entity)}>
-                    ${entities.map(entity => {
+                  <paper-listbox
+                    slot="dropdown-content"
+                    .selected=${entities.indexOf(this._entity)}
+                  >
+                    ${entities.map((entity) => {
                       return html`
                         <paper-item>${entity}</paper-item>
                       `;
@@ -275,7 +280,7 @@ export class BoilerplateCardEditor extends LitElement implements LovelaceCardEdi
     }
     if (target.configValue) {
       if (target.value === '') {
-        const tmpConfig = {...this._config};
+        const tmpConfig = { ...this._config };
         delete tmpConfig[target.configValue];
         this._config = tmpConfig;
       } else {
