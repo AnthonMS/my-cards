@@ -13,18 +13,13 @@ import {
 import {
 	HomeAssistant,
 	hasConfigOrEntityChanged,
-	hasAction,
-	ActionHandlerEvent,
-	handleAction,
 	LovelaceCardEditor,
-	getLovelace,
 } from 'custom-card-helpers'; // This is a community maintained npm module with common helper functions/types
 import { disableBodyScroll, enableBodyScroll } from 'body-scroll-lock'
 
 import './editor';
 
 import type { BoilerplateCardConfig } from './types';
-import { actionHandler } from './action-handler-directive';
 import { SLIDER_VERSION } from './const';
 import { localize } from './localize/localize';
 

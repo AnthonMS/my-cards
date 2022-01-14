@@ -18,7 +18,6 @@ import {
 	ActionHandlerEvent,
 	handleAction,
 	LovelaceCardEditor,
-	getLovelace,
 } from 'custom-card-helpers'; // This is a community maintained npm module with common helper functions/types
 import { subscribeRenderTemplate } from 'card-tools/src/templates'
 import { disableBodyScroll, enableBodyScroll } from 'body-scroll-lock'
