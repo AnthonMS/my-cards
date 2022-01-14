@@ -17,12 +17,9 @@ import {
 	hasAction,
 	ActionHandlerEvent,
 	handleAction,
-	LovelaceCardEditor,
 } from 'custom-card-helpers'; // This is a community maintained npm module with common helper functions/types
 import { subscribeRenderTemplate } from 'card-tools/src/templates'
 import { disableBodyScroll, enableBodyScroll } from 'body-scroll-lock'
-
-import './editor';
 
 import type { BoilerplateCardConfig } from './types';
 import { actionHandler } from './action-handler-directive';
@@ -47,10 +44,6 @@ console.info(
 // TODONE Name your custom element
 @customElement('my-footer')
 export class MyFooter extends LitElement {
-
-	public static async getConfigElement(): Promise<LovelaceCardEditor> {
-		return document.createElement('boilerplate-card-editor');
-	}
 
 	public static getStubConfig(): object {
 		return {};

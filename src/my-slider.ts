@@ -13,11 +13,8 @@ import {
 import {
 	HomeAssistant,
 	hasConfigOrEntityChanged,
-	LovelaceCardEditor,
 } from 'custom-card-helpers'; // This is a community maintained npm module with common helper functions/types
 import { disableBodyScroll, enableBodyScroll } from 'body-scroll-lock'
-
-import './editor';
 
 import type { MySliderCardConfig } from './types';
 import { SLIDER_VERSION } from './const';
@@ -41,10 +38,6 @@ console.info(
 // TODONE Name your custom element
 @customElement('my-slider')
 export class MySlider extends LitElement {
-
-	public static async getConfigElement(): Promise<LovelaceCardEditor> {
-		return document.createElement('boilerplate-card-editor');
-	}
 
 	public static getStubConfig(): object {
 		return {};
