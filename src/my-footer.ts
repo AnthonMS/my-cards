@@ -21,7 +21,7 @@ import {
 import { subscribeRenderTemplate } from 'card-tools/src/templates'
 import { disableBodyScroll, enableBodyScroll } from 'body-scroll-lock'
 
-import type { BoilerplateCardConfig } from './types';
+import type { MyFooterCardConfig } from './types';
 import { actionHandler } from './action-handler-directive';
 import { FOOTER_VERSION } from './const';
 import { localize } from './localize/localize';
@@ -58,10 +58,10 @@ export class MyFooter extends LitElement {
 	}
 
 	@property({ attribute: false }) public hass!: HomeAssistant;
-	@internalProperty() private config!: BoilerplateCardConfig;
+	@internalProperty() private config!: MyFooterCardConfig;
 
 	// https://lit-element.polymer-project.org/guide/properties#accessors-custom
-	public setConfig(config: BoilerplateCardConfig): void {
+	public setConfig(config: MyFooterCardConfig): void {
 
 		// Run the content through a Jinja2 parser function and create new config field 'parsed_content'
 		this.applyTemplate(config.content ? config.content : '')
