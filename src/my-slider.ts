@@ -147,6 +147,7 @@ export class MySlider extends LitElement {
 		var thumbBorderLeft = conf.thumbBorderLeft ? conf.thumbBorderLeft : "var(--thumb-horizontal-padding) solid var(--slider-main-color)";
 		var thumbBorderTop = conf.thumbBorderTop ? conf.thumbBorderTop : "var(--thumb-vertical-padding) solid var(--slider-main-color)";
 		var thumbBorderBotton = conf.thumbBorderBotton ? conf.thumbBorderBotton : "var(--thumb-vertical-padding) solid var(--slider-main-color)";
+		var lockTrack = conf.lockTrack ? conf.lockTrack : false;
 		// top: calc((var(--slider-width) - var(--thumb-height)) / 2);
 		// border-right: var(--thumb-horizontal-padding) solid var(--slider-main-color);
 		// border-left: var(--thumb-horizontal-padding) solid var(--slider-main-color);
@@ -191,6 +192,8 @@ export class MySlider extends LitElement {
 			--thumb-border-left: ${thumbBorderLeft};
 			--thumb-border-top: ${thumbBorderTop};
 			--thumb-border-bottom: ${thumbBorderBotton};
+			
+			--lock-track-container: ${lockTrack ? 'none' : 'auto'};
 		`;
 
 		const updateValue = (e) => {
@@ -521,6 +524,7 @@ export class MySlider extends LitElement {
 				-o-transform: rotate(var(--rotate));
 				-ms-transform: rotate(var(--rotate));
 				transform: rotate(var(--rotate));
+				pointer-events: var(--lock-track-container);
 			}
 	  
 			.slider-container input[type="range"]::-webkit-slider-runnable-track {
@@ -546,6 +550,7 @@ export class MySlider extends LitElement {
 				border-left: var(--thumb-border-left);
 				border-top: var(--thumb-border-top);
 				border-bottom: var(--thumb-border-bottom);
+				pointer-events: auto;
 			}
 	  
 			.slider-container input[type=range]::-moz-range-thumb {
@@ -562,6 +567,7 @@ export class MySlider extends LitElement {
 			  border-left: var(--thumb-border-left);
 			  border-top: var(--thumb-border-top);
 			  border-bottom: var(--thumb-border-bottom);
+			  pointer-events: auto;
 			}
 	  
 			.slider-container input[type="range"]::-webkit-slider-thumb:hover {
