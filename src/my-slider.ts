@@ -13,18 +13,10 @@ import {
 import {
 	HomeAssistant,
 	hasConfigOrEntityChanged,
-	hasAction,
-	ActionHandlerEvent,
-	handleAction,
-	LovelaceCardEditor,
-	getLovelace,
 } from 'custom-card-helpers'; // This is a community maintained npm module with common helper functions/types
 import { disableBodyScroll, enableBodyScroll } from 'body-scroll-lock'
 
-import './editor';
-
-import type { BoilerplateCardConfig } from './types';
-import { actionHandler } from './action-handler-directive';
+import type { MySliderCardConfig } from './types';
 import { SLIDER_VERSION } from './const';
 import { localize } from './localize/localize';
 
@@ -47,10 +39,6 @@ console.info(
 @customElement('my-slider')
 export class MySlider extends LitElement {
 
-	public static async getConfigElement(): Promise<LovelaceCardEditor> {
-		return document.createElement('boilerplate-card-editor');
-	}
-
 	public static getStubConfig(): object {
 		return {};
 	}
@@ -64,15 +52,15 @@ export class MySlider extends LitElement {
 	}
 
 	@property({ attribute: false }) public hass!: HomeAssistant;
-	@internalProperty() private config!: BoilerplateCardConfig;
+	@internalProperty() private config!: MySliderCardConfig;
 
 	// https://lit-element.polymer-project.org/guide/properties#accessors-custom
-	public setConfig(config: BoilerplateCardConfig): void {
-		
+	public setConfig(config: MySliderCardConfig): void {
+
 		if (!config.entity) {
 			throw new Error("You need to define entity");
 		}
-	
+
 		if (!config.entity.includes("input_number.") && !config.entity.includes("light.") && !config.entity.includes("media_player.") && !config.entity.includes("cover.") && !config.entity.includes("fan.") && !config.entity.includes("switch.") && !config.entity.includes("lock.") ) {
 			throw new Error("Entity has to be a light, input_number, media_player, cover or a fan.");
 		}
@@ -158,7 +146,7 @@ export class MySlider extends LitElement {
 		// var entityClass = this.hass.states[entity]
 
 
-		
+
 		var styleStr = `
 			--slider-width: ${width};
 			--slider-width-inverse: -${width};
@@ -171,7 +159,7 @@ export class MySlider extends LitElement {
 			--slider-secondary-color-off: ${secondarySliderColorOff};
 			--slider-radius: ${radius};
 			--border: ${border};
-			
+
 			--thumb-width: ${thumbWidth};
 			--thumb-height: ${thumbHeight};
 			--thumb-color: ${(entity.state === "off" || entity.state == undefined) ? "var(--thumb-color-off)" : "var(--thumb-color-on)"};
@@ -226,12 +214,12 @@ export class MySlider extends LitElement {
 			}
 		};
 
-		
+
 		const toggleScroll = () => {
 			this.config.disabled_scroll = !this.config.disabled_scroll
 			if (this.config.disabled_scroll) {
 				disableBodyScroll(window)
-			} else { 
+			} else {
 				enableBodyScroll(window)
 			}
 		}
@@ -241,9 +229,9 @@ export class MySlider extends LitElement {
 				return html`
 					<ha-card>
 						<div class="slider-container" style="${styleStr}">
-							<input name="foo" type="range" class="${entity.state}" style="${styleStr}" 
-								min="${entity.attributes.min_mireds}" max="${entity.attributes.max_mireds}" 
-								step="${step}" .value="${entity.state === "off" ? 0 : entity.attributes.color_temp}" 
+							<input name="foo" type="range" class="${entity.state}" style="${styleStr}"
+								min="${entity.attributes.min_mireds}" max="${entity.attributes.max_mireds}"
+								step="${step}" .value="${entity.state === "off" ? 0 : entity.attributes.color_temp}"
 								@input=${handleInput} @change=${handleChange}
 								@touchstart=${conf.toggle_scroll ? toggleScroll : null}
 								@touchend=${conf.toggle_scroll ? toggleScroll : null} >
@@ -255,8 +243,8 @@ export class MySlider extends LitElement {
 				return html`
 					<ha-card>
 						<div class="slider-container" style="${styleStr}">
-							<input name="foo" type="range" class="${entity.state}" style="${styleStr}" 
-								step="${step}" .value="${entity.state === "off" ? 0 : Math.round(entity.attributes.brightness / 2.56)}" 
+							<input name="foo" type="range" class="${entity.state}" style="${styleStr}"
+								step="${step}" .value="${entity.state === "off" ? 0 : Math.round(entity.attributes.brightness / 2.56)}"
 								@input=${handleInput} @change=${handleChange}
 								@touchstart=${conf.toggle_scroll ? toggleScroll : null}
 								@touchend=${conf.toggle_scroll ? toggleScroll : null} >
@@ -270,9 +258,9 @@ export class MySlider extends LitElement {
 			return html`
 				<ha-card>
 					<div class="slider-container" style="${styleStr}">
-						<input name="foo" type="range" class="${entity.state}" style="${styleStr}" 
-							min="${entity.attributes.min}" max="${entity.attributes.max}" 
-							step="${step}" .value="${entity.state}" 
+						<input name="foo" type="range" class="${entity.state}" style="${styleStr}"
+							min="${entity.attributes.min}" max="${entity.attributes.max}"
+							step="${step}" .value="${entity.state}"
 							@input=${handleInput} @change=${handleChange}
 							@touchstart=${conf.toggle_scroll ? toggleScroll : null}
 							@touchend=${conf.toggle_scroll ? toggleScroll : null} >
@@ -290,8 +278,8 @@ export class MySlider extends LitElement {
 			return html`
 				<ha-card>
 					<div class="slider-container" style="${styleStr}">
-						<input name="foo" type="range" class="${entity.state}" style="${styleStr}" 
-							min="${minBar}" max="${maxBar}" step="${step}" .value="${num}" 
+						<input name="foo" type="range" class="${entity.state}" style="${styleStr}"
+							min="${minBar}" max="${maxBar}" step="${step}" .value="${num}"
 							@input=${handleInput} @change=${handleChange}
 							@touchstart=${conf.toggle_scroll ? toggleScroll : null}
 							@touchend=${conf.toggle_scroll ? toggleScroll : null} >
@@ -304,9 +292,9 @@ export class MySlider extends LitElement {
 			return html`
 				<ha-card>
 					<div class="slider-container" style="${styleStr}">
-						<input name="foo" type="range" class="${entity.state}" style="${styleStr}" 
-							min="${minBar}" max="${maxBar}" step="${step}" 
-							.value="${entity.attributes.current_position}" 
+						<input name="foo" type="range" class="${entity.state}" style="${styleStr}"
+							min="${minBar}" max="${maxBar}" step="${step}"
+							.value="${entity.attributes.current_position}"
 							@input=${handleInput} @change=${handleChange}
 							@touchstart=${conf.toggle_scroll ? toggleScroll : null}
 							@touchend=${conf.toggle_scroll ? toggleScroll : null} >
@@ -319,9 +307,9 @@ export class MySlider extends LitElement {
 			return html`
 				<ha-card>
 					<div class="slider-container" style="${styleStr}">
-						<input name="foo" type="range" class="${entity.state}" style="${styleStr}" 
-							min="${minBar}" max="${maxBar}" step="${step}" 
-							.value="${entity.attributes.percentage}" 
+						<input name="foo" type="range" class="${entity.state}" style="${styleStr}"
+							min="${minBar}" max="${maxBar}" step="${step}"
+							.value="${entity.attributes.percentage}"
 							@input=${handleInput} @change=${handleChange}
 							@touchstart=${conf.toggle_scroll ? toggleScroll : null}
 							@touchend=${conf.toggle_scroll ? toggleScroll : null} >
@@ -334,8 +322,8 @@ export class MySlider extends LitElement {
 			return html`
 				<ha-card>
 					<div class="slider-container" style="${styleStr}">
-						<input name="foo" type="range" class="${entity.state}" style="${styleStr}" 
-							min="${minBar}" max="${maxBar}" step="${step}" .value="${minBar}" 
+						<input name="foo" type="range" class="${entity.state}" style="${styleStr}"
+							min="${minBar}" max="${maxBar}" step="${step}" .value="${minBar}"
 							@input=${handleInput} @change=${handleChange}
 							@touchstart=${conf.toggle_scroll ? toggleScroll : null}
 							@touchend=${conf.toggle_scroll ? toggleScroll : null} >
@@ -348,8 +336,8 @@ export class MySlider extends LitElement {
 			return html`
 				<ha-card>
 					<div class="slider-container" style="${styleStr}">
-						<input name="foo" type="range" class="${entity.state}" style="${styleStr}" 
-							min="${minBar}" max="${maxBar}" step="${step}" .value="${minBar}" 
+						<input name="foo" type="range" class="${entity.state}" style="${styleStr}"
+							min="${minBar}" max="${maxBar}" step="${step}" .value="${minBar}"
 							@input=${handleInput} @change=${handleChange}
 							@touchstart=${conf.toggle_scroll ? toggleScroll : null}
 							@touchend=${conf.toggle_scroll ? toggleScroll : null} >
@@ -365,7 +353,7 @@ export class MySlider extends LitElement {
 	// 		handleAction(this, this.hass, this.config, ev.detail.action);
 	// 	}
 	// }
-	
+
 	private _setBrightness(_entity, _target, _minSet, _maxSet): void {
 		var value = _target.value;
 		if (value > _maxSet) {
@@ -373,16 +361,16 @@ export class MySlider extends LitElement {
 		} else if (value < _minSet) {
 			value = _minSet;
 		}
-	
+
 		this.hass.callService("homeassistant", "turn_on", {
 			entity_id: _entity.entity_id,
 			brightness: value * 2.56
 		});
-	
+
 		_target.value = value;
-	
+
 	}
-	
+
 	private _setWarmth(_entity, _target, _minSet, _maxSet): void {
 		var value = _target.value;
 		if (value > _maxSet) {
@@ -390,15 +378,15 @@ export class MySlider extends LitElement {
 		} else if (value < _minSet) {
 			value = _minSet;
 		}
-	
+
 		this.hass.callService("homeassistant", "turn_on", {
 			entity_id: _entity.entity_id,
 			color_temp: value
 		});
-	
+
 		_target.value = value;
 	}
-	
+
 	private _setInputNumber(_entity, _target, _minSet, _maxSet): void {
 		var value = _target.value;
 		if (value > _maxSet) {
@@ -406,16 +394,16 @@ export class MySlider extends LitElement {
 		} else if (value < _minSet) {
 			value = _minSet;
 		}
-	
+
 		this.hass.callService("input_number", "set_value", {
 			entity_id: _entity.entity_id,
 			value: value
 		});
-	
+
 		_target.value = value;
 	}
 
-	
+
 	private _setFan(_entity, _target, _minSet, _maxSet): void {
 		var value = _target.value;
 		if (value > _maxSet) {
@@ -423,15 +411,15 @@ export class MySlider extends LitElement {
 		} else if (value < _minSet) {
 			value = _minSet;
 		}
-	
+
 		this.hass.callService("fan", "set_percentage", {
 			entity_id: _entity.entity_id,
 			percentage: value
 		});
-	
+
 		_target.value = value;
 	}
-	
+
 	private _setCover(_entity, _target, _minSet, _maxSet): void {
 		var value = _target.value;
 		if (value > _maxSet) {
@@ -439,15 +427,15 @@ export class MySlider extends LitElement {
 		} else if (value < _minSet) {
 			value = _minSet;
 		}
-		
+
 		this.hass.callService("cover", "set_cover_position", {
 			entity_id: _entity.entity_id,
 			position: value
 		});
-		
+
 		_target.value = value;
 	}
-	
+
 	private _setMediaVolume(_entity, _target, _minSet, _maxSet): void {
 		var value = _target.value;
 		if (value > _maxSet) {
@@ -455,15 +443,15 @@ export class MySlider extends LitElement {
 		} else if (value < _minSet) {
 			value = _minSet;
 		}
-	
+
 		this.hass.callService("media_player", "volume_set", {
 			entity_id: _entity.entity_id,
 			volume_level: value / 100
 		});
-	
+
 		_target.value = value;
 	}
-	
+
 	private _setSwitch(_entity, _target, _minSet, _maxSet, _minBar, _maxBar): void {
 		var value = _target.value;
 		var threshold = Math.min(_maxSet, _maxBar) //pick lesser of the two
@@ -472,10 +460,10 @@ export class MySlider extends LitElement {
 				entity_id: _entity.entity_id
 			});
 		}
-	
+
 		_target.value = Number(Math.max(_minSet, _minBar));
 	}
-	
+
 	private _setLock(_entity, _target, _minSet, _maxSet, _minBar, _maxBar): void {
 		var value = _target.value;
 		var threshold = Math.min(_maxSet, _maxBar) //pick lesser of the two
@@ -485,10 +473,10 @@ export class MySlider extends LitElement {
 				entity_id: _entity.entity_id
 			});
 		}
-	
+
 		_target.value = Number(Math.max(_minSet, _minBar));
 	}
-	
+
 
 	// https://lit-element.polymer-project.org/guide/styles
 	static get styles(): CSSResult {
@@ -499,7 +487,7 @@ export class MySlider extends LitElement {
 				overflow: hidden;
 				border-radius: var(--slider-radius);
 			}
-	  
+
 			.slider-container input[type="range"] {
 				outline: 0;
 				border: var(--border);
@@ -522,14 +510,14 @@ export class MySlider extends LitElement {
 				-ms-transform: rotate(var(--rotate));
 				transform: rotate(var(--rotate));
 			}
-	  
+
 			.slider-container input[type="range"]::-webkit-slider-runnable-track {
 				height: var(--slider-height);
 				-webkit-appearance: none;
 				color: var(--slider-main-color);
 				transition: box-shadow 0.2s ease-in-out;
 			}
-	  
+
 			.slider-container input[type="range"]::-webkit-slider-thumb {
 				width: var(--thumb-width);
 				height: var(--thumb-height);
@@ -538,19 +526,19 @@ export class MySlider extends LitElement {
 				border-radius: 0;
 				transition: box-shadow 0.2s ease-in-out;
 				position: relative;
-	  
+
 				box-shadow: -3500px 0 0 3500px var(--slider-main-color), inset 0 0 0 25px var(--thumb-color);
-	  
+
 				top: var(--thumb-top);
 				border-right: var(--thumb-border-right);
 				border-left: var(--thumb-border-left);
 				border-top: var(--thumb-border-top);
 				border-bottom: var(--thumb-border-bottom);
 			}
-	  
+
 			.slider-container input[type=range]::-moz-range-thumb {
 			  width: calc(var(--thumb-width) / 4);
-			  height: calc(var(--thumb-height) / 2); 
+			  height: calc(var(--thumb-height) / 2);
 			  box-shadow: -3500px 10px 0 3500px var(--slider-main-color), inset 0 0 0 25px var(--thumb-color);
 			  top: var(--thumb-top);
 			  cursor: ew-resize;
@@ -563,11 +551,11 @@ export class MySlider extends LitElement {
 			  border-top: var(--thumb-border-top);
 			  border-bottom: var(--thumb-border-bottom);
 			}
-	  
+
 			.slider-container input[type="range"]::-webkit-slider-thumb:hover {
 				cursor: default;
 			}
-	  
+
 			.slider-container input[type="range"]:hover {
 			  cursor: default;
 			}

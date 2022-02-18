@@ -17,15 +17,11 @@ import {
 	hasAction,
 	ActionHandlerEvent,
 	handleAction,
-	LovelaceCardEditor,
-	getLovelace,
 } from 'custom-card-helpers'; // This is a community maintained npm module with common helper functions/types
 import { subscribeRenderTemplate } from 'card-tools/src/templates'
 import { disableBodyScroll, enableBodyScroll } from 'body-scroll-lock'
 
-import './editor';
-
-import type { BoilerplateCardConfig } from './types';
+import type { MyFooterCardConfig } from './types';
 import { actionHandler } from './action-handler-directive';
 import { FOOTER_VERSION } from './const';
 import { localize } from './localize/localize';
@@ -49,10 +45,6 @@ console.info(
 @customElement('my-footer')
 export class MyFooter extends LitElement {
 
-	public static async getConfigElement(): Promise<LovelaceCardEditor> {
-		return document.createElement('boilerplate-card-editor');
-	}
-
 	public static getStubConfig(): object {
 		return {};
 	}
@@ -66,10 +58,10 @@ export class MyFooter extends LitElement {
 	}
 
 	@property({ attribute: false }) public hass!: HomeAssistant;
-	@internalProperty() private config!: BoilerplateCardConfig;
+	@internalProperty() private config!: MyFooterCardConfig;
 
 	// https://lit-element.polymer-project.org/guide/properties#accessors-custom
-	public setConfig(config: BoilerplateCardConfig): void {
+	public setConfig(config: MyFooterCardConfig): void {
 
 		// Run the content through a Jinja2 parser function and create new config field 'parsed_content'
 		this.applyTemplate(config.content ? config.content : '')
@@ -84,9 +76,9 @@ export class MyFooter extends LitElement {
 					...config,
 				}
 			})
-	
+
 		// // Old code to set config, use if not parsing jinja2
-		// this.config = { 
+		// this.config = {
 		// 	name: 'MyFooter',
 		// 	...config,
 		// };
@@ -117,7 +109,7 @@ export class MyFooter extends LitElement {
 		// console.log('Entity Name:', entityName)
 		// console.log('Entity:', entity)
 		// conf.buttons[0]
-		
+
 		const styles = conf.styles ? conf.styles : {}
 		const buttons = conf.buttons ? conf.buttons : []
 
@@ -139,7 +131,7 @@ export class MyFooter extends LitElement {
 			return Object.keys(style).reduce((acc, key) => (
 				acc + key.split(/(?=[A-Z])/).join('-').toLowerCase() + ':' + style[key] + ';'
 			), '');
-		} 
+		}
 
 		const toggleScroll = () => {
 			this.config.disabled_scroll = !this.config.disabled_scroll
@@ -161,7 +153,7 @@ export class MyFooter extends LitElement {
 
 					<div class="button-container">
 						<div class="button">
-							<ha-icon class="icon" icon="mdi:cog-outline" style="" 
+							<ha-icon class="icon" icon="mdi:cog-outline" style=""
 								@action=${e => {
 									this._handleDynamicButton(e, {toggle: this.config.scroll_disabled})
 									// console.log('Testing!!!')
@@ -175,7 +167,7 @@ export class MyFooter extends LitElement {
 							buttons.map((item, index) => {
 								return html`
 									<div class="button">
-										<ha-icon class="icon" key="${index}" icon="${item.button.icon}" style="" 
+										<ha-icon class="icon" key="${index}" icon="${item.button.icon}" style=""
 											@action=${e => this._handleDynamicButton(e, item.button)}
 											.actionHandler=${actionHandler({
 												hasHold: hasAction(item.hold_action),
@@ -206,7 +198,7 @@ export class MyFooter extends LitElement {
 		}
 	}
 
-	
+
 	  // Promisified wrapper around subscribeRenderTemplate to allow this to be called as an async function
 	private parseTemplate(template, variables): Promise<string> {
 		return new Promise((resolve, reject) => {
@@ -214,10 +206,10 @@ export class MyFooter extends LitElement {
 				async (result) => {
 					resolve(result);
 				},
-				{template: template, variables: variables, 
+				{template: template, variables: variables,
 				entity_ids: []}, false);
 				let unsub = console.log;
-				
+
 				// Catch any errors and unsubscribe
 				(async () => {
 					try {
@@ -229,18 +221,18 @@ export class MyFooter extends LitElement {
 			})();
 		})
 	}
-	 
+
 	private async applyTemplate(template): Promise<string>{
 		try{
-				const _templateVariables = { 
+				const _templateVariables = {
 					user: {
-						name: 'Anthon', 
+						name: 'Anthon',
 						is_admin: true,
 						is_owner: true
 					},
 					page: {
 						...location,
-						path: location.pathname			
+						path: location.pathname
 					},
 					// theme: this.hass.selectedTheme ? this.hass.selectedTheme : this.hass.themes.default_theme
 					theme: 'Dark - Wooden'
@@ -263,16 +255,16 @@ export class MyFooter extends LitElement {
 			.footer-container {
 				display: flex;
 			}
-			
+
 			.text-container {
-				
+
 			}
 			.text-container p {
 				border: inherit;
 				margin: 0;
 				padding: 0;
 			}
-			
+
 			.button-container {
 				flex-grow: 1;
 				padding-right: 20px;
