@@ -37,6 +37,7 @@ Everything under function in the options table is css styling, so it is possible
 | entity | string | **Required** | `light.living_room` |
 | intermediate | boolean | false | If set to `true` the slider sends immediate updates while sliding. Not recommended by default, since it may generate too many updates. |
 |toggle_scroll| boolean | false | Disable page scroll when touchevent starts inside slider and enable when touch stops again. (Disable page scrolling when using the slider. This is gonna be used a lot when vertical sliders are a thing) |
+| lockTrack | boolean | false | Locks the track on the slider allowing only the thumb to be interactive |
 |minBar| int | 0 | Set minimum value slider bar will display for `media_player`, `fan`, and `cover` entities |
 |maxBar| int | 100 | Set maximum value slider bar will display for `media_player`, `fan`, and `cover` entities |
 |minSet| int | 0 | Set minimum value entity can change |
