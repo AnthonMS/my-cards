@@ -65,8 +65,8 @@ Everything under function in the options table is css styling, so it is possible
 | thumbVerticalPadding | string | 20px | Vertical padding of thumb |
 
 ## Installation
-### HACS (Detailed explanation [#17][i17])
-1. Add this repo to HACS (Please DON'T open an issue asking how. Google it, I know you can do it!)
+### HACS
+1. Add this repo to HACS (Detailed explanation ([#17][i17]))
 2. Install
 3. Add something in the line of this to the configuration:
 ```yaml
