@@ -66,7 +66,7 @@ Everything under function in the options table is css styling, so it is possible
 
 ## Installation
 ### HACS
-1. Add this repo to HACS (Detailed explanation ([#17][i17]))
+1. Add this repo to HACS ([Detailed explanation](https://github.com/AnthonMS/my-cards/issues/17))
 2. Install
 3. Add something in the line of this to the configuration:
 ```yaml
