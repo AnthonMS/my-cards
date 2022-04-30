@@ -12,7 +12,7 @@
   ],
   "module": "my-cards.js",
   "repository": "https://github.com/AnthonMS/my-cards.git",
-  "author": "Anthon Steiness <Anthon@Steiness.info>",
+  "author": "Anthon M. Steiness <Anthon@Steiness.info>",
   "license": "MIT",
   "dependencies": {
     "body-scroll-lock": "^4.0.0-beta.0",

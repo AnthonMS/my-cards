@@ -24,3 +24,7 @@ export interface MyFooterCardConfig extends LovelaceCardConfig {
   hold_action?: ActionConfig;
   double_tap_action?: ActionConfig;
 }
+
+export interface MyDashboardCardConfig extends LovelaceCardConfig {
+    entity: string;
+}
