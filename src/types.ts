@@ -12,6 +12,11 @@ export interface MySliderCardConfig extends LovelaceCardConfig {
   entity: string;
 }
 
+export interface MyButtonLightCardConfig extends LovelaceCardConfig {
+    type: string;
+    entity: string;
+}
+
 // TODO Add your configuration elements here for type-checking
 export interface MyFooterCardConfig extends LovelaceCardConfig {
   type: string;

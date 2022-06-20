@@ -40,7 +40,7 @@ console.info(
 export class MySlider extends LitElement {
 
 	public static getStubConfig(): object {
-		return {};
+		return {}
 	}
 
 	static get properties() {
@@ -48,7 +48,7 @@ export class MySlider extends LitElement {
 			hass: {},
 			config: {},
 			active: {}
-		};
+		}
 	}
 
 	@property({ attribute: false }) public hass!: HomeAssistant;
@@ -69,7 +69,7 @@ export class MySlider extends LitElement {
 			name: 'MySlider',
 			disabled_scroll: false,
 			...config,
-		};
+		}
 
 		// console.log('this.config initial:', this.config)
 	}
@@ -77,10 +77,10 @@ export class MySlider extends LitElement {
 	// https://lit-element.polymer-project.org/guide/lifecycle#shouldupdate
 	protected shouldUpdate(changedProps: PropertyValues): boolean {
 		if (!this.config) {
-			return false;
+			return false
 		}
 
-		return hasConfigOrEntityChanged(this, changedProps, false);
+		return hasConfigOrEntityChanged(this, changedProps, false)
 	}
 
 	// https://lit-element.polymer-project.org/guide/templates
@@ -90,14 +90,14 @@ export class MySlider extends LitElement {
 
 		// -- Make copy of the config, this way we can add empty -- //
 		// -- objects and save ourselves a lot of if statements -- //
-		var conf = JSON.parse(JSON.stringify(this.config));
+		var conf = JSON.parse(JSON.stringify(this.config))
 		const entityId = this.config.entity ? this.config.entity : "ERROR: NO ENTITY ID"
 		const entityName = this.config.entity?.split(".")[1]
 		const entity = this.hass.states[`${entityId}`]
 
 
   		// // Size Variables
-		var step = conf.step ? conf.step: "1";
+		var step = conf.step ? conf.step: "1"
 		if (entityId.includes("input_number.")) {
 			step = conf.step ? conf.step: entity.attributes.step;
 		}
