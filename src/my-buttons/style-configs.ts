@@ -1,10 +1,8 @@
 export const getStyle = (e:string, style:any) => {
     switch (e) {
         case 'my-button-card':
-            // console.log('Getting my-button-card styles')
             return cardStyle(style)
         case 'my-button-icon':
-            // console.log('Getting my-button-card styles')
             return iconStyle(style)
         case 'my-button-label':
             return labelStyle(style)
@@ -26,16 +24,11 @@ export const getStyle = (e:string, style:any) => {
 
 const cardStyle = (style:any) => {
     if (!style) style = {}
-    // console.log('creating default styles for card:', style)
-    // var mainSliderColor = conf.mainSliderColor ? conf.mainSliderColor : "var(--accent-color)";
-    // var secondarySliderColor = conf.secondarySliderColor ? conf.secondarySliderColor : "#4d4d4d";
-    // var mainSliderColorOff = conf.mainSliderColorOff ? conf.mainSliderColorOff : "#636363";
-    // var secondarySliderColorOff = conf.secondarySliderColorOff ? conf.secondarySliderColorOff : "#4d4d4d";
-    
     return {
         // ...(style.backgroundColor && {backgroundColor: style.backgroundColor}),
         height: style.height ? style.height : '125px',
         width: style.width ? style.width : '100%',
+        'min-width': 'fit-content',
         background: style.background ? style.background : 'var(--card-background-color)',
         ...style
     }
