@@ -14,7 +14,8 @@ console.info(
 
 
 export { MySlider } from './my-slider'
-// export { MyButtonLight } from './my-buttons/my-button-light'
+export { MyButtonLight } from './my-buttons/my-button-light'
+export { MyButtonCover } from './my-buttons/my-button-cover'
 
 // export { MyFooter } from './my-footer'
 // export { MyDashboard } from './my-dashboard'

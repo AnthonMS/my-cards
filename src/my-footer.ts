@@ -171,9 +171,9 @@ export class MyFooter extends LitElement {
 										<ha-icon class="icon" key="${index}" icon="${item.button.icon}" style=""
 											@action=${e => this._handleDynamicButton(e, item.button)}
 											.actionHandler=${actionHandler({
-                    hasHold: hasAction(item.hold_action),
-                    hasDoubleClick: hasAction(item.double_tap_action)
-                })} />
+                                            hasHold: hasAction(item.hold_action),
+                                            hasDoubleClick: hasAction(item.double_tap_action)
+                                        })} />
 									</div>
 								`
             })

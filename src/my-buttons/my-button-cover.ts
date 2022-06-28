@@ -10,27 +10,27 @@ import {
     PropertyValues,
     internalProperty,
 } from 'lit-element';
+// import { HassEntity } from 'home-assistant-js-websocket'
 import {
     HomeAssistant,
     hasConfigOrEntityChanged,
     hasAction,
     ActionHandlerEvent,
     handleAction,
-    // LovelaceCardEditor,
-    // getLovelace
+    handleClick,
 } from 'custom-card-helpers'; // This is a community maintained npm module with common helper functions/types
 import { actionHandler } from '../action-handler-directive';
 import { disableBodyScroll, enableBodyScroll } from 'body-scroll-lock'
 
-import type { MyButtonLightCardConfig } from '../types';
-import { BUTTON_LIGHT_VERSION } from '../const';
+import type { MyButtonCoverCardConfig } from '../types';
+import { BUTTON_COVER_VERSION } from '../const';
 import { localize } from '../localize/localize';
 import { objectToStyleString } from '../helpers'
 import { getStyle } from './style-configs'
 
 /* eslint no-console: 0 */
 console.info(
-    `%c  ---- MY-BUTTON-LIGHT ---- \n%c  ${localize('common.version')} ${BUTTON_LIGHT_VERSION}    `,
+    `%c  ---- MY-BUTTON-COVER ---- \n%c  ${localize('common.version')} ${BUTTON_COVER_VERSION}    `,
     'color: orange; font-weight: bold; background: black',
     'color: white; font-weight: bold; background: green',
 );
@@ -38,15 +38,16 @@ console.info(
 // This puts your card into the UI card picker dialog
 (window as any).customCards = (window as any).customCards || [];
 (window as any).customCards.push({
-    type: 'my-button-light',
-    name: 'Light Button Card',
-    description: 'Custom Light Button Card for Lovelace.',
+    type: 'my-button-cover',
+    name: 'Cover Button Card',
+    description: 'Custom Cover Button Card for Lovelace.',
 });
 
-let computed_styles = {}
-// TODONE Name your custom element
-@customElement('my-button-light')
-export class MyButtonLight extends LitElement {
+@customElement('my-button-cover')
+export class MyButtonCover extends LitElement {
+    // private _stateObj: HassEntity | undefined;
+    // private _evaledVariables: any | undefined;
+
     public static getStubConfig(): object {
         return {}
     }
@@ -60,21 +61,21 @@ export class MyButtonLight extends LitElement {
     }
 
     @property({ attribute: false }) public hass!: HomeAssistant;
-    @internalProperty() private config!: MyButtonLightCardConfig;
+    @internalProperty() private config!: MyButtonCoverCardConfig;
 
     // https://lit-element.polymer-project.org/guide/properties#accessors-custom
-    public setConfig(config: MyButtonLightCardConfig): void {
+    public setConfig(config: MyButtonCoverCardConfig): void {
 
         if (!config.entity) {
             throw new Error("You need to define entity");
         }
 
-        if (!config.entity.includes("light.")) {
-            throw new Error("Entity has to be a light.");
+        if (!config.entity.includes("cover.")) {
+            throw new Error("Entity has to be a cover.");
         }
 
         this.config = {
-            name: 'MyButtonLight',
+            name: 'MyButtonCover',
             disabled_scroll: false,
             ...config,
         }
@@ -93,14 +94,16 @@ export class MyButtonLight extends LitElement {
     protected render(): TemplateResult | void {
         // console.log('Config:', this.config)
         // var conf = JSON.parse(JSON.stringify(this.config))
-        const styles = this.config.styles ? this.config.styles : {}
-        const entityId = this.config.entity ? this.config.entity : "ERROR: NO ENTITY ID"
+        const styles = this.config.styles ? JSON.parse(JSON.stringify(this.config.styles)) : {}
+        const entityId = this.config.entity ? this.config.entity : "ERROR"
         const entity = this.hass.states[`${entityId}`]
 
         // ---- Icon Config ---- //
         const defaultIconAttr = {
             show: true,
-            icon: 'mdi:cog-outline'
+            icon: '',
+            iconOpen: 'mdi:blinds-open',
+            iconClose: 'mdi:blinds',
         }
         // If icon is just a string, then save that under iconConfig. If it's an object, then combine default with custom configs. If nothing then just use default config
         const iconConfig = typeof this.config.icon === 'string' ? { ...defaultIconAttr, icon: this.config.icon } : typeof this.config.icon === 'object' ? { ...defaultIconAttr, ...this.config.icon } : defaultIconAttr
@@ -108,7 +111,8 @@ export class MyButtonLight extends LitElement {
         // ---- Label Config ---- //
         const defaultLabelAttr = {
             show: true,
-            text: entity.attributes.friendly_name
+            text: entity.attributes.friendly_name,
+            vertical: true
         }
         // If label is just a string, then save that under labelConfig. If it's an object, then combine default with custom configs. If nothing then just use default config
         const labelConfig = typeof this.config.label === 'string' ? { ...defaultLabelAttr, text: this.config.label } : typeof this.config.label === 'object' ? { ...defaultLabelAttr, ...this.config.label } : defaultLabelAttr
@@ -117,33 +121,17 @@ export class MyButtonLight extends LitElement {
         const defaultSliderConfig = {
             min: 0,
             max: 100,
-            step: '1',
-            show: true
+            step: '1'
         }
         const sliderConfig = this.config.slider ? { ...defaultSliderConfig, ...this.config.slider } : defaultSliderConfig
 
-
+        // ---- Styles ---- //
         const cardStyle = getStyle('my-button-card', styles.card)
         const iconStyle = getStyle('my-button-icon', styles.icon)
-        const labelStyle = getStyle('my-button-label', styles.label)
-        const { containerStyle, inputStyle } = getStyle('my-button-slider', styles.slider)
-
-        // Update colors based on entity state
-        if (entity.state === 'on') {
-            if (cardStyle['color-on']) cardStyle.background = cardStyle['color-on']
-            if (iconStyle['color-on']) iconStyle.color = iconStyle['color-on']
-            if (labelStyle['color-on']) labelStyle.color = labelStyle['color-on']
-            if (containerStyle['color-on']) containerStyle['--slider-color'] = containerStyle['color-on']
-        }
-        else {
-            if (cardStyle['color-off']) cardStyle.background = cardStyle['color-off']
-            if (iconStyle['color-off']) iconStyle.color = iconStyle['color-off']
-            else iconStyle.color = 'var(--paper-item-icon-color)'
-            if (labelStyle['color-off']) labelStyle.color = labelStyle['color-off']
-            if (containerStyle['color-off']) containerStyle['--slider-color'] = containerStyle['color-off']
-            else containerStyle['--slider-color'] = 'var(--paper-slider-secondary-color)'
-        }
-
+        const labelStyle = labelConfig.vertical ? getStyle('my-button-label-vertical', styles.label) : getStyle('my-button-label', styles.label)
+        const labelWrapperStyle = getStyle('my-button-label-wrapper', styles['label-wrapper'])
+        const { containerStyle, inputStyle } = getStyle('my-button-slider-vertical', styles.slider)
+        const sliderWrapperStyle = getStyle('my-button-slider-wrapper', styles.slider?.wrapper)
 
         const toggleScroll = () => {
             this.config.disabled_scroll = !this.config.disabled_scroll
@@ -155,68 +143,88 @@ export class MyButtonLight extends LitElement {
         }
 
         const handleSlider = (e) => {
-            this._setBrightness(entity, e.target, sliderConfig.min, sliderConfig.max)
+            this._setCover(entity, e.target, sliderConfig.min, sliderConfig.max)
         }
+
+        if (entityId === 'ERROR')
+            return html`<ha-card>Error: No Entity ID</ha-card>`
+
 
         const icon = () => {
             if (!iconConfig.show) return html``
+            let icon = iconConfig.icon ? iconConfig.icon : ''
+            let iconOpen = iconConfig.iconOpen ? iconConfig.iconOpen : 'mdi:blinds-open'
+            let iconClose = iconConfig.iconClose ? iconConfig.iconClose : 'mdi:blinds'
+
+            if (icon === '') {
+                icon = iconClose
+                if (entity.attributes.current_position >= 50) {
+                    icon = iconOpen
+                }
+            }
 
             return html`
-                <ha-icon class="my-button-icon" icon="${iconConfig.icon}" style="${objectToStyleString(iconStyle)}"
-                    @action=${e => this._handleAction(e, this.config)}
+                <ha-icon class="my-button-icon" icon="${icon}" style="${objectToStyleString(iconStyle)}"
+                    @action=${e => this._handleAction(e, iconConfig)}
                     .actionHandler=${actionHandler({
-                hasDoubleClick: this.config?.double_tap_action?.action !== 'none',
-                hasHold: this.config?.hold_action?.action !== 'none',
-            })} />
-            `
-        }
-
-        const slider = () => {
-            if (!sliderConfig.show) return html``
-
-            return html`
-                <div class="slider-container" style="${objectToStyleString(containerStyle)}">
-                    <input name="slider" type="range" class="" style="${objectToStyleString(inputStyle)}"
-                        min="${sliderConfig.min}" max="${sliderConfig.max}" step="${sliderConfig.step}" 
-                        value="${entity.state === "off" ? 0 : Math.round(entity.attributes.brightness / 2.56)}"
-                        @change=${!sliderConfig.intermediate && handleSlider}
-                        @input=${sliderConfig.intermediate && handleSlider}
-                        @touchstart=${sliderConfig.toggle_scroll ? toggleScroll : null}
-                        @touchend=${sliderConfig.toggle_scroll ? toggleScroll : null}
-                    />
-                </div>
+                hasDoubleClick: iconConfig?.double_tap_action?.action !== 'none',
+                hasHold: iconConfig?.hold_action?.action !== 'none',
+            })}
+                />
             `
         }
 
         const label = () => {
             if (!labelConfig.show) return html``
-
             return html`
-                <label class="my-button-label" style="${objectToStyleString(labelStyle)}">${labelConfig.text}</label>
+                <div style="${labelConfig.vertical ? objectToStyleString(labelWrapperStyle) : 'display: block;'}"
+                    @action=${e => this._handleAction(e, labelConfig)}
+                    .actionHandler=${actionHandler({
+                hasDoubleClick: labelConfig?.double_tap_action?.action !== 'none',
+                hasHold: labelConfig?.hold_action?.action !== 'none',
+            })}
+                >
+
+                    <label style="${objectToStyleString(labelStyle)}">${labelConfig.text}</label>
+                </div>
             `
         }
 
         return html`
             <ha-card class="my-button-card" style="${objectToStyleString(cardStyle)}">
-                <div class="flex-container">
-                    <div class="row-1" 
-                    @action=${e => this._handleAction(e, this.config)}
-                    .actionHandler=${actionHandler({
+                <div class="my-button-wrapper">
+                    <div class="flex-container-columns">
+                        <div class="column-1"
+                            @action=${e => this._handleAction(e, this.config)}
+                            .actionHandler=${actionHandler({
             hasDoubleClick: this.config?.double_tap_action?.action !== 'none',
             hasHold: this.config?.hold_action?.action !== 'none',
-        })}>
-                        ${icon()}
-                    </div>
-                    <div class="row-2" 
-                    @action=${e => this._handleAction(e, this.config)}
-                    .actionHandler=${actionHandler({
-            hasDoubleClick: this.config?.double_tap_action?.action !== 'none',
-            hasHold: this.config?.hold_action?.action !== 'none',
-        })}>
-                        ${label()}
-                    </div>
-                    <div class="row-3">
-                        ${slider()}
+        })}
+                        >
+                            <div class="flex-container-rows">
+                                <div class="row-1">
+                                    ${icon()}
+                                </div>
+                                <div class="row-2">
+                                    ${label()}
+                                </div>
+                                <div class="row-3"></div>
+                            </div>
+                        </div>
+                        <div class="column-2">
+                            <div style="${objectToStyleString(sliderWrapperStyle)}">
+                                <div class="slider-container" style="${objectToStyleString(containerStyle)}">
+                                    <input name="slider" type="range" class="" style="${objectToStyleString(inputStyle)}"
+                                        min="${sliderConfig.min}" max="${sliderConfig.max}" step="${sliderConfig.step}" 
+                                        value="${entity.attributes.current_position}"
+                                        @change=${!sliderConfig.intermediate && handleSlider}
+                                        @input=${sliderConfig.intermediate && handleSlider}
+                                        @touchstart=${sliderConfig.toggle_scroll ? toggleScroll : null}
+                                        @touchend=${sliderConfig.toggle_scroll ? toggleScroll : null}
+                                    />
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </ha-card>
@@ -262,31 +270,20 @@ export class MyButtonLight extends LitElement {
         handleAction(this, this.hass, actionConfig, 'double_tap')
     }
 
-    private _showWarning(warning: string): TemplateResult {
-        return html` <hui-warning>${warning}</hui-warning> `;
-    }
+    private _setCover(_entity, _target, _minSet, _maxSet): void {
+        var value = _target.value;
+        if (value > _maxSet) {
+            value = _maxSet;
+        } else if (value < _minSet) {
+            value = _minSet;
+        }
 
-    private _showError(error: string): TemplateResult {
-        const errorCard = document.createElement('hui-error-card');
-        errorCard.setConfig({
-            type: 'error',
-            error,
-            origConfig: this.config,
+        this.hass.callService("cover", "set_cover_position", {
+            entity_id: _entity.entity_id,
+            position: value
         });
 
-        return html` ${errorCard} `;
-    }
-
-    private _setBrightness(_entity, _target, _minSet: number, _maxSet: number): void {
-        // Set to max or min of value exceed, otherwise set to target.value
-        const value = _target.value > _maxSet ? _maxSet : _target.value < _minSet ? _minSet : _target.value
-
-        this.hass.callService("homeassistant", "turn_on", {
-            entity_id: _entity.entity_id,
-            brightness: value * 2.56
-        })
-
-        _target.value = value
+        _target.value = value;
     }
 
     // https://lit-element.polymer-project.org/guide/styles
@@ -295,26 +292,46 @@ export class MyButtonLight extends LitElement {
             .my-button-icon {
                 --mdc-icon-size: 100%;
             }
-            .flex-container {
+            .my-button-wrapper {
+                height: 100%;
+                width: 100%;
+                margin: 0;
+                padding: 0;
+                position: relative;
+            }
+            .flex-container-columns {
+                padding: 0;
+                margin: 0;
+                display: flex;
+                flex-flow: row;
+                height: 100%;
+            }
+            .flex-container-columns .column-1 {
+                flex: 1;
+            }
+            .flex-container-columns .column-2 {
+                flex: 0;
+            }
+
+            .flex-container-rows {
                 padding: 0;
                 margin: 0;
                 display: flex;
                 flex-flow: column;
                 height: 100%;
             }
-            .flex-container div {
-            }
             
-            .flex-container .row-1 {
+            .flex-container-rows .row-1 {
                 flex: 0 1 auto; 
             }
-            .flex-container .row-2 {
+            .flex-container-rows .row-2 {
                 flex: 1 1 auto;
+                padding-bottom: 5px;
             }
-            .flex-container .row-3 {
+            .flex-container-rows .row-3 {
                 flex: 0 1 auto;
-                margin: 0 2px 2px 2px;
             }
+
 
             .slider-container input[type="range"]::-webkit-slider-runnable-track {
                 height: 100%;
@@ -370,12 +387,14 @@ export class MyButtonLight extends LitElement {
     }
 }
 
-
 // Options:
 
 // entity
 // icon
-// name
+// label
+//   text
+//   show
+//   vertical
 // slider
 //   intermediate
 //   step
@@ -390,10 +409,11 @@ export class MyButtonLight extends LitElement {
 //     color-on: green
 //     color-off: red
 //   label
+//   label-wrapper (only used if label.vertical = true)
 //   slider:
-    // container:
-    //     color-on: rgba(253, 216, 53, 1)
-    //     color-off: rgba(86, 86, 86, 0.75)
+//     container:
+//         color-on: rgba(253, 216, 53, 1)
+//         color-off: rgba(86, 86, 86, 0.75)
 //     input:
 //       height: 100%
 //     track: (Not implemented yet)
