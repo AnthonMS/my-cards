@@ -47,6 +47,10 @@ let computed_styles = {}
 // TODONE Name your custom element
 @customElement('my-button-light')
 export class MyButtonLight extends LitElement {
+    // private _stateObj: HassEntity | undefined;
+    private _trackStyle: string | undefined
+    private _thumbStyle: string | undefined
+
     public static getStubConfig(): object {
         return {}
     }
@@ -126,8 +130,9 @@ export class MyButtonLight extends LitElement {
         const cardStyle = getStyle('my-button-card', styles.card)
         const iconStyle = getStyle('my-button-icon', styles.icon)
         const labelStyle = getStyle('my-button-label', styles.label)
-        const { containerStyle, inputStyle } = getStyle('my-button-slider', styles.slider)
-
+        const { containerStyle, inputStyle, trackStyle, thumbStyle } = getStyle('my-button-slider', styles.slider)
+        this._trackStyle = objectToStyleString(trackStyle)
+        this._thumbStyle = objectToStyleString(thumbStyle)
         // Update colors based on entity state
         if (entity.state === 'on') {
             if (cardStyle['color-on']) cardStyle.background = cardStyle['color-on']
@@ -291,6 +296,7 @@ export class MyButtonLight extends LitElement {
 
     // https://lit-element.polymer-project.org/guide/styles
     static get styles(): CSSResult {
+        
         return css`
             .my-button-icon {
                 --mdc-icon-size: 100%;

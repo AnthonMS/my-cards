@@ -88,9 +88,9 @@ const sliderStyles = (styles, vertical = false) => {
     if (!vertical) {
         const containerStyle = sliderContainerStyle(styles.container ? styles.container : {})
         const inputStyle = sliderInputStyle(styles.input ? styles.input : {})
-        // const trackStyle = sliderTrackStyle(styles.track ? styles.track : {})
-        // const thumbStyle = sliderThumbStyle(styles.thumb ? styles.thumb : {})
-        return {containerStyle, inputStyle}
+        const trackStyle = sliderTrackStyle(styles.track ? styles.track : {})
+        const thumbStyle = sliderThumbStyle(styles.thumb ? styles.thumb : {})
+        return {containerStyle, inputStyle, trackStyle, thumbStyle }
     }
     else {
         const containerStyle = sliderContainerStyleVertical(styles.container ? styles.container : {})
@@ -144,6 +144,7 @@ const sliderWrapperStyle = (style:any) => {
         'flex-direction': 'column',   /* align children vertically (column format) */
         'justify-content': 'center',  /* center children vertically */
         'align-items': 'center',      /* center column horizontally */
+        'margin-right': '3px',
         ...style
     }
 }
@@ -209,12 +210,16 @@ const sliderInputStyleVertical = (style:any) => {
 
 
 
+// height: 100%;
+// -webkit-appearance: none;
+// color: var(--accent-color);
+// transition: box-shadow 0.2s ease-in-out;
 const sliderTrackStyle = (style:any) => {
     if (!style) style = {}
     return {
         height: '100%',
         '-webkit-appearance': 'none',
-        color: 'var(--accent-color)',
+        color: 'red',
         transition: 'box-shadow 0.2s ease-in-out',
         ...style
     }
