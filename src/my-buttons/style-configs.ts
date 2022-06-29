@@ -145,15 +145,10 @@ const sliderWrapperStyle = (style:any) => {
         'justify-content': 'center',  /* center children vertically */
         'align-items': 'center',      /* center column horizontally */
         'margin-right': '3px',
+        'pointer-events': 'auto',
         ...style
     }
 }
-                // width: 30px;
-                // height: 100%;
-                // display: flex;            /* establish flex container */
-                // flex-direction: column;   /* align children vertically (column format) */
-                // justify-content: center;  /* center children vertically */
-                // align-items: center;      /* center column horizontally */
 
 const sliderContainerStyleVertical = (style:any) => {
     if (!style) style = {}
@@ -172,7 +167,8 @@ const sliderContainerStyleVertical = (style:any) => {
         '-moz-transform': style['-moz-transform'] ? style['-moz-transform'] : 'rotate(270deg)',
         '-o-transform': style['-o-transform'] ? style['-o-transform'] : 'rotate(270deg)',
         '-ms-transform': style['-ms-transform'] ? style['-ms-transform'] : 'rotate(270deg)',
-        transform: style.transform ? style.transform : 'rotate(270deg)'
+        transform: style.transform ? style.transform : 'rotate(270deg)',
+        'pointer-events': style['pointer-events'] ? style['pointer-events'] : 'auto'
     }
 }
 const sliderInputStyleVertical = (style:any) => {

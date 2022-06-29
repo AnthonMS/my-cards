@@ -219,8 +219,11 @@ export class MyButtonCover extends LitElement {
                                         value="${entity.attributes.current_position}"
                                         @change=${!sliderConfig.intermediate && handleSlider}
                                         @input=${sliderConfig.intermediate && handleSlider}
-                                        @touchstart=${sliderConfig.toggle_scroll ? toggleScroll : null}
-                                        @touchend=${sliderConfig.toggle_scroll ? toggleScroll : null}
+                                        @touchstart="${sliderConfig.toggle_scroll ? toggleScroll : null}"
+                                        @touchend="${sliderConfig.toggle_scroll ? toggleScroll : null}"
+                                        @mousedown="${sliderConfig.toggle_scroll ? toggleScroll : null}"
+                                        @mouseup="${sliderConfig.toggle_scroll ? toggleScroll : null}"
+                                        @touchcancel="${sliderConfig.toggle_scroll ? toggleScroll : null}"
                                     />
                                 </div>
                             </div>
@@ -298,6 +301,7 @@ export class MyButtonCover extends LitElement {
                 margin: 0;
                 padding: 0;
                 position: relative;
+                pointer-events: auto;
             }
             .flex-container-columns {
                 padding: 0;
@@ -305,6 +309,7 @@ export class MyButtonCover extends LitElement {
                 display: flex;
                 flex-flow: row;
                 height: 100%;
+                pointer-events: auto;
             }
             .flex-container-columns .column-1 {
                 flex: 1;
