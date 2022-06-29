@@ -510,6 +510,7 @@ found at http://polymer.github.io/PATENTS.txt
                 margin: 0;
                 padding: 0;
                 position: relative;
+                pointer-events: auto;
             }
             .flex-container-columns {
                 padding: 0;
@@ -517,6 +518,7 @@ found at http://polymer.github.io/PATENTS.txt
                 display: flex;
                 flex-flow: row;
                 height: 100%;
+                pointer-events: auto;
             }
             .flex-container-columns .column-1 {
                 flex: 1;
