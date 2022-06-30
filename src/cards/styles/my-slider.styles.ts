@@ -51,7 +51,7 @@ const progressStyle = (style:any) => {
         height: '100%',
         background: 'blue',
         position: 'relative',
-        width: '33.00%',
+        width: '0.00%',
         'pointer-events': 'none',
         ...style
     }

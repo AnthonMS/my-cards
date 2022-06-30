@@ -10,7 +10,8 @@ import {
     PropertyValues,
     internalProperty,
 } from 'lit-element'
-import { styleMap, StyleInfo } from 'lit-html/directives/style-map'
+import { styleMap } from 'lit-html/directives/style-map'
+import { HassEntity } from 'home-assistant-js-websocket';
 import {
     HomeAssistant,
     hasConfigOrEntityChanged,
@@ -21,8 +22,8 @@ import type { MySliderCardConfig } from '../types'
 import { SLIDER_VERSION } from '../const'
 import { localize } from '../localize/localize'
 import { getStyle } from './styles/my-slider.styles'
-import { objectToStyleString } from '../helpers'
 import './scripts/deflate.js'
+import { percentage, roundPercentage, getClickPosRelToTarget } from './scripts/helpers'
 
 /* eslint no-console: 0 */
 console.info(
@@ -42,6 +43,19 @@ console.info(
 // TODONE Name your custom element
 @customElement('my-slider-v2')
 export class MySliderV2 extends LitElement {
+    private entity: HassEntity | undefined
+    private sliderId: String = ''
+    private sliderEl: HTMLBodyElement | undefined
+    private touchInput: Boolean = false
+    private min: number = 0
+    private max: number = 100
+    private step: number = 1
+    private sliderVal: number = 0
+    private sliderValPercent: number = 0.00
+    private setSliderValues(val, valPercent): void {
+        this.sliderVal = val
+        this.sliderValPercent = valPercent
+    }
 
     public static getStubConfig(): object {
         return {}
@@ -60,18 +74,26 @@ export class MySliderV2 extends LitElement {
 
     // https://lit-element.polymer-project.org/guide/properties#accessors-custom
     public setConfig(config: MySliderCardConfig): void {
+        const allowedEntities = [
+            'light',
+            'input_number',
+            'media_player',
+            'cover',
+            'fan',
+            'switch',
+            'lock'
+        ]
 
         if (!config.entity) {
             throw new Error("You need to define entity");
         }
 
-        if (!config.entity.includes("input_number.") && !config.entity.includes("light.") && !config.entity.includes("media_player.") && !config.entity.includes("cover.") && !config.entity.includes("fan.") && !config.entity.includes("switch.") && !config.entity.includes("lock.")) {
-            throw new Error("Entity has to be a light, input_number, media_player, cover or a fan.");
+        if (!allowedEntities.includes(config.entity.split('.')[0])) {
+            throw new Error(`Entity has to be one of the following: ${allowedEntities.map(e => ' ' + e)}`);
         }
 
         this.config = {
             name: 'MySliderV2',
-            disabled_scroll: false,
             ...config,
         }
     }
@@ -87,17 +109,7 @@ export class MySliderV2 extends LitElement {
 
     // https://lit-element.polymer-project.org/guide/templates
     protected render(): TemplateResult | void {
-        // var minBar = this.config.minBar ? this.config.minBar : 0;
-        // console.log("Test-Card Config:", this.config)
-
-        // -- Make copy of the config, this way we can add empty -- //
-        // -- objects and save ourselves a lot of if statements -- //
-        const entityId = this.config.entity ? this.config.entity : "ERROR"
-        const entity = this.hass.states[`${entityId}`]
-
-        const sliderId = `slider-${this.config.entity.replace('.', '-')}`
-		const min = this.config.min ? this.config.min : 0
-		const max = this.config.max ? this.config.max : 100
+        this.initializeConfig()
 
         // ---------- Styles ---------- //
         const cardStl = getStyle('card', this.config.styles?.card?.deflate())
@@ -105,123 +117,69 @@ export class MySliderV2 extends LitElement {
         const trackStl = getStyle('track', this.config.styles?.track?.deflate())
         const progressStl = getStyle('progress', this.config.styles?.progress?.deflate())
         const thumbStl = getStyle('thumb', this.config.styles?.thumb?.deflate())
-        progressStl.width = Math.round(entity.attributes.brightness / 2.56).toString() + '%'
+        progressStl.width = this.sliderValPercent.toString() + '%'
 
-        const setValue = (_val) => {
-            this._setBrightness(entity, _val, min, max)
-        }
+        const sliderHandler = (event) => {
+            switch (event.type) {
+                case 'mousedown':
+                    if (this.touchInput) return
+                    startInput(event)
+                    break
 
-        const calcProgress = (e) => {
-            const clickPos = getClickPosRelToTarget(e)
-            const sliderWidth = e.target.offsetWidth
-            // Calculate what the percentage is of the clickPos.x between 0 and sliderWidth
-            const clickPercentage = roundPercentage(clickPos.x / sliderWidth * 100)
-            const newValue = clickPercentage / 100 * (max - min)
-            setProgress(e.target, Math.round(newValue), e.type)
-        }
+                case 'touchstart':
+                    this.touchInput = true
+                    startInput(event)
+                    break
+                    
+                case 'mousemove':
+                    if (this.touchInput) return
+                    moveInput(event)
+                    break
 
-        const setProgress = (slider, val, action) => {
-            // find the percentage of sliderValue between sliderMin and sliderMax.
-            const progressEl = slider.querySelector('.my-slider-custom-progress')
-            const valuePercentage = roundPercentage(val / (max - min) * 100)
-            // Set progessWidth to match value
-            progressEl.style.width = valuePercentage.toString() + '%'
+                case 'touchmove':
+                    if (this.config.disable_scroll)
+                        event.preventDefault()
+                    moveInput(event)
+                    break
 
-            // Check if value has changed
-            if (Math.round(entity.attributes.brightness / 2.56) !== val) {
-                // Check if we should update entity on mousemove or mouseup
-                if (this.config.intermediate && action === 'mousemove') {
-                    console.log('Set value intermediate:', val)
-                    setValue(val)
-                }
-                else if (!this.config.intermediate && action === 'mouseup') {
-                    console.log('Set value on mouse up:', val)
-                    setValue(val)
-                }
+                case 'mouseup':
+                case 'touchend':
+                case 'touchcancel':
+                    stopInput(event)
+                    break
             }
         }
 
-        const getClickPosRelToTarget = (event) => {
-            var rect = event.target.getBoundingClientRect();
-            var x = event.clientX - rect.left; //x position within the element.
-            var y = event.clientY - rect.top;  //y position within the element.
-            return { x, y }
-        }
-
-        const roundPercentage = (val) => {
-            return Math.round((val + Number.EPSILON) * 100) / 100
-        }
-
-        const toggleScroll = () => {
-            this.config.disabled_scroll = !this.config.disabled_scroll
-            if (this.config.disabled_scroll) {
-                disableBodyScroll(window)
-            } else {
-                enableBodyScroll(window)
-            }
-        }
-
-        const mouseDown = (e) => {
+        const startInput = (event) => {
+            this.sliderEl = event.target
             if (this.config.dragging === true) return
             this.config.dragging = true
-            calcProgress(e)
+            this.calcProgress(event)
         }
-        const mouseUp = (e) => {
+
+        const stopInput = (event) => {
             if (this.config.dragging === false) return
             this.config.dragging = false
-            if (e.target.id === sliderId) {
-                calcProgress(e)
-            }
+            this.calcProgress(event)
         }
-        const mouseMove = (e) => {
+
+        const moveInput = event => {
             if (this.config.dragging) {
-                calcProgress(e)
+                this.calcProgress(event)
             }
         }
 
-        const touchStart = (e) => {
-            if (this.config.dragging === true) return
-            this.config.dragging = true
-            console.log('Touch Start:', this.config.dragging, e)
-            //calcProgress(e)
-        }
-        const touchEnd = (e) => {
-            if (this.config.dragging === false) return
-            this.config.dragging = false
-            console.log('Touch End:', this.config.dragging, e)
-            if (e.target.id === sliderId) {
-                //calcProgress(e)
-            }
-        }
-        const touchCancel = (e) => {
-            if (this.config.dragging === false) return
-            this.config.dragging = false
-            console.log('Touch Cancel:', this.config.dragging, e)
-            if (e.target.id === sliderId) {
-                //calcProgress(e)
-            }
-        }
-        const touchMove = (e) => {
-            if (this.config.dragging) {
-                console.log('Touch Move:', e)
-                //calcProgress(e)
-            }
-        }
-
-
-        document.removeEventListener("mouseup", mouseUp)
-        document.addEventListener("mouseup", mouseUp)
-
+        this.createAndCleanupEventListeners(sliderHandler)
         return html`
             <ha-card style="${styleMap(cardStl)}">
-                <div class="my-slider-custom" id="${sliderId}" style="${styleMap(containerStl)}"
-                    @mousedown="${mouseDown}"
-                    @mouseup="${mouseUp}"
-                    @mousemove="${mouseMove}"
-                    @touchstart="${touchStart}"
-                    @touchend="${touchEnd}"
-                    @touchcancel="${touchCancel}" 
-                    @touchmove="${touchMove}"
+                <div class="my-slider-custom" id="${this.sliderId}" style="${styleMap(containerStl)}"
+                    @mousedown="${sliderHandler}"
+                    @mouseup="${sliderHandler}"
+                    @mousemove="${sliderHandler}"
+                    @touchstart="${sliderHandler}"
+                    @touchend="${sliderHandler}"
+                    @touchcancel="${sliderHandler}" 
+                    @touchmove="${sliderHandler}"
                 >
                     <div class="my-slider-custom-track" style="${styleMap(trackStl)}">
                         <div class="my-slider-custom-progress" style="${styleMap(progressStl)}">
@@ -233,19 +191,130 @@ export class MySliderV2 extends LitElement {
         `
     }
 
-	private _setBrightness(_entity, value, _min, _max): void {
-		if (value > _max) {
-			value = _max
-		} 
-        else if (value < _min) {
-			value = _min
-		}
+    private initializeConfig(): void {
+        const entityId = this.config.entity
+        // const entity = this.hass.states[`${entityId}`]
+        this.entity = this.hass.states[`${entityId}`]
 
-		this.hass.callService("homeassistant", "turn_on", {
-			entity_id: _entity.entity_id,
-			brightness: value * 2.56
+        this.sliderId = `slider-${this.config.entity.replace('.', '-')}`
+        this.min = this.config.min ? this.config.min : 0
+        this.max = this.config.max ? this.config.max : 100
+        this.step = this.config.step ? this.config.step : 1
+        // this.setSliderValue(0) // ALWAYS A NUMBER BETWEEN 0 AND 100 %
+        // TODO: Create function to choose correct slider value to use relative to entity type
+        
+        switch (entityId.split('.')[0]) {
+            case 'light':
+                if (this.entity.state !== 'on') break
+                // TODO: Check if light is warmth or 
+                if (!this.config.warmth) {
+                    const val = Math.round(this.entity.attributes.brightness / 2.56)
+                    const valuePercentage = roundPercentage(percentage(val, this.max, this.min))
+                    this.setSliderValues(val, valuePercentage)
+                }
+                else {
+                    const val = this.entity.attributes.color_temp
+                    const valuePercentage = roundPercentage(percentage(val, this.max, this.min))
+                    this.setSliderValues(val, valuePercentage)
+                }
+                break
+            case 'input_number':
+                this.min = this.entity.attributes.min
+                this.max = this.entity.attributes.max
+                this.step = this.entity.attributes.step
+                const val = this.entity.state
+                const valuePercentage = roundPercentage(percentage(val, this.max, this.min))
+                this.setSliderValues(val, valuePercentage)
+                break
+            default:
+                console.log('Default')
+                break
+        }
+    }
+
+    private calcProgress(event) {
+        if (this.sliderEl == undefined || this.sliderEl === null) return
+        // const clickPos = getClickPosRelToTarget(e)
+        const clickPos = getClickPosRelToTarget(event, this.sliderEl)
+        const sliderWidth = this.sliderEl.offsetWidth
+        // Calculate what the percentage is of the clickPos.x between 0 and sliderWidth
+        // const clickPercentage = roundPercentage(clickPos!.x / sliderWidth * 100)
+        const clickPercentage = roundPercentage(percentage(clickPos!.x, sliderWidth))
+        const newValue = clickPercentage / 100 * (this.max - this.min)
+        this.setProgress(this.sliderEl, Math.round(newValue), event.type)
+    }
+
+    private setProgress(slider, val, action) {
+        if (val > this.max) {
+            val = this.max
+        }
+        else if (val < this.min) {
+            val = this.min
+        }
+        // find the percentage of sliderValue between sliderMin and sliderMax.
+        const progressEl = slider.querySelector('.my-slider-custom-progress')
+        // const valuePercentage = roundPercentage(val / (this.max - this.min) * 100)
+        const valuePercentage = roundPercentage(percentage(val, this.max, this.min))
+        // Set progessWidth to match value
+        progressEl.style.width = valuePercentage.toString() + '%'
+
+        // Check if value has changed
+        if (this.sliderVal !== val) {
+            // Check if we should update entity on mousemove or mouseup
+            if (this.config.intermediate && (action === 'mousemove' || action === 'touchmove')) {
+                this.setValue(val, valuePercentage)
+            }
+            else if (!this.config.intermediate && (action === 'mouseup' || action === 'touchend' || action === 'touchcancel')) {
+                this.setValue(val, valuePercentage)
+            }
+        }
+    }
+
+    private setValue(val, valPercent) {
+        if (!this.entity) return
+        this.setSliderValues(val, valPercent)
+    
+        switch (this.config.entity.split('.')[0]) {
+            case 'light':
+                if (!this.config.warmth) { // Brightness
+                    this._setBrightness(this.entity, val)
+                }
+                else { // Warmth
+                    
+                }
+                break
+            case 'input_number':
+                    this._setInputNumber(this.entity, val)
+                break
+            default:
+                console.log('Default')
+                break
+        }
+
+    }
+
+    private _setBrightness(entity, value): void {
+        this.hass.callService("light", "turn_on", {
+            entity_id: entity.entity_id,
+            brightness: value * 2.56
+        })
+    }
+	private _setInputNumber(entity, value): void {
+		this.hass.callService("input_number", "set_value", {
+			entity_id: entity.entity_id,
+			value: value
 		})
 	}
+
+    private createAndCleanupEventListeners(func): void {
+        document.removeEventListener("mouseup", func)
+        document.removeEventListener("touchend", func)
+        document.removeEventListener("touchcancel", func)
+        document.addEventListener("mouseup", func)
+        document.addEventListener("touchend", func)
+        document.addEventListener("touchcancel", func)
+        document.addEventListener("mousemove", func)
+    }
 
     // https://lit-element.polymer-project.org/guide/styles
     static get styles(): CSSResult {
@@ -258,10 +327,18 @@ export class MySliderV2 extends LitElement {
 /*
 type: custom:my-slider-v2
 entity: light.sofa_spots
+warmth: false
 min: 0
 max: 100
 intermediate: false
+disable_scroll: false
 styles:
   card: 
     - height: 50px
+  container:
+    - background: red
+  track:
+    - background: blue
+  thumb:
+    - background: yellow
 */
