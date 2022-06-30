@@ -35,9 +35,7 @@ console.info(
 	description: 'Custom Slider Card for Lovelace.',
 });
 
-// TODONE Name your custom element
 @customElement('my-slider')
-// @customElement('my-slider-v1')
 export class MySlider extends LitElement {
 
 	public static getStubConfig(): object {
