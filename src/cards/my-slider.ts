@@ -47,8 +47,12 @@ export class MySliderV2 extends LitElement {
     private sliderId: String = ''
     private sliderEl: HTMLBodyElement | undefined
     private touchInput: Boolean = false
+    private showMin: Boolean = false
+    private savedMin: number = 0
     private min: number = 0
     private max: number = 100
+    private minThreshold: number = 0
+    private maxThreshold: number = 100
     private step: number = 1
     private sliderVal: number = 0
     private sliderValPercent: number = 0.00
@@ -197,34 +201,60 @@ export class MySliderV2 extends LitElement {
         this.entity = this.hass.states[`${entityId}`]
 
         this.sliderId = `slider-${this.config.entity.replace('.', '-')}`
-        this.min = this.config.min ? this.config.min : 0
+        this.showMin = this.config.showMin ? this.config.showMin : false
+        this.savedMin = this.config.min ? this.config.min : 0
         this.max = this.config.max ? this.config.max : 100
+        this.minThreshold = this.config.minThreshold ? this.config.minThreshold : 0
+        this.maxThreshold = this.config.maxThreshold ? this.config.maxThreshold : 100
         this.step = this.config.step ? this.config.step : 1
-        // this.setSliderValue(0) // ALWAYS A NUMBER BETWEEN 0 AND 100 %
-        // TODO: Create function to choose correct slider value to use relative to entity type
         
         switch (entityId.split('.')[0]) {
             case 'light':
-                if (this.entity.state !== 'on') break
                 // TODO: Check if light is warmth or 
                 if (!this.config.warmth) {
-                    const val = Math.round(this.entity.attributes.brightness / 2.56)
+                    if (this.entity.state !== 'on') break
+                    let val = Math.round(this.entity.attributes.brightness / 2.56)
+                    if (!this.showMin) {
+                        val = val - this.savedMin // Subtracting savedMin to make slider 0 be far left
+                    }
                     const valuePercentage = roundPercentage(percentage(val, this.max, this.min))
                     this.setSliderValues(val, valuePercentage)
                 }
                 else {
-                    const val = this.entity.attributes.color_temp
-                    const valuePercentage = roundPercentage(percentage(val, this.max, this.min))
-                    this.setSliderValues(val, valuePercentage)
+                    if (this.entity.state !== 'on') break
+                    this.savedMin = this.entity.attributes.min_mireds
+                    this.max = this.entity.attributes.max_mireds
+                    let val = parseFloat(this.entity.attributes.color_temp)
+                    if (!this.showMin) {
+                        this.max = this.max - this.savedMin // Subtracting savedMin to make slider 0 be far left
+                        val = val - this.savedMin // Subtracting savedMin to make slider 0 be far left
+                    }
+                    const valuePercent = roundPercentage(percentage(val, this.max))
+                    this.setSliderValues(val, valuePercent)
                 }
                 break
             case 'input_number':
-                this.min = this.entity.attributes.min
-                this.max = this.entity.attributes.max
                 this.step = this.entity.attributes.step
-                const val = this.entity.state
-                const valuePercentage = roundPercentage(percentage(val, this.max, this.min))
+                this.savedMin = this.entity.attributes.min
+                this.max = this.entity.attributes.max
+                let val = parseFloat(this.entity.state)
+                if (!this.showMin) {
+                    this.max = this.max - this.savedMin // Subtracting savedMin to make slider 0 be far left
+                    val = val - this.savedMin // Subtracting savedMin to make slider 0 be far left
+                }
+                const valuePercentage = roundPercentage(percentage(val, this.max))
                 this.setSliderValues(val, valuePercentage)
+                break
+            case 'switch':
+                this.minThreshold = this.config.minThreshold ? this.config.minThreshold : 15
+                this.maxThreshold = this.config.maxThreshold ? this.config.maxThreshold : 75
+                this.setSliderValues(Number(Math.max(this.min, this.minThreshold)), Number(Math.max(this.min, this.minThreshold)))
+                break
+            case 'lock':
+                this.minThreshold = this.config.minThreshold ? this.config.minThreshold : 15
+                this.maxThreshold = this.config.maxThreshold ? this.config.maxThreshold : 75
+                const num = Number(Math.max(this.min, this.minThreshold))
+                this.setSliderValues(num,num) // Set slider to larger of 2 minimums
                 break
             default:
                 console.log('Default')
@@ -240,7 +270,7 @@ export class MySliderV2 extends LitElement {
         // Calculate what the percentage is of the clickPos.x between 0 and sliderWidth
         // const clickPercentage = roundPercentage(clickPos!.x / sliderWidth * 100)
         const clickPercentage = roundPercentage(percentage(clickPos!.x, sliderWidth))
-        const newValue = clickPercentage / 100 * (this.max - this.min)
+        const newValue = clickPercentage / 100 * (this.max - 0)
         this.setProgress(this.sliderEl, Math.round(newValue), event.type)
     }
 
@@ -254,7 +284,7 @@ export class MySliderV2 extends LitElement {
         // find the percentage of sliderValue between sliderMin and sliderMax.
         const progressEl = slider.querySelector('.my-slider-custom-progress')
         // const valuePercentage = roundPercentage(val / (this.max - this.min) * 100)
-        const valuePercentage = roundPercentage(percentage(val, this.max, this.min))
+        const valuePercentage = roundPercentage(percentage(val, this.max, 0))
         // Set progessWidth to match value
         progressEl.style.width = valuePercentage.toString() + '%'
 
@@ -273,6 +303,9 @@ export class MySliderV2 extends LitElement {
     private setValue(val, valPercent) {
         if (!this.entity) return
         this.setSliderValues(val, valPercent)
+        if (!this.showMin) {
+            val = val + this.savedMin  // Adding saved min to make up for minimum not being 0
+        }
     
         switch (this.config.entity.split('.')[0]) {
             case 'light':
@@ -280,11 +313,14 @@ export class MySliderV2 extends LitElement {
                     this._setBrightness(this.entity, val)
                 }
                 else { // Warmth
-                    
+                    this._setWarmth(this.entity, val)
                 }
                 break
             case 'input_number':
                     this._setInputNumber(this.entity, val)
+                break
+            case 'lock':
+                    this._setLock(this.entity, val)
                 break
             default:
                 console.log('Default')
@@ -299,11 +335,73 @@ export class MySliderV2 extends LitElement {
             brightness: value * 2.56
         })
     }
+	private _setWarmth(entity, value): void {
+		this.hass.callService("light", "turn_on", {
+			entity_id: entity.entity_id,
+			color_temp: value
+		})
+	}
 	private _setInputNumber(entity, value): void {
 		this.hass.callService("input_number", "set_value", {
 			entity_id: entity.entity_id,
 			value: value
 		})
+	}
+	private _setFan(entity, value): void {
+		this.hass.callService("fan", "set_percentage", {
+			entity_id: entity.entity_id,
+			percentage: value
+		})
+	}
+	private _setCover(entity, value): void {
+		this.hass.callService("cover", "set_cover_position", {
+			entity_id: entity.entity_id,
+			position: value
+		});
+	}
+	private _setMediaVolume(entity, value): void {
+		this.hass.callService("media_player", "volume_set", {
+			entity_id: entity.entity_id,
+			volume_level: value / 100
+		})
+	}
+
+	private _setSwitch(entity, value): void {
+		var threshold = Math.min(this.max, this.maxThreshold) //pick lesser of the two
+		if (Number(threshold) <= value) {
+			this.hass.callService('homeassistant', 'toggle', {
+				entity_id: entity.entity_id
+			})
+		}
+
+        const val = Number(Math.max(this.min, this.minThreshold))
+        const valPercent = roundPercentage(percentage(val, this.max, this.min))
+        this.setSliderValues(val, valPercent) // Set slider to larger of 2 minimums
+        const progressEl: HTMLElement | null = this.sliderEl!.querySelector('.my-slider-custom-progress')
+        progressEl!.style.transition = 'width 0.2s ease 0s' // Make it sprong back nicely
+        progressEl!.style.width = valPercent.toString() + '%'
+        setTimeout(() => { // Remove transition when done
+            progressEl!.style.transition = 'initial'
+        }, 200)
+	}
+	private _setLock(entity, value): void {
+		var threshold = Math.min(this.max, this.maxThreshold) //pick lesser of the two
+		if (Number(threshold) <= value) {
+			var newLockState = entity.state === "locked" ? 'unlock' : 'lock'
+			this.hass.callService("lock", newLockState, {
+				entity_id: entity.entity_id
+			})
+		}
+
+        const val = Number(Math.max(this.min, this.minThreshold))
+        const valPercent = roundPercentage(percentage(val, this.max, this.min))
+        this.setSliderValues(val, valPercent) // Set slider to larger of 2 minimums
+        const progressEl: HTMLElement | null = this.sliderEl!.querySelector('.my-slider-custom-progress')
+        progressEl!.style.transition = 'width 0.2s ease 0s' // Make it sprong back nicely
+        progressEl!.style.width = valPercent.toString() + '%'
+        setTimeout(() => { // Remove transition when done
+            progressEl!.style.transition = 'initial'
+        }, 200)
 	}
 
     private createAndCleanupEventListeners(func): void {
@@ -332,6 +430,9 @@ min: 0
 max: 100
 intermediate: false
 disable_scroll: false
+showMin: false
+minThreshold: 15 (Only used for determining how much progress should be shown on a switch or lock)
+maxThreshold: 75 (Only used to determine how far users have to slide to activate toggle commands for switch and lock)
 styles:
   card: 
     - height: 50px

@@ -1,4 +1,8 @@
 export const percentage = (val, max = 100, min = 0) => {
+    // console.log('Finding percentage of value:', val)
+    // console.log('Min:', min)
+    // console.log('Max:', max)
+    // console.log('Test:', (max-min))
     return val / (max - min) * 100
 }
 
