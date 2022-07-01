@@ -53,6 +53,7 @@ export class MySliderV2 extends LitElement {
     private disableScroll: Boolean = true
     private allowTapping: Boolean = true
     private thumbTapped: Boolean = false
+    private actionTaken: Boolean = false
     private vertical: Boolean = false
     private flipped: Boolean = false
     private inverse: Boolean = false
@@ -216,25 +217,24 @@ export class MySliderV2 extends LitElement {
         }
 
         const startInput = (event) => {
-            if (this._config!.dragging === true) return
+            if (this.actionTaken) return
             setElements(event)
 
             if (this.allowTapping) {
-                this._config!.dragging = true
+                this.actionTaken = true
                 this.calcProgress(event)
             }
             else {
                 if (event.path[0].classList.contains('my-slider-custom-thumb')) {
                     this.thumbTapped = true
-                    this._config!.dragging = true
+                    this.actionTaken = true
                     this.calcProgress(event)
                 } // else: tapping not allowed
             }
         }
 
         const stopInput = (event) => {
-            if (this._config!.dragging === false) return
-            this._config!.dragging = false
+            if (!this.actionTaken) return
             if (this.allowTapping) {
                 this.calcProgress(event)
             }
@@ -242,10 +242,11 @@ export class MySliderV2 extends LitElement {
                 this.calcProgress(event)
             }
             this.thumbTapped = false
+            this.actionTaken = false
         }
 
         const moveInput = event => {
-            if (this._config!.dragging) {
+            if (this.actionTaken) {
                 this.calcProgress(event)
             }
         }
@@ -478,9 +479,7 @@ export class MySliderV2 extends LitElement {
             val = this.max - val
             valPercent = 100 - valPercent
         } 
-        // if (this._config!.off && new Date().getTime() - new Date(this.entity!.last_changed).getTime() < 100) {
-        //     return
-        // }
+        if (!this.actionTaken) return // We do not want to set any values based on pure movement of slider. Only set it on user action.
 
         switch (this._config!.entity.split('.')[0]) {
             case 'light':
@@ -518,7 +517,6 @@ export class MySliderV2 extends LitElement {
 
     private _setBrightness(entity, value): void {
         if (entity.state === 'off' || (Math.abs((value - Math.round(entity.attributes.brightness / 2.56))) > this.step)) {
-            console.log('Handle Brightness Slide!', entity)
             this.hass.callService("light", "turn_on", {
                 entity_id: entity.entity_id,
                 brightness: value * 2.56

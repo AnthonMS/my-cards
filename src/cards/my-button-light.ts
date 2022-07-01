@@ -271,16 +271,6 @@ export class MyButtonLight extends LitElement {
             actionConfig.entity = this._config!.entity
         }
         
-        // Now check that the entity.last_changed timestamp has been passed within reasonable time
-        
-        // Check here if lastAction was performed longer than 1 second ago
-        // If not then we want to return and break out of the function
-        // console.log('MS since last changed:', new Date().getTime() - new Date(this.entity!.last_changed).getTime())
-        if (new Date().getTime() - new Date(this.entity!.last_changed).getTime() < 50) {
-            // console.log('NOT WORTHY ON TAP!')
-            return
-        }
-        
         if (ev.detail?.action) {
             switch (ev.detail.action) {
                 case 'tap':
@@ -303,7 +293,6 @@ export class MyButtonLight extends LitElement {
 
     private _handleTap(actionConfig: any): void {
         if (actionConfig) { }
-        console.log('Handle Tap!', actionConfig)
         handleClick(this, this.hass!, this._evalActions(this._config!, 'tap_action'), false, false)
     }
 
