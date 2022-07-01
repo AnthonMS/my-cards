@@ -19,7 +19,6 @@ import {
     LovelaceCard
 } from 'custom-card-helpers'; // This is a community maintained npm module with common helper functions/types
 import { actionHandler } from '../action-handler-directive';
-import { disableBodyScroll, enableBodyScroll } from 'body-scroll-lock'
 
 import type { MyButtonLightCardConfig } from '../types';
 import { BUTTON_LIGHT_VERSION } from '../const';
@@ -107,13 +106,6 @@ export class MyButtonLight extends LitElement {
         const initFailed = this.initializeConfig()
         if (initFailed !== null) return initFailed
         if (!this.entity) return html``
-        // const entityId = this.config.entity
-        // const entity = this.hass.states[`${entityId}`]
-
-
-        const handleSlider = (e) => {
-            this._setBrightness(this.entity, e.target, this.sliderConfig.min, this.sliderConfig.max)
-        }
 
         const icon = () => {
             if (!this.iconConfig.show) return html``
@@ -138,8 +130,9 @@ export class MyButtonLight extends LitElement {
         const slider = () => {
             if (!this.sliderConfig.show) return html``
 
+            // <div>Slider Goes here...</div>
             return html`
-                <div>Slider Goes here...</div>
+                <my-slider-v2 .hass="${this.hass}" .config="${this.sliderConfig}"></my-slider-v2>
             `
         }
 
@@ -234,11 +227,10 @@ export class MyButtonLight extends LitElement {
 
         // ---- Slider Config ---- //
         const defaultSliderConfig = {
-            show: true
+            show: true,
+            entity: this.entity.entity_id,
         }
         this.sliderConfig = this._config!.slider ? { ...defaultSliderConfig, ...this._config!.slider } : defaultSliderConfig
-
-
 
 
         const deflatedCardStl = deflate(this._config!.styles?.card) ? deflate(this._config!.styles?.card) : {}
@@ -266,7 +258,7 @@ export class MyButtonLight extends LitElement {
 
         const now = new Date().getTime()
 
-        // Check here if lastAction was performed longer than 1 second ago
+        // Check here if lastAction was performed longer than 100 ms
         // If not then we want to return and break out of the function
         if (now - this.lastAction < 100) {
             return
@@ -277,6 +269,16 @@ export class MyButtonLight extends LitElement {
 
         if (!actionConfig.entity) {
             actionConfig.entity = this._config!.entity
+        }
+        
+        // Now check that the entity.last_changed timestamp has been passed within reasonable time
+        
+        // Check here if lastAction was performed longer than 1 second ago
+        // If not then we want to return and break out of the function
+        // console.log('MS since last changed:', new Date().getTime() - new Date(this.entity!.last_changed).getTime())
+        if (new Date().getTime() - new Date(this.entity!.last_changed).getTime() < 50) {
+            // console.log('NOT WORTHY ON TAP!')
+            return
         }
         
         if (ev.detail?.action) {
@@ -301,34 +303,19 @@ export class MyButtonLight extends LitElement {
 
     private _handleTap(actionConfig: any): void {
         if (actionConfig) { }
-        handleClick(this, this.hass!, this._evalActions(this._config!, 'tap_action'), false, false);
-        // handleClick(this, this.hass, actionConfig, false, false);
+        console.log('Handle Tap!', actionConfig)
+        handleClick(this, this.hass!, this._evalActions(this._config!, 'tap_action'), false, false)
     }
 
     private _handleHold(actionConfig: any): void {
         if (actionConfig) { }
-        handleClick(this, this.hass!, this._evalActions(this._config!, 'hold_action'), true, false);
-        // handleClick(this, this.hass, actionConfig, false, false);
+        handleClick(this, this.hass!, this._evalActions(this._config!, 'hold_action'), true, false)
     }
 
     private _handleDblTap(actionConfig: any): void {
         if (actionConfig) { }
-        handleClick(this, this.hass!, this._evalActions(this._config!, 'double_tap_action'), false, true);
-        // handleClick(this, this.hass, actionConfig, false, false);
+        handleClick(this, this.hass!, this._evalActions(this._config!, 'double_tap_action'), false, true)
     }
-
-    private _setBrightness(_entity, _target, _minSet: number, _maxSet: number): void {
-        // Set to max or min of value exceed, otherwise set to target.value
-        const value = _target.value > _maxSet ? _maxSet : _target.value < _minSet ? _minSet : _target.value
-
-        this.hass.callService("homeassistant", "turn_on", {
-            entity_id: _entity.entity_id,
-            brightness: value * 2.56
-        })
-
-        _target.value = value
-    }
-
 
     private _evalActions(config: MyButtonLightCardConfig, action: string): MyButtonLightCardConfig {
         // const configDuplicate = copy(config);

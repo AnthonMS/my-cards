@@ -57,7 +57,7 @@ export class MySliderV2 extends LitElement {
     private flipped: Boolean = false
     private inverse: Boolean = false
     private showMin: Boolean = false
-    private savedMin: number = 0
+    private savedMin: number = 1
     private min: number = 0
     private max: number = 100
     private minThreshold: number = 0
@@ -312,10 +312,14 @@ export class MySliderV2 extends LitElement {
             case 'light': /* ------------ LIGHT ------------ */
                 // TODO: Check if light is warmth or 
                 if (!this._config!.warmth) {
-                    if (this.entity.state !== 'on') break
-                    tmpVal = Math.round(this.entity.attributes.brightness / 2.56)
-                    if (!this.showMin) { // Subtracting savedMin to make slider 0 be far left
-                        tmpVal = tmpVal - this.savedMin
+                    if (this.entity.state === 'on') {
+                        tmpVal = Math.round(this.entity.attributes.brightness / 2.56)
+                        if (!this.showMin) { // Subtracting savedMin to make slider 0 be far left
+                            tmpVal = tmpVal - this.savedMin
+                        }
+                    }
+                    else {
+                        tmpVal = 0
                     }
                     
                     this.setSliderValues(tmpVal, roundPercentage(percentage(tmpVal, this.max)))
@@ -474,6 +478,9 @@ export class MySliderV2 extends LitElement {
             val = this.max - val
             valPercent = 100 - valPercent
         } 
+        // if (this._config!.off && new Date().getTime() - new Date(this.entity!.last_changed).getTime() < 100) {
+        //     return
+        // }
 
         switch (this._config!.entity.split('.')[0]) {
             case 'light':
@@ -511,6 +518,7 @@ export class MySliderV2 extends LitElement {
 
     private _setBrightness(entity, value): void {
         if (entity.state === 'off' || (Math.abs((value - Math.round(entity.attributes.brightness / 2.56))) > this.step)) {
+            console.log('Handle Brightness Slide!', entity)
             this.hass.callService("light", "turn_on", {
                 entity_id: entity.entity_id,
                 brightness: value * 2.56

@@ -19,7 +19,7 @@ export const getStyle = (e:string, style:any = {}) => {
 const cardStyle = (style:any) => {
     return {
         // ...(style.backgroundColor && {backgroundColor: style.backgroundColor}),
-        height: '125px',
+        height: '30px',
         ...style
     }
 }
