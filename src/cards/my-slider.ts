@@ -15,6 +15,7 @@ import { HassEntity } from 'home-assistant-js-websocket'
 import {
     HomeAssistant,
     hasConfigOrEntityChanged,
+    LovelaceCard
 } from 'custom-card-helpers'; // This is a community maintained npm module with common helper functions/types
 import { disableBodyScroll, enableBodyScroll } from 'body-scroll-lock'
 
@@ -44,12 +45,14 @@ console.info(
 // TODONE Name your custom element
 @customElement('my-slider-v2')
 export class MySliderV2 extends LitElement {
+    @property() private _config?: MySliderCardConfig
     private entity: HassEntity | undefined
     private sliderId: String = ''
     private sliderEl: HTMLBodyElement | undefined
     private touchInput: Boolean = false
     private disableScroll: Boolean = true
     private allowTapping: Boolean = true
+    private thumbTapped: Boolean = false
     private vertical: Boolean = false
     private flipped: Boolean = false
     private inverse: Boolean = false
@@ -125,18 +128,16 @@ export class MySliderV2 extends LitElement {
 
     // https://lit-element.polymer-project.org/guide/templates
     protected render(): TemplateResult | void {
-        this.initializeConfig()
+        // this.initializeConfig()
+        const initFailed = this.initializeConfig()
+        if (initFailed !== null) return initFailed
+        // console.log('Evaluated config:', this._config)
 
-        // const deflatedCardStl = this.config.styles?.card?.myDeflate() ? this.config.styles?.card?.myDeflate() : {}
-        // const deflatedContainerStl = this.config.styles?.container?.myDeflate() ? this.config.styles?.container?.myDeflate() : {}
-        // const deflatedTrackStl = this.config.styles?.track?.myDeflate() ? this.config.styles?.track?.myDeflate() : {}
-        // const deflatedProgressStl = this.config.styles?.progress?.myDeflate() ? this.config.styles?.progress?.myDeflate() : {}
-        // const deflatedThumbStl = this.config.styles?.thumb?.myDeflate() ? this.config.styles?.thumb?.myDeflate() : {}
-        const deflatedCardStl = deflate(this.config.styles?.card) ? deflate(this.config.styles?.card) : {}
-        const deflatedContainerStl = deflate(this.config.styles?.container) ? deflate(this.config.styles?.container) : {}
-        const deflatedTrackStl = deflate(this.config.styles?.track) ? deflate(this.config.styles?.track) : {}
-        const deflatedProgressStl = deflate(this.config.styles?.progress) ? deflate(this.config.styles?.progress) : {}
-        const deflatedThumbStl = deflate(this.config.styles?.thumb) ? deflate(this.config.styles?.thumb) : {}
+        const deflatedCardStl = deflate(this._config!.styles?.card) ? deflate(this._config!.styles?.card) : {}
+        const deflatedContainerStl = deflate(this._config!.styles?.container) ? deflate(this._config!.styles?.container) : {}
+        const deflatedTrackStl = deflate(this._config!.styles?.track) ? deflate(this._config!.styles?.track) : {}
+        const deflatedProgressStl = deflate(this._config!.styles?.progress) ? deflate(this._config!.styles?.progress) : {}
+        const deflatedThumbStl = deflate(this._config!.styles?.thumb) ? deflate(this._config!.styles?.thumb) : {}
         // ---------- Styles ---------- //
         const cardStl = getStyle('card', deflatedCardStl)
         const containerStl = getStyle('container', deflatedContainerStl)
@@ -215,37 +216,36 @@ export class MySliderV2 extends LitElement {
         }
 
         const startInput = (event) => {
-            if (this.config.dragging === true) return
+            if (this._config!.dragging === true) return
             setElements(event)
 
             if (this.allowTapping) {
-                this.config.dragging = true
+                this._config!.dragging = true
                 this.calcProgress(event)
             }
             else {
                 if (event.path[0].classList.contains('my-slider-custom-thumb')) {
-                    this.config.dragging = true
+                    this.thumbTapped = true
+                    this._config!.dragging = true
                     this.calcProgress(event)
                 } // else: tapping not allowed
             }
         }
 
         const stopInput = (event) => {
-            if (this.config.dragging === false) return
-            this.config.dragging = false
-            
+            if (this._config!.dragging === false) return
+            this._config!.dragging = false
             if (this.allowTapping) {
                 this.calcProgress(event)
             }
-            else {
-                if (event.path[0].classList.contains('my-slider-custom-thumb')) {
-                    this.calcProgress(event)
-                } // Else tapping not allowed
+            else if (this.thumbTapped) {
+                this.calcProgress(event)
             }
+            this.thumbTapped = false
         }
 
         const moveInput = event => {
-            if (this.config.dragging) {
+            if (this._config!.dragging) {
                 this.calcProgress(event)
             }
         }
@@ -272,30 +272,46 @@ export class MySliderV2 extends LitElement {
         `
     }
 
-    private initializeConfig(): void {
-        const entityId = this.config.entity
-        // const entity = this.hass.states[`${entityId}`]
-        this.entity = this.hass.states[`${entityId}`]
+    private initializeConfig(): any {
+        this.entity = this.hass.states[`${this.config.entity}`]
+        try {
+            this._config = this._objectEvalTemplate(this.entity, this.config)
+        } catch (e) {
+            if (e instanceof Error) {
+              if (e.stack) console.error(e.stack)
+              else console.error(e)
+              const errorCard = document.createElement('hui-error-card') as LovelaceCard
+              errorCard.setConfig({
+                  type: 'error',
+                  error: e.toString(),
+                  origConfig: this.config,
+              })
+              return errorCard
+            }
+            else {
+                console.log('Unexpected error evaluating config on init:', e)
+            }
+        }
 
-        this.sliderId = `slider-${this.config.entity.replace('.', '-')}`
-        this.vertical = this.config.vertical !== undefined ? this.config.vertical : false
-        this.flipped = this.config.flipped !== undefined ? this.config.flipped : false
-        this.inverse = this.config.inverse !== undefined ? this.config.inverse : false
-        this.disableScroll = this.config.disableScroll !== undefined ? this.config.disableScroll : true
-        this.allowTapping = this.config.allowTapping !== undefined ? this.config.allowTapping : true
-        this.showMin = this.config.showMin !== undefined ? this.config.showMin : false
-        this.savedMin = this.config.min ? this.config.min : 0
-        this.max = this.config.max ? this.config.max : 100
-        this.minThreshold = this.config.minThreshold ? this.config.minThreshold : 0
-        this.maxThreshold = this.config.maxThreshold ? this.config.maxThreshold : 100
-        this.step = this.config.step ? this.config.step : 1
+        this.sliderId = `slider-${this._config!.entity.replace('.', '-')}`
+        this.vertical = this._config!.vertical !== undefined ? this._config!.vertical : false
+        this.flipped = this._config!.flipped !== undefined ? this._config!.flipped : false
+        this.inverse = this._config!.inverse !== undefined ? this._config!.inverse : false
+        this.disableScroll = this._config!.disableScroll !== undefined ? this._config!.disableScroll : true
+        this.allowTapping = this._config!.allowTapping !== undefined ? this._config!.allowTapping : true
+        this.showMin = this._config!.showMin !== undefined ? this._config!.showMin : false
+        this.savedMin = this._config!.min ? this._config!.min : 0
+        this.max = this._config!.max ? this._config!.max : 100
+        this.minThreshold = this._config!.minThreshold ? this._config!.minThreshold : 0
+        this.maxThreshold = this._config!.maxThreshold ? this._config!.maxThreshold : 100
+        this.step = this._config!.step ? this._config!.step : 1
         
         let tmpVal
-        switch (entityId.split('.')[0]) {
+        switch (this._config!.entity.split('.')[0]) {
 
             case 'light': /* ------------ LIGHT ------------ */
                 // TODO: Check if light is warmth or 
-                if (!this.config.warmth) {
+                if (!this._config!.warmth) {
                     if (this.entity.state !== 'on') break
                     tmpVal = Math.round(this.entity.attributes.brightness / 2.56)
                     if (!this.showMin) { // Subtracting savedMin to make slider 0 be far left
@@ -306,8 +322,8 @@ export class MySliderV2 extends LitElement {
                 }
                 else {
                     if (this.entity.state !== 'on') break
-                    this.savedMin = this.config.min ? this.config.min : this.entity.attributes.min_mireds
-                    this.max = this.config.max ? this.config.max : this.entity.attributes.max_mireds
+                    this.savedMin = this._config!.min ? this._config!.min : this.entity.attributes.min_mireds
+                    this.max = this._config!.max ? this._config!.max : this.entity.attributes.max_mireds
                     tmpVal = parseFloat(this.entity.attributes.color_temp)
                     if (!this.showMin) { // Subtracting savedMin to make slider 0 be far left
                         this.max = this.max - this.savedMin
@@ -319,9 +335,9 @@ export class MySliderV2 extends LitElement {
 
                 break
             case 'input_number': /* ------------ INPUT_BOOLEAN ------------ */
-                this.step = this.config.step ? this.config.step : this.entity.attributes.step
-                this.savedMin = this.config.min ? this.config.min : this.entity.attributes.min
-                this.max = this.config.max ? this.config.max : this.entity.attributes.max
+                this.step = this._config!.step ? this._config!.step : this.entity.attributes.step
+                this.savedMin = this._config!.min ? this._config!.min : this.entity.attributes.min
+                this.max = this._config!.max ? this._config!.max : this.entity.attributes.max
                 tmpVal = parseFloat(this.entity.state)
                 if (!this.showMin) { // Subtracting savedMin to make slider 0 be far left
                     this.max = this.max - this.savedMin
@@ -359,9 +375,9 @@ export class MySliderV2 extends LitElement {
                 }
 
                 
-                this.inverse = this.config.inverse !== undefined ? this.config.inverse : true
-                this.vertical = this.config.vertical !== undefined ? this.config.vertical : true
-                this.flipped = this.config.flipped !== undefined ? this.config.flipped : true
+                this.inverse = this._config!.inverse !== undefined ? this._config!.inverse : true
+                this.vertical = this._config!.vertical !== undefined ? this._config!.vertical : true
+                this.flipped = this._config!.flipped !== undefined ? this._config!.flipped : true
 
                 this.setSliderValues(tmpVal, roundPercentage(percentage(tmpVal, this.max)))
 
@@ -383,16 +399,16 @@ export class MySliderV2 extends LitElement {
 
                 break
             case 'switch': /* ------------ SWITCH ------------ */
-                this.minThreshold = this.config.minThreshold ? this.config.minThreshold : 15
-                this.maxThreshold = this.config.maxThreshold ? this.config.maxThreshold : 75
+                this.minThreshold = this._config!.minThreshold ? this._config!.minThreshold : 15
+                this.maxThreshold = this._config!.maxThreshold ? this._config!.maxThreshold : 75
                 tmpVal = Number(Math.max(this.min, this.minThreshold))
                 this.setSliderValues(tmpVal, tmpVal)
 
 
                 break
             case 'lock': /* ------------ LOCK ------------ */
-                this.minThreshold = this.config.minThreshold ? this.config.minThreshold : 15
-                this.maxThreshold = this.config.maxThreshold ? this.config.maxThreshold : 75
+                this.minThreshold = this._config!.minThreshold ? this._config!.minThreshold : 15
+                this.maxThreshold = this._config!.maxThreshold ? this._config!.maxThreshold : 75
                 tmpVal = Number(Math.max(this.min, this.minThreshold))// Set slider to larger of 2 minimums
                 this.setSliderValues(tmpVal,tmpVal)
 
@@ -401,6 +417,8 @@ export class MySliderV2 extends LitElement {
                 console.log('Default')
                 break
         }
+
+        return null // Succes in this case
     }
 
     private calcProgress(event) {
@@ -437,10 +455,10 @@ export class MySliderV2 extends LitElement {
         // Check if value has changed
         if (this.sliderVal !== val) {
             // Check if we should update entity on mousemove or mouseup
-            if (this.config.intermediate && (action === 'mousemove' || action === 'touchmove')) {
+            if (this._config!.intermediate && (action === 'mousemove' || action === 'touchmove')) {
                 this.setValue(val, valuePercentage)
             }
-            else if (!this.config.intermediate && (action === 'mouseup' || action === 'touchend' || action === 'touchcancel')) {
+            else if (!this._config!.intermediate && (action === 'mouseup' || action === 'touchend' || action === 'touchcancel')) {
                 this.setValue(val, valuePercentage)
             }
         }
@@ -457,9 +475,9 @@ export class MySliderV2 extends LitElement {
             valPercent = 100 - valPercent
         } 
 
-        switch (this.config.entity.split('.')[0]) {
+        switch (this._config!.entity.split('.')[0]) {
             case 'light':
-                if (!this.config.warmth) { // Brightness
+                if (!this._config!.warmth) { // Brightness
                     this._setBrightness(this.entity, val)
                 }
                 else { // Warmth
@@ -598,6 +616,80 @@ export class MySliderV2 extends LitElement {
         document.addEventListener("touchend", func)
         document.addEventListener("touchcancel", func)
         document.addEventListener("mousemove", func)
+    }
+
+    
+
+    private _evalActions(config: MySliderCardConfig, action: string): MySliderCardConfig {
+        // const configDuplicate = copy(config);
+        const configDuplicate = JSON.parse(JSON.stringify(config));
+        /* eslint no-param-reassign: 0 */
+        const __evalObject = (configEval: any): any => {
+            if (!configEval) {
+                return configEval;
+            }
+            Object.keys(configEval).forEach((key) => {
+                if (typeof configEval[key] === 'object') {
+                    configEval[key] = __evalObject(configEval[key]);
+                } else {
+                    configEval[key] = this._getTemplateOrValue(this.entity, configEval[key]);
+                }
+            });
+            return configEval;
+        };
+        configDuplicate[action] = __evalObject(configDuplicate[action]);
+        if (!configDuplicate[action].confirmation && configDuplicate.confirmation) {
+            configDuplicate[action].confirmation = __evalObject(configDuplicate.confirmation);
+        }
+        return configDuplicate;
+    }
+
+    private _objectEvalTemplate(state: HassEntity | undefined, obj: any | undefined): any {
+        const objClone = JSON.parse(JSON.stringify(obj))
+        return this._getTemplateOrValue(state, objClone);
+    }
+
+    private _getTemplateOrValue(state: HassEntity | undefined, value: any | undefined): any | undefined {
+        if (['number', 'boolean'].includes(typeof value)) return value;
+        if (!value) return value;
+        if (typeof value === 'object') {
+            Object.keys(value).forEach((key) => {
+                value[key] = this._getTemplateOrValue(state, value[key]);
+            });
+            return value;
+        }
+        const trimmed = value.trim();
+        if (trimmed.substring(0, 3) === '[[[' && trimmed.slice(-3) === ']]]') {
+            const tmp = this._evalTemplate(state, trimmed.slice(3, -3))
+            return tmp
+        } else {
+            return value
+        }
+    }
+
+    private _evalTemplate(state: HassEntity | undefined, func: any): any {
+        /* eslint no-new-func: 0 */
+        try {
+            return new Function('states', 'entity', 'user', 'hass', 'html', `'use strict'; ${func}`).call(
+                this,
+                this.hass!.states,
+                state,
+                this.hass!.user,
+                this.hass,
+                html,
+            );
+        } catch (e) {
+            
+            if (e instanceof Error) {
+                const funcTrimmed = func.length <= 100 ? func.trim() : `${func.trim().substring(0, 98)}...`;
+                e.message = `${e.name}: ${e.message} in '${funcTrimmed}'`;
+                e.name = 'MyCardJSTemplateError';
+                throw e;
+              }
+              else {
+                  console.log('Unexpected error (_evalTemplate)', e);
+              }
+        }
     }
 
     // https://lit-element.polymer-project.org/guide/styles

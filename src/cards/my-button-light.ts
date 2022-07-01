@@ -380,13 +380,12 @@ export class MyButtonLight extends LitElement {
     private _evalTemplate(state: HassEntity | undefined, func: any): any {
         /* eslint no-new-func: 0 */
         try {
-            return new Function('states', 'entity', 'user', 'hass', 'variables', 'html', `'use strict'; ${func}`).call(
+            return new Function('states', 'entity', 'user', 'hass', 'html', `'use strict'; ${func}`).call(
                 this,
                 this.hass!.states,
                 state,
                 this.hass!.user,
                 this.hass,
-                this._evaledVariables,
                 html,
             );
         } catch (e) {
