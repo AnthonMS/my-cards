@@ -47,6 +47,8 @@ export class MySliderV2 extends LitElement {
     private sliderId: String = ''
     private sliderEl: HTMLBodyElement | undefined
     private touchInput: Boolean = false
+    private disableScroll: Boolean = true
+    private allowTapping: Boolean = true
     private vertical: Boolean = false
     private flipped: Boolean = false
     private inverse: Boolean = false
@@ -164,11 +166,22 @@ export class MySliderV2 extends LitElement {
             }
         }
 
+        const setElements = (event) => {
+            const sliderMaybe = event.path.find(el => el.classList.contains('my-slider-custom'))
+            if (!sliderMaybe) {
+                this.sliderEl = event.target
+            }
+            else {
+                this.sliderEl = sliderMaybe
+            }
+        }
+
         const sliderHandler = (event) => {
             switch (event.type) {
                 case 'mousedown':
                     if (this.touchInput) return
                     startInput(event)
+                    
                     break
 
                 case 'touchstart':
@@ -182,7 +195,7 @@ export class MySliderV2 extends LitElement {
                     break
 
                 case 'touchmove':
-                    if (this.config.disable_scroll)
+                    if (this.disableScroll)
                         event.preventDefault()
                     moveInput(event)
                     break
@@ -196,16 +209,33 @@ export class MySliderV2 extends LitElement {
         }
 
         const startInput = (event) => {
-            this.sliderEl = event.target
             if (this.config.dragging === true) return
-            this.config.dragging = true
-            this.calcProgress(event)
+            setElements(event)
+
+            if (this.allowTapping) {
+                this.config.dragging = true
+                this.calcProgress(event)
+            }
+            else {
+                if (event.path[0].classList.contains('my-slider-custom-thumb')) {
+                    this.config.dragging = true
+                    this.calcProgress(event)
+                } // else: tapping not allowed
+            }
         }
 
         const stopInput = (event) => {
             if (this.config.dragging === false) return
             this.config.dragging = false
-            this.calcProgress(event)
+            
+            if (this.allowTapping) {
+                this.calcProgress(event)
+            }
+            else {
+                if (event.path[0].classList.contains('my-slider-custom-thumb')) {
+                    this.calcProgress(event)
+                } // Else tapping not allowed
+            }
         }
 
         const moveInput = event => {
@@ -242,10 +272,12 @@ export class MySliderV2 extends LitElement {
         this.entity = this.hass.states[`${entityId}`]
 
         this.sliderId = `slider-${this.config.entity.replace('.', '-')}`
-        this.vertical = this.config.vertical ? this.config.vertical : false
-        this.flipped = this.config.flipped ? this.config.flipped : false
-        this.inverse = this.config.inverse ? this.config.inverse : false
-        this.showMin = this.config.showMin ? this.config.showMin : false
+        this.vertical = this.config.vertical !== undefined ? this.config.vertical : false
+        this.flipped = this.config.flipped !== undefined ? this.config.flipped : false
+        this.inverse = this.config.inverse !== undefined ? this.config.inverse : false
+        this.disableScroll = this.config.disableScroll !== undefined ? this.config.disableScroll : true
+        this.allowTapping = this.config.allowTapping !== undefined ? this.config.allowTapping : true
+        this.showMin = this.config.showMin !== undefined ? this.config.showMin : false
         this.savedMin = this.config.min ? this.config.min : 0
         this.max = this.config.max ? this.config.max : 100
         this.minThreshold = this.config.minThreshold ? this.config.minThreshold : 0
@@ -321,9 +353,9 @@ export class MySliderV2 extends LitElement {
                 }
 
                 
-                this.inverse = this.config.inverse ? this.config.inverse : true
-                this.vertical = this.config.vertical ? this.config.vertical : true
-                this.flipped = this.config.flipped ? this.config.flipped : true
+                this.inverse = this.config.inverse !== undefined ? this.config.inverse : true
+                this.vertical = this.config.vertical !== undefined ? this.config.vertical : true
+                this.flipped = this.config.flipped !== undefined ? this.config.flipped : true
 
                 this.setSliderValues(tmpVal, roundPercentage(percentage(tmpVal, this.max)))
 
@@ -580,7 +612,8 @@ inverse: false (Will inverse how far the slider has progressed compared to value
 min: 0
 max: 100
 intermediate: false
-disable_scroll: false
+disableScroll: true (Disable scrolling on touch devices when starting the touchmove from within the slider)
+allowTapping: true (Tap anywhere on the slider to set that value. If false you can only drag from thumb.)
 showMin: false
 minThreshold: 15 (Only used for determining how much progress should be shown on a switch or lock)
 maxThreshold: 75 (Only used to determine how far users have to slide to activate toggle commands for switch and lock)

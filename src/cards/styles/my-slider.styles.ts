@@ -41,7 +41,7 @@ const trackStyle = (style:any) => {
         height: '100%',
         position: 'relative',
         background: 'var(--card-background-color)',
-        'pointer-events': 'none',
+        //'pointer-events': 'none',
         ...style
     }
 }
@@ -52,7 +52,7 @@ const progressStyle = (style:any) => {
         background: 'var(--paper-item-icon-active-color)',
         position: 'absolute',
         width: '0.00%',
-        'pointer-events': 'none',
+        //'pointer-events': 'none',
         ...style
     }
 }
@@ -64,7 +64,7 @@ const thumbStyle = (style:any) => {
         position: 'absolute',
         right: '-5px',
         width: '10px',
-        'pointer-events': 'none',
+        //'pointer-events': 'none',
         ...style
     }
 }
