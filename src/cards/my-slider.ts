@@ -47,6 +47,8 @@ export class MySliderV2 extends LitElement {
     private sliderId: String = ''
     private sliderEl: HTMLBodyElement | undefined
     private touchInput: Boolean = false
+    private vertical: Boolean = false
+    private flipped: Boolean = false
     private inverse: Boolean = false
     private showMin: Boolean = false
     private savedMin: number = 0
@@ -122,13 +124,45 @@ export class MySliderV2 extends LitElement {
     protected render(): TemplateResult | void {
         this.initializeConfig()
 
+        const deflatedCardStl = this.config.styles?.card?.myDeflate() ? this.config.styles?.card?.myDeflate() : {}
+        const deflatedContainerStl = this.config.styles?.container?.myDeflate() ? this.config.styles?.container?.myDeflate() : {}
+        const deflatedTrackStl = this.config.styles?.track?.myDeflate() ? this.config.styles?.track?.myDeflate() : {}
+        const deflatedProgressStl = this.config.styles?.progress?.myDeflate() ? this.config.styles?.progress?.myDeflate() : {}
+        const deflatedThumbStl = this.config.styles?.thumb?.myDeflate() ? this.config.styles?.thumb?.myDeflate() : {}
         // ---------- Styles ---------- //
-        const cardStl = getStyle('card', this.config.styles?.card?.deflate())
-        const containerStl = getStyle('container', this.config.styles?.container?.deflate())
-        const trackStl = getStyle('track', this.config.styles?.track?.deflate())
-        const progressStl = getStyle('progress', this.config.styles?.progress?.deflate())
-        const thumbStl = getStyle('thumb', this.config.styles?.thumb?.deflate())
-        progressStl.width = this.sliderValPercent.toString() + '%'
+        const cardStl = getStyle('card', deflatedCardStl)
+        const containerStl = getStyle('container', deflatedContainerStl)
+        const trackStl = getStyle('track', deflatedTrackStl)
+        const progressStl = getStyle('progress', deflatedProgressStl)
+        const thumbStl = getStyle('thumb', deflatedThumbStl)
+        
+        if (this.vertical) {
+            progressStl.height = this.sliderValPercent.toString() + '%'
+
+            // Setting default styles for vertical if nothing is provided
+            progressStl.width = deflatedProgressStl.width ? deflatedProgressStl.width : '100%'
+            progressStl.right = deflatedProgressStl.right ? deflatedProgressStl.right : 'auto'
+            thumbStl.right = deflatedThumbStl.right ? deflatedThumbStl : 'auto'
+            thumbStl.width = deflatedThumbStl.width ? deflatedThumbStl.width : '100%'
+            thumbStl.height = deflatedThumbStl.height ? deflatedThumbStl.height : '10px'
+
+            if (this.flipped) {
+                progressStl.top = deflatedProgressStl.top ? deflatedProgressStl.top : '0'
+                thumbStl.bottom = deflatedThumbStl.bottom ? deflatedThumbStl.bottom : '-5px'
+            }
+            else {
+                progressStl.bottom = deflatedProgressStl.bottom ? deflatedProgressStl.bottom : '0'
+                thumbStl.top = deflatedThumbStl.top ? deflatedThumbStl.top : '-5px'
+            }
+        }
+        else {
+            progressStl.width = this.sliderValPercent.toString() + '%'
+            if (this.flipped) {
+                progressStl.right = deflatedProgressStl.right ? deflatedProgressStl.right : '0'
+                thumbStl.right = deflatedThumbStl.right ? deflatedThumbStl.right : 'auto'
+                thumbStl.left = deflatedThumbStl.left ? deflatedThumbStl.left : '-5px'
+            }
+        }
 
         const sliderHandler = (event) => {
             switch (event.type) {
@@ -208,6 +242,8 @@ export class MySliderV2 extends LitElement {
         this.entity = this.hass.states[`${entityId}`]
 
         this.sliderId = `slider-${this.config.entity.replace('.', '-')}`
+        this.vertical = this.config.vertical ? this.config.vertical : false
+        this.flipped = this.config.flipped ? this.config.flipped : false
         this.inverse = this.config.inverse ? this.config.inverse : false
         this.showMin = this.config.showMin ? this.config.showMin : false
         this.savedMin = this.config.min ? this.config.min : 0
@@ -286,6 +322,8 @@ export class MySliderV2 extends LitElement {
 
                 
                 this.inverse = this.config.inverse ? this.config.inverse : true
+                this.vertical = this.config.vertical ? this.config.vertical : true
+                this.flipped = this.config.flipped ? this.config.flipped : true
 
                 this.setSliderValues(tmpVal, roundPercentage(percentage(tmpVal, this.max)))
 
@@ -331,10 +369,13 @@ export class MySliderV2 extends LitElement {
         if (this.sliderEl == undefined || this.sliderEl === null) return
         const clickPos = getClickPosRelToTarget(event, this.sliderEl)
         const sliderWidth = this.sliderEl.offsetWidth
-        // Calculate what the percentage is of the clickPos.x between 0 and sliderWidth
-        const clickPercentage = roundPercentage(percentage(clickPos!.x, sliderWidth))
-        const newValue = clickPercentage / 100 * (this.max - 0)
-        this.setProgress(this.sliderEl, Math.round(newValue), event.type)
+        const sliderHeight = this.sliderEl.offsetHeight
+        // Calculate what the percentage is of the clickPos.x between 0 and sliderWidth / clickPos.y between 0 and sliderHeight
+        const clickPercent = this.vertical ? roundPercentage(clickPos.y/sliderHeight * 100) : roundPercentage(clickPos.x/sliderWidth * 100)
+        const newValue = clickPercent / 100 * (this.max - 0)
+        const flippedValue = this.max - newValue
+        const val = this.flipped ? flippedValue : newValue
+        this.setProgress(this.sliderEl, Math.round(val), event.type)
     }
 
     private setProgress(slider, val, action) {
@@ -346,8 +387,14 @@ export class MySliderV2 extends LitElement {
         }
         const progressEl = slider.querySelector('.my-slider-custom-progress')
         const valuePercentage = roundPercentage(percentage(val, this.max))
-        // Set progessWidth to match value
-        progressEl.style.width = valuePercentage.toString() + '%'
+        if (this.vertical) {
+            // Set progessHeight to match value
+            progressEl.style.height = valuePercentage.toString() + '%'
+        }
+        else {
+            // Set progessWidth to match value
+            progressEl.style.width = valuePercentage.toString() + '%'
+        }
 
         // Check if value has changed
         if (this.sliderVal !== val) {
@@ -407,7 +454,7 @@ export class MySliderV2 extends LitElement {
     }
 
     private _setBrightness(entity, value): void {
-        if (Math.abs((value - Math.round(entity.attributes.brightness / 2.56))) > this.step) {
+        if (entity.state === 'off' || (Math.abs((value - Math.round(entity.attributes.brightness / 2.56))) > this.step)) {
             this.hass.callService("light", "turn_on", {
                 entity_id: entity.entity_id,
                 brightness: value * 2.56
@@ -420,7 +467,7 @@ export class MySliderV2 extends LitElement {
         // if (!this.showMin) {
         //     oldVal = oldVal - this.savedMin // Subtracting savedMin to make slider 0 be far left
         // }
-        if (Math.abs((value - oldVal)) > this.step) {
+        if (entity.state === 'off' || Math.abs((value - oldVal)) > this.step) {
             this.hass.callService("light", "turn_on", {
                 entity_id: entity.entity_id,
                 color_temp: value
@@ -446,6 +493,7 @@ export class MySliderV2 extends LitElement {
             oldVal = oldVal - this.savedMin
         }
 
+        // TODO: This will be false if entity is off. Set volume even when off/not playing/idle? (whatever states to check for?)
         if (Math.abs((value - oldVal)) > this.step) {
             this.hass.callService("media_player", "volume_set", {
                 entity_id: entity.entity_id,
@@ -526,6 +574,8 @@ export class MySliderV2 extends LitElement {
 type: custom:my-slider-v2
 entity: light.sofa_spots
 warmth: false
+vertical: false (This will set the vertical to be vertical and handled from bottom to top. Automatically used on covers)
+flipped: false (This will just flip the slider to go from right to left or top to bottom. Automatically used on covers)
 inverse: false (Will inverse how far the slider has progressed compared to value. so if brightness is 75%, then it will only be 25% progressed. This is useful for cover, where it is automatically used.)
 min: 0
 max: 100
@@ -547,11 +597,26 @@ styles:
 
 /*
 TODO:
+
+TODONE:
+- Rename my injected deflate function to not interfere with others' injected code
 - When Light is off and slider is clicked, turn on light (bug with step being bigger than probably)
 - Create flipped slider, so it goes from right to left
     - Make progress style position 'absolute' and depending on it not being flipped, then it should be left: 0 OTHERWISE right: 0
     - Make thumb style left: 0 instead of right: 0
-    - If flipped, then it should take the value and subtract it from the maximum before setting new values
+    - If flipped, then it should take the value and subtract it from the maximum before setting new values with sliding
 - Create vertical slider, so it goes from bottom to top
-    - 
+    - Make height of card greater than width to make it vertical
+    - Progress style changes:
+        right: auto;
+        bottom: 0;
+        width: 100%;
+    - Thumb style changes:
+        right: auto;
+        top: -5px;
+        width: 100%;
+        height: 10px;
+    - When calculating progress, get sliderHeight and if it's vertical, then we want to get clickPercentage with clickPos.y/sliderHeight * 100
+    - When getting click pos relative to target, then we want to: y = event.target.offsetHeight - y // y click position relative to bottom
+    - If vertical, set height instead of width
 */
