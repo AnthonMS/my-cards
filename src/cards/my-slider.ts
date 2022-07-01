@@ -22,7 +22,8 @@ import type { MySliderCardConfig } from '../types'
 import { SLIDER_VERSION } from '../const'
 import { localize } from '../localize/localize'
 import { getStyle } from './styles/my-slider.styles'
-import './scripts/deflate.js'
+// import './scripts/deflate.js'
+import { deflate } from './scripts/deflate'
 import { percentage, roundPercentage, getClickPosRelToTarget } from './scripts/helpers'
 
 /* eslint no-console: 0 */
@@ -126,11 +127,16 @@ export class MySliderV2 extends LitElement {
     protected render(): TemplateResult | void {
         this.initializeConfig()
 
-        const deflatedCardStl = this.config.styles?.card?.myDeflate() ? this.config.styles?.card?.myDeflate() : {}
-        const deflatedContainerStl = this.config.styles?.container?.myDeflate() ? this.config.styles?.container?.myDeflate() : {}
-        const deflatedTrackStl = this.config.styles?.track?.myDeflate() ? this.config.styles?.track?.myDeflate() : {}
-        const deflatedProgressStl = this.config.styles?.progress?.myDeflate() ? this.config.styles?.progress?.myDeflate() : {}
-        const deflatedThumbStl = this.config.styles?.thumb?.myDeflate() ? this.config.styles?.thumb?.myDeflate() : {}
+        // const deflatedCardStl = this.config.styles?.card?.myDeflate() ? this.config.styles?.card?.myDeflate() : {}
+        // const deflatedContainerStl = this.config.styles?.container?.myDeflate() ? this.config.styles?.container?.myDeflate() : {}
+        // const deflatedTrackStl = this.config.styles?.track?.myDeflate() ? this.config.styles?.track?.myDeflate() : {}
+        // const deflatedProgressStl = this.config.styles?.progress?.myDeflate() ? this.config.styles?.progress?.myDeflate() : {}
+        // const deflatedThumbStl = this.config.styles?.thumb?.myDeflate() ? this.config.styles?.thumb?.myDeflate() : {}
+        const deflatedCardStl = deflate(this.config.styles?.card) ? deflate(this.config.styles?.card) : {}
+        const deflatedContainerStl = deflate(this.config.styles?.container) ? deflate(this.config.styles?.container) : {}
+        const deflatedTrackStl = deflate(this.config.styles?.track) ? deflate(this.config.styles?.track) : {}
+        const deflatedProgressStl = deflate(this.config.styles?.progress) ? deflate(this.config.styles?.progress) : {}
+        const deflatedThumbStl = deflate(this.config.styles?.thumb) ? deflate(this.config.styles?.thumb) : {}
         // ---------- Styles ---------- //
         const cardStl = getStyle('card', deflatedCardStl)
         const containerStl = getStyle('container', deflatedContainerStl)

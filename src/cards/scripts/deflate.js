@@ -1,50 +1,19 @@
-/* Adding deflate() to the Object prototype */
-Object.prototype.myDeflate = function (pathArray, result) {
-    pathArray = (typeof pathArray === 'undefined') ? [] : pathArray;
-    result = (typeof result === 'undefined') ? {} : result;
-
-    var key, value, newKey;
-
-    for (var i in this) {
-
-        if (this.hasOwnProperty(i)) {
-            key = i;
-            value = this[i];
-            pathArray.push(key);
-            
-            if (typeof value === 'object' && value !== null) {
-                result = value.myDeflate(pathArray, result);
-            } else {
-                //newKey = pathArray.join('.'); // Use this for useful application
-                newKey = pathArray[pathArray.length-1] // I use this because I just want the original keyname. This way each nested object cannot hold the same keys, as they will overwrite eachother. I use this in a way each object will always only have 1 key
-                result[newKey] = value;
-            }
-
-            pathArray.pop();
-        }
-    }
-
-    return result;
-};
-
-/* Creating deflate() as a standalone function */
-// var deflate = function (source, pathArray, result) {
+// /* Adding myDeflate() to the Object prototype */
+// Object.prototype.myDeflate = function (pathArray, result) {
 //     pathArray = (typeof pathArray === 'undefined') ? [] : pathArray;
 //     result = (typeof result === 'undefined') ? {} : result;
+
 //     var key, value, newKey;
 
-//     for (var i in source) {
-//         if (source.hasOwnProperty(i)) {
+//     for (var i in this) {
 
+//         if (this.hasOwnProperty(i)) {
 //             key = i;
-//             value = source[i];
-
+//             value = this[i];
 //             pathArray.push(key);
-
+            
 //             if (typeof value === 'object' && value !== null) {
-
-//                 result = deflate(value, pathArray, result);
-
+//                 result = value.myDeflate(pathArray, result);
 //             } else {
 //                 //newKey = pathArray.join('.'); // Use this for useful application
 //                 newKey = pathArray[pathArray.length-1] // I use this because I just want the original keyname. This way each nested object cannot hold the same keys, as they will overwrite eachother. I use this in a way each object will always only have 1 key
@@ -57,6 +26,37 @@ Object.prototype.myDeflate = function (pathArray, result) {
 
 //     return result;
 // };
+
+/* Creating deflate() as a standalone function */
+export const deflate = function (source, pathArray, result) {
+    pathArray = (typeof pathArray === 'undefined') ? [] : pathArray;
+    result = (typeof result === 'undefined') ? {} : result;
+    var key, value, newKey;
+
+    for (var i in source) {
+        if (source.hasOwnProperty(i)) {
+
+            key = i;
+            value = source[i];
+
+            pathArray.push(key);
+
+            if (typeof value === 'object' && value !== null) {
+
+                result = deflate(value, pathArray, result);
+
+            } else {
+                //newKey = pathArray.join('.'); // Use this for useful application
+                newKey = pathArray[pathArray.length-1] // I use this because I just want the original keyname. This way each nested object cannot hold the same keys, as they will overwrite eachother. I use this in a way each object will always only have 1 key
+                result[newKey] = value;
+            }
+
+            pathArray.pop();
+        }
+    }
+
+    return result;
+};
 
 // /*----------- Usage examples -----------*/
 
