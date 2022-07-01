@@ -15,6 +15,8 @@ import { HassEntity } from 'home-assistant-js-websocket'
 import {
     HomeAssistant,
     hasConfigOrEntityChanged,
+    handleClick,
+    LovelaceCard
 } from 'custom-card-helpers'; // This is a community maintained npm module with common helper functions/types
 import { actionHandler } from '../action-handler-directive';
 import { disableBodyScroll, enableBodyScroll } from 'body-scroll-lock'
@@ -42,7 +44,15 @@ console.info(
 
 @customElement('my-button-light')
 export class MyButtonLight extends LitElement {
+    @property() private _config?: MyButtonLightCardConfig
     private entity: HassEntity | undefined
+    private lastAction: number = 0
+    private iconConfig: any = {}
+    private labelConfig: any = {}
+    private sliderConfig: any = {}
+    private _evaledVariables: any | undefined;
+
+    // STYLES
     private cardStl: StyleInfo = {}
     private containerStl: StyleInfo = {}
     private iconStl: StyleInfo = {}
@@ -50,7 +60,7 @@ export class MyButtonLight extends LitElement {
     private row1Stl: StyleInfo = {}
     private row2Stl: StyleInfo = {}
     private row3Stl: StyleInfo = {}
-    private lastAction: number = 0
+
     public static getStubConfig(): object {
         return {}
     }
@@ -94,67 +104,39 @@ export class MyButtonLight extends LitElement {
 
     // https://lit-element.polymer-project.org/guide/templates
     protected render(): TemplateResult | void {
-        this.initializeConfig()
+        const initFailed = this.initializeConfig()
+        if (initFailed !== null) return initFailed
         if (!this.entity) return html``
         // const entityId = this.config.entity
         // const entity = this.hass.states[`${entityId}`]
 
-        // ---- Icon Config ---- //
-        const defaultIconAttr = {
-            show: true,
-            icon: 'mdi:cog-outline'
-        }
-        // If icon is just a string, then save that under iconConfig. If it's an object, then combine default with custom configs. If nothing then just use default config
-        const iconConfig = typeof this.config.icon === 'string' ? { ...defaultIconAttr, icon: this.config.icon } : typeof this.config.icon === 'object' ? { ...defaultIconAttr, ...this.config.icon } : defaultIconAttr
-
-        // ---- Label Config ---- //
-        const defaultLabelAttr = {
-            show: true,
-            text: this.entity.attributes.friendly_name
-        }
-        // If label is just a string, then save that under labelConfig. If it's an object, then combine default with custom configs. If nothing then just use default config
-        const labelConfig = typeof this.config.label === 'string' ? { ...defaultLabelAttr, text: this.config.label } : typeof this.config.label === 'object' ? { ...defaultLabelAttr, ...this.config.label } : defaultLabelAttr
-
-        // ---- Slider Config ---- //
-        const defaultSliderConfig = {
-            show: true
-        }
-        const sliderConfig = this.config.slider ? { ...defaultSliderConfig, ...this.config.slider } : defaultSliderConfig
 
         const handleSlider = (e) => {
-            this._setBrightness(this.entity, e.target, sliderConfig.min, sliderConfig.max)
+            this._setBrightness(this.entity, e.target, this.sliderConfig.min, this.sliderConfig.max)
         }
 
         const icon = () => {
-            if (!iconConfig.show) return html``
-            return html`
-                <ha-icon icon="${iconConfig.icon}" style="${styleMap(this.iconStl)}"
-                    @action=${e => this._handleAction(e, this.config)}
-                    .actionHandler=${actionHandler({
-                hasDoubleClick: this.config?.double_tap_action?.action !== 'none',
-                hasHold: this.config?.hold_action?.action !== 'none',
-            })} />
-            `
+            if (!this.iconConfig.show) return html``
 
-            if (iconConfig.tap_action || iconConfig.double_tap_action || iconConfig.hold_action) {
+            if (this.iconConfig.tap_action || this.iconConfig.double_tap_action || this.iconConfig.hold_action) {
                 return html`
-                    <ha-icon icon="${iconConfig.icon}" style="${styleMap(this.iconStl)}"
-                        @action=${e => this._handleAction(e, iconConfig)}
+                    <ha-icon icon="${this.iconConfig.icon}" style="${styleMap(this.iconStl)}"
+                        @action=${e => this._handleAction(e, this.iconConfig)}
                         .actionHandler=${actionHandler({
-                    hasDoubleClick: iconConfig.double_tap_action?.action !== 'none',
-                    hasHold: iconConfig.hold_action?.action !== 'none',
+                    hasDoubleClick: this.iconConfig.double_tap_action?.action !== 'none',
+                    hasHold: this.iconConfig.hold_action?.action !== 'none',
                 })} />
                 `
             }
             else {
                 return html`
-                    <ha-icon icon="${iconConfig.icon}" style="${styleMap(this.iconStl)}" />
+                    <ha-icon icon="${this.iconConfig.icon}" style="${styleMap(this.iconStl)}" />
                 `
             }
         }
 
         const slider = () => {
-            if (!sliderConfig.show) return html``
+            if (!this.sliderConfig.show) return html``
 
             return html`
                 <div>Slider Goes here...</div>
@@ -162,11 +144,24 @@ export class MyButtonLight extends LitElement {
         }
 
         const label = () => {
-            if (!labelConfig.show) return html``
+            if (!this.labelConfig.show) return html``
 
-            return html`
-                <label style="${styleMap(this.labelStl)}">${labelConfig.text}</label>
-            `
+            if (this.labelConfig.tap_action || this.labelConfig.double_tap_action || this.labelConfig.hold_action) {
+                return html`
+                    <label style="${styleMap(this.labelStl)}"
+                        @action=${e => this._handleAction(e, this.labelConfig)}
+                        .actionHandler=${actionHandler({
+                    hasDoubleClick: this.labelConfig.double_tap_action?.action !== 'none',
+                    hasHold: this.labelConfig.hold_action?.action !== 'none',
+                })}
+                    >${this.labelConfig.text}</label>
+                `
+            }
+            else {
+                return html`
+                    <label style="${styleMap(this.labelStl)}">${this.labelConfig.text}</label>
+                `
+            }
         }
 
         return html`
@@ -175,17 +170,17 @@ export class MyButtonLight extends LitElement {
                     <div style="${styleMap(this.row1Stl)}"
                         @action=${e => this._handleAction(e, this.config)}
                         .actionHandler=${actionHandler({
-                            hasDoubleClick: this.config?.double_tap_action?.action !== 'none',
-                            hasHold: this.config?.hold_action?.action !== 'none',
-                        })}>
+            hasDoubleClick: this.config?.double_tap_action?.action !== 'none',
+            hasHold: this.config?.hold_action?.action !== 'none',
+        })}>
                         ${icon()}
                     </div>
                     <div style="${styleMap(this.row2Stl)}"
                         @action=${e => this._handleAction(e, this.config)}
                         .actionHandler=${actionHandler({
-                            hasDoubleClick: this.config?.double_tap_action?.action !== 'none',
-                            hasHold: this.config?.hold_action?.action !== 'none',
-                        })}>
+            hasDoubleClick: this.config?.double_tap_action?.action !== 'none',
+            hasHold: this.config?.hold_action?.action !== 'none',
+        })}>
                         ${label()}
                     </div>
                     <div style="${styleMap(this.row3Stl)}">
@@ -196,19 +191,63 @@ export class MyButtonLight extends LitElement {
         `;
     }
 
-    private initializeConfig(): void {
-        const entityId = this.config.entity
-        // const entity = this.hass.states[`${entityId}`]
-        this.entity = this.hass.states[`${entityId}`]
-
+    private initializeConfig(): any {
+        this.entity = this.hass.states[`${this.config.entity}`]
+        if (this.lastAction === 0) {
+            this.lastAction = new Date().getTime()
+        }
         
-        const deflatedCardStl = deflate(this.config.styles?.card) ? deflate(this.config.styles?.card) : {}
-        const deflatedContainerStl = deflate(this.config.styles?.container) ? deflate(this.config.styles?.container) : {}
-        const deflatedIconStl = deflate(this.config.styles?.icon) ? deflate(this.config.styles?.icon) : {}
-        const deflatedLabelStl = deflate(this.config.styles?.label) ? deflate(this.config.styles?.label) : {}
-        const deflatedRow1Stl = deflate(this.config.styles?.row1) ? deflate(this.config.styles?.row1) : {}
-        const deflatedRow2Stl = deflate(this.config.styles?.row2) ? deflate(this.config.styles?.row2) : {}
-        const deflatedRow3Stl = deflate(this.config.styles?.row3) ? deflate(this.config.styles?.row3) : {}
+        try {
+            this._config = this._objectEvalTemplate(this.entity, this.config)
+        } catch (e) {
+            if (e instanceof Error) {
+              if (e.stack) console.error(e.stack)
+              else console.error(e)
+              const errorCard = document.createElement('hui-error-card') as LovelaceCard
+              errorCard.setConfig({
+                  type: 'error',
+                  error: e.toString(),
+                  origConfig: this.config,
+              })
+              return errorCard
+            }
+            else {
+                console.log('Unexpected error evaluating config on init:', e)
+            }
+        }
+
+        // ---- Icon Config ---- //
+        const defaultIconAttr = {
+            show: true,
+            icon: 'mdi:cog-outline'
+        }
+        // If icon is just a string, then save that under iconConfig. If it's an object, then combine default with custom configs. If nothing then just use default config
+        this.iconConfig = typeof this._config!.icon === 'string' ? { ...defaultIconAttr, icon: this._config!.icon } : typeof this._config!.icon === 'object' ? { ...defaultIconAttr, ...this._config!.icon } : defaultIconAttr
+
+        // ---- Label Config ---- //
+        const defaultLabelAttr = {
+            show: true,
+            text: this.entity.attributes.friendly_name
+        }
+        // If label is just a string, then save that under labelConfig. If it's an object, then combine default with custom configs. If nothing then just use default config
+        this.labelConfig = typeof this._config!.label === 'string' ? { ...defaultLabelAttr, text: this._config!.label } : typeof this._config!.label === 'object' ? { ...defaultLabelAttr, ...this._config!.label } : defaultLabelAttr
+
+        // ---- Slider Config ---- //
+        const defaultSliderConfig = {
+            show: true
+        }
+        this.sliderConfig = this._config!.slider ? { ...defaultSliderConfig, ...this._config!.slider } : defaultSliderConfig
+
+
+
+
+        const deflatedCardStl = deflate(this._config!.styles?.card) ? deflate(this._config!.styles?.card) : {}
+        const deflatedContainerStl = deflate(this._config!.styles?.container) ? deflate(this._config!.styles?.container) : {}
+        const deflatedIconStl = deflate(this._config!.styles?.icon) ? deflate(this._config!.styles?.icon) : {}
+        const deflatedLabelStl = deflate(this._config!.styles?.label) ? deflate(this._config!.styles?.label) : {}
+        const deflatedRow1Stl = deflate(this._config!.styles?.row1) ? deflate(this._config!.styles?.row1) : {}
+        const deflatedRow2Stl = deflate(this._config!.styles?.row2) ? deflate(this._config!.styles?.row2) : {}
+        const deflatedRow3Stl = deflate(this._config!.styles?.row3) ? deflate(this._config!.styles?.row3) : {}
         // ---------- Styles ---------- //
         this.cardStl = getStyle('card', deflatedCardStl)
         this.containerStl = getStyle('container', deflatedContainerStl)
@@ -217,15 +256,29 @@ export class MyButtonLight extends LitElement {
         this.row1Stl = getStyle('row1', deflatedRow1Stl)
         this.row2Stl = getStyle('row2', deflatedRow2Stl)
         this.row3Stl = getStyle('row3', deflatedRow3Stl)
+
+        return null // Success in this case
     }
 
     private _handleAction(ev: any, actionConfig: any): void {
         ev.stopPropagation()
         ev.stopImmediatePropagation()
-        if (!actionConfig.entity) {
-            actionConfig.entity = this.config.entity
+
+        const now = new Date().getTime()
+
+        // Check here if lastAction was performed longer than 1 second ago
+        // If not then we want to return and break out of the function
+        if (now - this.lastAction < 100) {
+            return
         }
-        console.log('Action Config:', actionConfig)
+        // We will only get here if enough time has passed
+        // So safely set the new lastAction
+        this.lastAction = new Date().getTime()
+
+        if (!actionConfig.entity) {
+            actionConfig.entity = this._config!.entity
+        }
+        
         if (ev.detail?.action) {
             switch (ev.detail.action) {
                 case 'tap':
@@ -247,18 +300,21 @@ export class MyButtonLight extends LitElement {
     }
 
     private _handleTap(actionConfig: any): void {
-        if (actionConfig) {}
-        // handleAction(this, this.hass, actionConfig, 'tap')
+        if (actionConfig) { }
+        handleClick(this, this.hass!, this._evalActions(this._config!, 'tap_action'), false, false);
+        // handleClick(this, this.hass, actionConfig, false, false);
     }
 
     private _handleHold(actionConfig: any): void {
-        if (actionConfig) {}
-        // handleAction(this, this.hass, actionConfig, 'hold')
+        if (actionConfig) { }
+        handleClick(this, this.hass!, this._evalActions(this._config!, 'hold_action'), true, false);
+        // handleClick(this, this.hass, actionConfig, false, false);
     }
 
     private _handleDblTap(actionConfig: any): void {
-        if (actionConfig) {}
-        // handleAction(this, this.hass, actionConfig, 'double_tap')
+        if (actionConfig) { }
+        handleClick(this, this.hass!, this._evalActions(this._config!, 'double_tap_action'), false, true);
+        // handleClick(this, this.hass, actionConfig, false, false);
     }
 
     private _setBrightness(_entity, _target, _minSet: number, _maxSet: number): void {
@@ -273,9 +329,83 @@ export class MyButtonLight extends LitElement {
         _target.value = value
     }
 
+
+    private _evalActions(config: MyButtonLightCardConfig, action: string): MyButtonLightCardConfig {
+        // const configDuplicate = copy(config);
+        const configDuplicate = JSON.parse(JSON.stringify(config));
+        /* eslint no-param-reassign: 0 */
+        const __evalObject = (configEval: any): any => {
+            if (!configEval) {
+                return configEval;
+            }
+            Object.keys(configEval).forEach((key) => {
+                if (typeof configEval[key] === 'object') {
+                    configEval[key] = __evalObject(configEval[key]);
+                } else {
+                    configEval[key] = this._getTemplateOrValue(this.entity, configEval[key]);
+                }
+            });
+            return configEval;
+        };
+        configDuplicate[action] = __evalObject(configDuplicate[action]);
+        if (!configDuplicate[action].confirmation && configDuplicate.confirmation) {
+            configDuplicate[action].confirmation = __evalObject(configDuplicate.confirmation);
+        }
+        return configDuplicate;
+    }
+
+    private _objectEvalTemplate(state: HassEntity | undefined, obj: any | undefined): any {
+        const objClone = JSON.parse(JSON.stringify(obj))
+        return this._getTemplateOrValue(state, objClone);
+    }
+
+    private _getTemplateOrValue(state: HassEntity | undefined, value: any | undefined): any | undefined {
+        if (['number', 'boolean'].includes(typeof value)) return value;
+        if (!value) return value;
+        if (typeof value === 'object') {
+            Object.keys(value).forEach((key) => {
+                value[key] = this._getTemplateOrValue(state, value[key]);
+            });
+            return value;
+        }
+        const trimmed = value.trim();
+        if (trimmed.substring(0, 3) === '[[[' && trimmed.slice(-3) === ']]]') {
+            const tmp = this._evalTemplate(state, trimmed.slice(3, -3))
+            return tmp
+        } else {
+            return value
+        }
+    }
+
+    private _evalTemplate(state: HassEntity | undefined, func: any): any {
+        /* eslint no-new-func: 0 */
+        try {
+            return new Function('states', 'entity', 'user', 'hass', 'variables', 'html', `'use strict'; ${func}`).call(
+                this,
+                this.hass!.states,
+                state,
+                this.hass!.user,
+                this.hass,
+                this._evaledVariables,
+                html,
+            );
+        } catch (e) {
+            
+            if (e instanceof Error) {
+                const funcTrimmed = func.length <= 100 ? func.trim() : `${func.trim().substring(0, 98)}...`;
+                e.message = `${e.name}: ${e.message} in '${funcTrimmed}'`;
+                e.name = 'MyCardJSTemplateError';
+                throw e;
+              }
+              else {
+                  console.log('Unexpected error (_evalTemplate)', e);
+              }
+        }
+    }
+
     // https://lit-element.polymer-project.org/guide/styles
     static get styles(): CSSResult {
-        
+
         return css``;
     }
 }
