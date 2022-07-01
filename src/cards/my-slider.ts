@@ -11,7 +11,7 @@ import {
     internalProperty,
 } from 'lit-element'
 import { styleMap } from 'lit-html/directives/style-map'
-import { HassEntity } from 'home-assistant-js-websocket';
+import { HassEntity } from 'home-assistant-js-websocket'
 import {
     HomeAssistant,
     hasConfigOrEntityChanged,
