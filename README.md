@@ -16,6 +16,6 @@ Hopefully some of you find these updates as exciting as I do. I'm looking forwar
 ## Table of contents
 - [Installation](/other/docs/installation.md)
 - [my-slider](/other/docs/slider.md)
-- [my-slider-v2](/other/docs/slider.md)
-- [my-button](/other/docs/slider.md)
+- [my-slider-v2](/other/docs/slider-v2.md)
+- [my-button](/other/docs/button.md)
 - [Development](/other/docs/dev.md)
