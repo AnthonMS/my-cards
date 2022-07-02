@@ -16,7 +16,7 @@ It is completely customizable now and fully templatable.
 - Inverse
 
 ### Future features (Maybe)
-- Text inside slider (Should be easily done with this new slider)
+- Animation on click. Make different animation configs for user to choose between. One for ripple, scale out/in for card, scale out/in for icon, loading around icon until action has been performed?.
 - **If you would like a new feature, please feel free to create an issue asking for it.**
 
 
@@ -25,6 +25,7 @@ It is completely customizable now and fully templatable.
 | ---- | ---- | ------- | ----------- |
 | type | string | **Required** | `custom:my-slider-v2` |
 | entity | string | **Required** | `light.livingroom` |
+| layout | string | vertical | Layout of card. Default is horizontal on cover entities. [Beautiful illustration of different layouts](#layouts)  |
 | icon | string/object | "lightbulb-outline" | The icon to use. Can be an object like in the example. |
 | label | string/object | "entity.friendly_name" | The label text. Can be an object like the icon. Holds text, show and actions |
 | slider | object | [Default slider config](/other/docs/slider-v2.md) | The icon to use. Can be an object like in the example. |
@@ -77,6 +78,10 @@ styles:
     - padding: '10px 10px 10px 10px'
     - cursor: 'pointer'
     - color: 'var(--paper-item-active-icon-color)'
+  labelWrapper:
+    - width: '100%'
+    - height: '100%'
+    - display: 'flex'
   label:
     - padding: '0'
     - margin: '0 10px'
@@ -95,4 +100,28 @@ styles:
   row3:
     - flex: '0 1 auto'
     - margin: '0 2px 2px 2px'
+  containerColumn:
+    - padding: '0'
+    - margin: '0'
+    - display: 'flex'
+    - flex-flow: 'row'
+    - height: '100%'
+  column1:
+    - flex: '1'
+  column2:
+    - flex: '0'
+    - padding: '3px 3px 3px 0'
 ```
+
+## Layouts
+Here you see an illustration of where the different elements are so you can better style them. With the default styles above, you should be able to figure out what and where things go.
+I will add more layout options as we go, also are more freestyle layout where you will just have the card and then everything in the root of that to put wherever you want. I'm not good with css, so if anyone has good ideas to layouts I should implement. Then please let me know.
+
+![Layout Illustration](/other/docs/captures/my-button/layouts-illustration.png)
+
+- **row1** will fit content inside
+- **row2** will fill the remaining space between row1 and 2
+- **row3** will fit content inside (On horizontal layout, this is empty so row2 technically fills all remaining space.)
+- label will fit text
+- labelWrapper will fill full space
+- slider will use all default options from that card. Some styles are set here if it's vertical/cover etc.

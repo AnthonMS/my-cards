@@ -8,7 +8,6 @@ import {
     TemplateResult,
     css,
     PropertyValues,
-    internalProperty,
     state
 } from 'lit-element'
 import { styleMap } from 'lit-html/directives/style-map'
@@ -106,11 +105,11 @@ export class MySliderV2 extends LitElement {
         ]
 
         if (!config.entity) {
-            throw new Error("You need to define entity");
+            throw new Error("You need to define entity")
         }
 
         if (!allowedEntities.includes(config.entity.split('.')[0])) {
-            throw new Error(`Entity has to be one of the following: ${allowedEntities.map(e => ' ' + e)}`);
+            throw new Error(`Entity has to be one of the following: ${allowedEntities.map(e => ' ' + e)}`)
         }
 
         this.config = {
@@ -147,6 +146,8 @@ export class MySliderV2 extends LitElement {
             progressStl.height = this.sliderValPercent.toString() + '%'
 
             // Setting default styles for vertical if nothing is provided
+            cardStl.height = deflatedCardStl.height ? deflatedCardStl.height : '100%'
+            cardStl.width = deflatedCardStl.width ? deflatedCardStl.width : '30px'
             progressStl.width = deflatedProgressStl.width ? deflatedProgressStl.width : '100%'
             progressStl.right = deflatedProgressStl.right ? deflatedProgressStl.right : 'auto'
             thumbStl.right = deflatedThumbStl.right ? deflatedThumbStl : 'auto'

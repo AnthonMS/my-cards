@@ -12,7 +12,7 @@ export interface MySliderCardConfig extends LovelaceCardConfig {
   entity: string;
 }
 
-export interface MyButtonLightCardConfig extends LovelaceCardConfig {
+export interface MyButtonCardConfig extends LovelaceCardConfig {
     type: string;
     entity: string;
 }
