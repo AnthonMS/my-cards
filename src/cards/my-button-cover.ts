@@ -22,11 +22,11 @@ import {
 import { actionHandler } from '../scripts/action-handler-directive'
 import { disableBodyScroll, enableBodyScroll } from 'body-scroll-lock'
 
-import type { MyButtonCoverCardConfig } from './types'
-import { BUTTON_COVER_VERSION } from './const'
+import type { MyButtonCoverCardConfig } from './extras/types'
+import { BUTTON_COVER_VERSION } from './extras/const'
 import { localize } from '../localize/localize'
 import { objectToStyleString } from '../scripts/helpers'
-import { getStyle } from './style-configs'
+import { getStyle } from './styles/style-configs'
 
 /* eslint no-console: 0 */
 console.info(

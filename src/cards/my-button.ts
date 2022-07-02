@@ -20,15 +20,15 @@ import {
 } from 'custom-card-helpers'; // This is a community maintained npm module with common helper functions/types
 import { actionHandler } from '../scripts/action-handler-directive';
 
-import type { MyButtonLightCardConfig } from './types';
-import { BUTTON_LIGHT_VERSION } from './const';
+import type { MyButtonLightCardConfig } from './extras/types';
+import { BUTTON_LIGHT_VERSION } from './extras/const';
 import { localize } from '../localize/localize';
 import { getStyle } from './styles/my-button-light.styles'
 import { deflate } from '../scripts/deflate'
 
 /* eslint no-console: 0 */
 console.info(
-    `%c  ---- MY-BUTTON-LIGHT ---- \n%c  ${localize('common.version')} ${BUTTON_LIGHT_VERSION}    `,
+    `%c  ---- MY-BUTTON ---- \n%c  ${localize('common.version')} ${BUTTON_LIGHT_VERSION}    `,
     'color: orange; font-weight: bold; background: black',
     'color: white; font-weight: bold; background: green',
 );
@@ -36,13 +36,13 @@ console.info(
 // This puts your card into the UI card picker dialog
 (window as any).customCards = (window as any).customCards || [];
 (window as any).customCards.push({
-    type: 'my-button-light',
-    name: 'Light Button Card',
-    description: 'Custom Light Button Card for Lovelace.',
+    type: 'my-button',
+    name: 'My Button Card',
+    description: 'Custom Button Card for Lovelace.',
 });
 
-@customElement('my-button-light')
-export class MyButtonLight extends LitElement {
+@customElement('my-button')
+export class MyButton extends LitElement {
     @property() private _config?: MyButtonLightCardConfig
     private entity: HassEntity | undefined
     private lastAction: number = 0
@@ -82,12 +82,12 @@ export class MyButtonLight extends LitElement {
             throw new Error("You need to define entity");
         }
 
-        if (!config.entity.includes("light.")) {
-            throw new Error("Entity has to be a light.");
-        }
+        // if (!config.entity.includes("light.")) {
+        //     throw new Error("Entity has to be a light.");
+        // }
 
         this.config = {
-            name: 'MyButtonLight',
+            name: 'MyButton',
             ...config,
         }
     }

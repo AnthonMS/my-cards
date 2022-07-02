@@ -46,10 +46,17 @@
     "typescript": "^3.9.7"
   },
   "scripts": {
-    "start": "rollup -c rollup.config.dev.js --watch",
-    "build": "npm run rollup",
-    "build:lint": "npm run lint && npm run rollup",
-    "lint": "eslint src/*.ts",
-    "rollup": "rollup -c"
+    "start": "npm run dev",
+    "dev": "rollup -c ./other/ops/rollup.config.dev.js --watch",
+
+    "build": "npm run build:bundle && npm run build:button && npm run build:slider && npm run build:slider-v2",
+    "build:bundle": "rollup -c ./other/ops/rollup.config.js",
+    "build:button": "rollup -c ./other/ops/rollup.config.my-button.js",
+    "build:slider": "rollup -c ./other/ops/rollup.config.my-slider.js",
+    "build:slider-v2": "rollup -c ./other/ops/rollup.config.my-slider-v2.js",
+
+    "OLD:build:lint": "npm run lint && npm run OLD:rollup",
+    "OLD:lint": "eslint src/*.ts",
+    "OLD:rollup": "rollup -c"
   }
 }

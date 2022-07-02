@@ -19,8 +19,8 @@ import {
 } from 'custom-card-helpers'; // This is a community maintained npm module with common helper functions/types
 import { disableBodyScroll, enableBodyScroll } from 'body-scroll-lock'
 
-import type { MySliderCardConfig } from './types'
-import { SLIDER_VERSION } from './const'
+import type { MySliderCardConfig } from './extras/types'
+import { SLIDER_VERSION } from './extras/const'
 import { localize } from '../localize/localize'
 import { getStyle } from './styles/my-slider.styles'
 // import './scripts/deflate.js'
@@ -33,6 +33,7 @@ console.info(
     'color: orange; font-weight: bold; background: black',
     'color: white; font-weight: bold; background: green',
 );
+console.info('HELLO FROM SLIDER-V2');
 
 // This puts your card into the UI card picker dialog
 (window as any).customCards = (window as any).customCards || [];

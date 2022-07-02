@@ -8,7 +8,7 @@ import json from '@rollup/plugin-json';
 export default {
   input: ["src/my-cards.ts"],
   output: {
-    dir: "./dist",
+    dir: "./dist/dev",
     format: "es",
   },
   plugins: [
@@ -20,7 +20,7 @@ export default {
     }),
     terser(),
     serve({
-      contentBase: "./dist",
+      contentBase: "./dist/dev",
       host: "0.0.0.0",
       port: 5000,
       allowCrossOrigin: true,

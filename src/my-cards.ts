@@ -3,7 +3,7 @@
 // ---- It will be like a bundle of all my cards. I know this is not ideal for some people ---- //
 // ---- But then they can manually install each indivdual card from dist directory ---//
 
-import { CARD_VERSION } from './cards/const';
+import { CARD_VERSION } from './cards/extras/const';
 import { localize } from './localize/localize';
 
 console.info(
@@ -15,5 +15,5 @@ console.info(
 
 export { MySlider } from './my-slider'
 export { MySliderV2 } from './cards/my-slider'
-export { MyButtonLight } from './cards/my-button-light'
+export { MyButton } from './cards/my-button'
 export { MyButtonCover } from './cards/my-button-cover'

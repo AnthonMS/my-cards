@@ -16,8 +16,8 @@ import {
 } from 'custom-card-helpers'; // This is a community maintained npm module with common helper functions/types
 import { disableBodyScroll, enableBodyScroll } from 'body-scroll-lock'
 
-import type { MySliderCardConfig } from './cards/types';
-import { SLIDER_VERSION } from './cards/const';
+import type { MySliderCardConfig } from './cards/extras/types';
+import { SLIDER_VERSION } from './cards/extras/const';
 import { localize } from './localize/localize';
 
 /* eslint no-console: 0 */
