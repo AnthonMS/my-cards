@@ -41,7 +41,6 @@ const trackStyle = (style:any) => {
         height: '100%',
         position: 'relative',
         background: 'var(--card-background-color)',
-        //'pointer-events': 'none',
         ...style
     }
 }

@@ -23,7 +23,7 @@ import { actionHandler } from '../scripts/action-handler-directive';
 import type { MyButtonLightCardConfig } from './extras/types';
 import { BUTTON_LIGHT_VERSION } from './extras/const';
 import { localize } from '../localize/localize';
-import { getStyle } from './styles/my-button-light.styles'
+import { getStyle } from './styles/my-button.styles'
 import { deflate } from '../scripts/deflate'
 
 /* eslint no-console: 0 */
@@ -212,7 +212,7 @@ export class MyButton extends LitElement {
         // ---- Icon Config ---- //
         const defaultIconAttr = {
             show: true,
-            icon: 'mdi:cog-outline'
+            icon: 'mdi:lightbulb-outline'
         }
         // If icon is just a string, then save that under iconConfig. If it's an object, then combine default with custom configs. If nothing then just use default config
         this.iconConfig = typeof this._config!.icon === 'string' ? { ...defaultIconAttr, icon: this._config!.icon } : typeof this._config!.icon === 'object' ? { ...defaultIconAttr, ...this._config!.icon } : defaultIconAttr
@@ -384,38 +384,3 @@ export class MyButton extends LitElement {
         return css``;
     }
 }
-
-
-// Options:
-
-// entity
-// icon
-// name
-// slider
-//   intermediate
-//   step
-//   min
-//   max
-//   toggle_scroll
-// styles
-//   card
-//     color-on: rgba(253, 216, 53, 1)
-//     color-off: rgba(86, 86, 86, 0.75)
-//   icon
-//     color-on: green
-//     color-off: red
-//   label
-//   slider:
-    // container:
-    //     color-on: rgba(253, 216, 53, 1)
-    //     color-off: rgba(86, 86, 86, 0.75)
-//     input:
-//       height: 100%
-//     track: (Not implemented yet)
-//       height: 100%
-//       color: red
-//     thumb: (Not implemented yet)
-//       height: 80px
-// tap_action
-// double_tap_action
-// hold_action

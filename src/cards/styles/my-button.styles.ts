@@ -25,7 +25,7 @@ const cardStyle = (style:any) => {
         height: '125px',
         width: '100%',
         'min-width': 'fit-content',
-        background: style.background ? style.background : 'var(--card-background-color)',
+        background: 'var(--card-background-color)',
         ...style
     }
 }
