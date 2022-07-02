@@ -18,14 +18,14 @@ import {
     ActionHandlerEvent,
     handleAction,
     handleClick,
-} from 'custom-card-helpers'; // This is a community maintained npm module with common helper functions/types
-import { actionHandler } from '../action-handler-directive';
+} from 'custom-card-helpers' // This is a community maintained npm module with common helper functions/types
+import { actionHandler } from '../scripts/action-handler-directive'
 import { disableBodyScroll, enableBodyScroll } from 'body-scroll-lock'
 
-import type { MyButtonCoverCardConfig } from '../types';
-import { BUTTON_COVER_VERSION } from '../const';
-import { localize } from '../localize/localize';
-import { objectToStyleString } from '../helpers'
+import type { MyButtonCoverCardConfig } from './types'
+import { BUTTON_COVER_VERSION } from './const'
+import { localize } from '../localize/localize'
+import { objectToStyleString } from '../scripts/helpers'
 import { getStyle } from './style-configs'
 
 /* eslint no-console: 0 */
@@ -41,7 +41,7 @@ console.info(
     type: 'my-button-cover',
     name: 'Cover Button Card',
     description: 'Custom Cover Button Card for Lovelace.',
-});
+})
 
 @customElement('my-button-cover')
 export class MyButtonCover extends LitElement {

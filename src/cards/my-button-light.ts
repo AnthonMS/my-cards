@@ -18,13 +18,13 @@ import {
     handleClick,
     LovelaceCard
 } from 'custom-card-helpers'; // This is a community maintained npm module with common helper functions/types
-import { actionHandler } from '../action-handler-directive';
+import { actionHandler } from '../scripts/action-handler-directive';
 
-import type { MyButtonLightCardConfig } from '../types';
-import { BUTTON_LIGHT_VERSION } from '../const';
+import type { MyButtonLightCardConfig } from './types';
+import { BUTTON_LIGHT_VERSION } from './const';
 import { localize } from '../localize/localize';
 import { getStyle } from './styles/my-button-light.styles'
-import { deflate } from './scripts/deflate'
+import { deflate } from '../scripts/deflate'
 
 /* eslint no-console: 0 */
 console.info(

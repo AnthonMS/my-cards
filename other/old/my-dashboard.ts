@@ -16,9 +16,9 @@ import {
 } from 'custom-card-helpers' // This is a community maintained npm module with common helper functions/types
 import { disableBodyScroll, enableBodyScroll } from 'body-scroll-lock'
 
-import type { MyDashboardCardConfig } from './types'
-import { DASHBOARD_VERSION } from './const'
-import { localize } from './localize/localize'
+import type { MyDashboardCardConfig } from '../../src/cards/types'
+import { DASHBOARD_VERSION } from '../../src/cards/const'
+import { localize } from '../../src/localize/localize'
 
 /* eslint no-console: 0 */
 console.info(

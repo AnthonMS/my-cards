@@ -25,10 +25,10 @@ Everything under function in the options table is css styling, so it is possible
 
 ### My Setup Using This
 
-![Example Setup](/slider-card-captures/my-use-case.JPG)
+![Example Setup](/other/captures/my-slider/my-use-case.JPG)
 
 ### Demo
-![Example](/slider-card-captures/ha-slider-card-demo.gif)
+![Example](/other/captures/my-slider/ha-slider-card-demo.gif)
 
 ## Options
 | Name | Type | Default | Description |
@@ -117,7 +117,7 @@ cards:
     step: "10"
 ```
 
-![Default Slider Config](/slider-card-captures/default.JPG)
+![Default Slider Config](/other/captures/my-slider/default.JPG)
 
 #### Change Slider Height and Colors
 
@@ -130,7 +130,7 @@ cards:
       secondarySliderColor: 'red'
 ```
 
-![Change Slider Height and Colors Config](/slider-card-captures/colors-height.JPG)
+![Change Slider Height and Colors Config](/other/captures/my-slider/colors-height.JPG)
 
 #### Change Thumb Size and Colors
 
@@ -146,7 +146,7 @@ cards:
     thumbColor: 'black'
 ```
 
-![Change Thumb Height and Colors Config](/slider-card-captures/thumb-colors-height.JPG)
+![Change Thumb Height and Colors Config](/other/captures/my-slider/thumb-colors-height.JPG)
 
 #### Change Thumb Padding and Size
 
@@ -178,7 +178,7 @@ cards:
 
 ```
 
-![Change Thumb Height and Colors Config](/slider-card-captures/thumb-padding-2.JPG)
+![Change Thumb Height and Colors Config](/other/captures/my-slider/thumb-padding-2.JPG)
 
 #### Change Active and Inactive Colors Config
 
@@ -194,7 +194,7 @@ cards:
     thumbColorOff: black
 ```
 
-![Change Active and Inactive Colors Config](/slider-card-captures/thumb-colors-change.gif)
+![Change Active and Inactive Colors Config](/other/captures/my-slider/thumb-colors-change.gif)
 
 #### Using a `Switch` or `Lock`
 
@@ -210,7 +210,7 @@ cards:
 
 
 
-![Change Active and Inactive Colors Config](/slider-card-captures/switch-lock-example.gif)
+![Change Active and Inactive Colors Config](/other/captures/my-slider/switch-lock-example.gif)
 ### NOTE
 
 When changing the padding of the thumb. If you want for example padding on the sides (horizontal) you will have to triple the width of the thumb itself, this has something to do with the border styling. There is possibly a way around this, if I use some more time on the styling, but for now, this will have to do, since it serves the purpose I need it for. Plus if you just keep this in mind, there should be no trouble. But play around with it. This includes when wanting padding on top/bottom (vertical), you will have to change height of the thumb.

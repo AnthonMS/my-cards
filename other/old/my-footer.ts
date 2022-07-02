@@ -21,10 +21,10 @@ import {
 import { subscribeRenderTemplate } from 'card-tools/src/templates'
 import { disableBodyScroll, enableBodyScroll } from 'body-scroll-lock'
 
-import type { MyFooterCardConfig } from './types';
-import { actionHandler } from './action-handler-directive';
-import { FOOTER_VERSION } from './const';
-import { localize } from './localize/localize';
+import type { MyFooterCardConfig } from '../../src/cards/types';
+import { actionHandler } from '../../src/scripts/action-handler-directive';
+import { FOOTER_VERSION } from '../../src/cards/const';
+import { localize } from '../../src/localize/localize';
 
 /* eslint no-console: 0 */
 console.info(

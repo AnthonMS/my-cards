@@ -12,7 +12,7 @@ import {
 } from 'lit-element';
 import { HomeAssistant, fireEvent, LovelaceCardEditor, ActionConfig } from 'custom-card-helpers';
 
-import { MyFooterCardConfig } from './types';
+import { MyFooterCardConfig } from '../../src/cards/types';
 
 const options = {
   required: {

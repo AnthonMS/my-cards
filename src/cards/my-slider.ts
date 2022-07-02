@@ -19,13 +19,13 @@ import {
 } from 'custom-card-helpers'; // This is a community maintained npm module with common helper functions/types
 import { disableBodyScroll, enableBodyScroll } from 'body-scroll-lock'
 
-import type { MySliderCardConfig } from '../types'
-import { SLIDER_VERSION } from '../const'
+import type { MySliderCardConfig } from './types'
+import { SLIDER_VERSION } from './const'
 import { localize } from '../localize/localize'
 import { getStyle } from './styles/my-slider.styles'
 // import './scripts/deflate.js'
-import { deflate } from './scripts/deflate'
-import { percentage, roundPercentage, getClickPosRelToTarget } from './scripts/helpers'
+import { deflate } from '../scripts/deflate'
+import { percentage, roundPercentage, getClickPosRelToTarget } from '../scripts/helpers'
 
 /* eslint no-console: 0 */
 console.info(
