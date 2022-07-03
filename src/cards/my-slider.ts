@@ -48,6 +48,7 @@ console.info('HELLO FROM SLIDER-V2');
 export class MySliderV2 extends LitElement {
     @property() private _config?: MySliderCardConfig
     private entity: HassEntity | undefined
+    private colorMode: string = 'brightness'
     private sliderId: String = ''
     private sliderEl: HTMLBodyElement | undefined
     private touchInput: Boolean = false
@@ -303,6 +304,7 @@ export class MySliderV2 extends LitElement {
         }
 
         this.sliderId = `slider-${this._config!.entity.replace('.', '-')}`
+        this.colorMode = this._config!.colorMode !== undefined ? this._config!.colorMode : 'brightness'
         this.vertical = this._config!.vertical !== undefined ? this._config!.vertical : false
         this.flipped = this._config!.flipped !== undefined ? this._config!.flipped : false
         this.inverse = this._config!.inverse !== undefined ? this._config!.inverse : false
@@ -315,12 +317,11 @@ export class MySliderV2 extends LitElement {
         this.maxThreshold = this._config!.maxThreshold ? this._config!.maxThreshold : 100
         this.step = this._config!.step ? this._config!.step : 1
         
-        let tmpVal
+        let tmpVal = 0
         switch (this._config!.entity.split('.')[0]) {
 
             case 'light': /* ------------ LIGHT ------------ */
-                // TODO: Check if light is warmth or 
-                if (!this._config!.warmth) {
+                if (this.colorMode === 'brightness') {
                     if (this.entity.state === 'on') {
                         tmpVal = Math.round(this.entity.attributes.brightness / 2.56)
                         if (!this.showMin) { // Subtracting savedMin to make slider 0 be far left
@@ -330,10 +331,8 @@ export class MySliderV2 extends LitElement {
                     else {
                         tmpVal = 0
                     }
-                    
-                    this.setSliderValues(tmpVal, roundPercentage(percentage(tmpVal, this.max)))
                 }
-                else {
+                else if (this.colorMode === 'temperature') {
                     if (this.entity.state !== 'on') break
                     this.min = this._config!.min ? this._config!.min : this.entity.attributes.min_mireds
                     this.max = this._config!.max ? this._config!.max : this.entity.attributes.max_mireds
@@ -342,9 +341,35 @@ export class MySliderV2 extends LitElement {
                         this.max = this.max - this.min
                         tmpVal = tmpVal - this.min 
                     }
-                    
-                    this.setSliderValues(tmpVal, roundPercentage(percentage(tmpVal, this.max)))
                 }
+                else if (this.colorMode === 'hue' && this.entity.attributes.color_mode === 'hs') {
+                    if (this.entity.state !== 'on') break
+                    
+                    this.min = this._config!.min ? this._config!.min : 0
+                    this.max = this._config!.max ? this._config!.max : 360
+                    
+                    tmpVal = parseFloat(this.entity.attributes.hs_color[0])
+                    if (!this.showMin) { // Subtracting savedMin to make slider 0 be far left
+                        this.max = this.max - this.min
+                        tmpVal = tmpVal - this.min 
+                    }
+                }
+                else if (this.colorMode === 'saturation' && this.entity.attributes.color_mode === 'hs') {
+                    if (this.entity.state !== 'on') break
+                    
+                    // let oldVal = parseFloat(entity.attributes.hs_color[0])
+                    // const currentSaturation = parseFloat(entity.attributes.hs_color[1])
+                    this.min = this._config!.min ? this._config!.min : 0
+                    this.max = this._config!.max ? this._config!.max : 100
+                    
+                    tmpVal = parseFloat(this.entity.attributes.hs_color[1])
+                    if (!this.showMin) { // Subtracting savedMin to make slider 0 be far left
+                        this.max = this.max - this.min
+                        tmpVal = tmpVal - this.min 
+                    }
+                }
+
+                this.setSliderValues(tmpVal, roundPercentage(percentage(tmpVal, this.max)))
 
                 break
             case 'input_number': /* ------------ INPUT_NUMBER ------------ */
@@ -438,25 +463,21 @@ export class MySliderV2 extends LitElement {
     private calcProgress(event) {
         if (this.sliderEl == undefined || this.sliderEl === null) return
         const clickPos = getClickPosRelToTarget(event, this.sliderEl)
-        // console.log('Click Pos:', clickPos)
         const sliderWidth = this.sliderEl.offsetWidth
         const sliderHeight = this.sliderEl.offsetHeight
         // Calculate what the percentage is of the clickPos.x between 0 and sliderWidth / clickPos.y between 0 and sliderHeight
         const clickPercent = this.vertical ? roundPercentage(clickPos.y/sliderHeight * 100) : roundPercentage(clickPos.x/sliderWidth * 100)
-        // console.log('Click Percent:', clickPercent)
         const newValue = clickPercent / 100 * (this.max - 0)
         const flippedValue = this.max - newValue
         let val = this.flipped ? Math.round(flippedValue) : Math.round(newValue)
         // Set val to be either min, max, zero or value
         val = val < this.min && this.showMin ? this.min : val > this.max ? this.max : val < this.zero ? this.zero : val
-        // console.log('Setting progress to:', val)
         this.setProgress(this.sliderEl, Math.round(val), event.type)
     }
 
     private setProgress(slider, val, action) {
         const progressEl = slider.querySelector('.my-slider-custom-progress')
         const valuePercentage = roundPercentage(percentage(val, this.max))
-        // console.log('Setting progress width or height %:', valuePercentage)
         if (this.vertical) {
             // Set progessHeight to match value
             progressEl.style.height = valuePercentage.toString() + '%'
@@ -480,7 +501,6 @@ export class MySliderV2 extends LitElement {
 
     private setValue(val, valPercent) {
         if (!this.entity) return
-        // console.log('Setting value 1 val/%:', val, valPercent)
         this.setSliderValues(val, valPercent)
         if (!this.showMin) {
             val = val + this.min  // Adding saved min to make up for minimum not being 0
@@ -489,17 +509,20 @@ export class MySliderV2 extends LitElement {
             val = this.max - val
             valPercent = 100 - valPercent
         } 
-        // console.log('Setting value 2 val/%:', val, valPercent)
         if (!this.actionTaken) return // We do not want to set any values based on pure movement of slider. Only set it on user action.
-        // console.log('Setting value 3 val/%:', val, valPercent)
-        
         switch (this._config!.entity.split('.')[0]) {
             case 'light':
-                if (!this._config!.warmth) { // Brightness
+                if (this.colorMode === 'brightness') {
                     this._setBrightness(this.entity, val)
                 }
-                else { // Warmth
-                    this._setWarmth(this.entity, val)
+                else if (this.colorMode === 'temperature') {
+                    this._setColorTemp(this.entity, val)
+                }
+                else if (this.colorMode === 'hue') {
+                    this._setHue(this.entity, val)
+                }
+                else if (this.colorMode === 'saturation') {
+                    this._setSaturation(this.entity, val)
                 }
                 break
             case 'input_number':
@@ -536,7 +559,7 @@ export class MySliderV2 extends LitElement {
             })
         }
     }
-	private _setWarmth(entity, value): void {
+	private _setColorTemp(entity, value): void {
         let oldVal = parseFloat(entity.attributes.color_temp)
         // // Do not ask me why this is not needed here. In my mind it should be required, but it's off by that much when subtracting. (Should not code with corona)
         // if (!this.showMin) {
@@ -549,6 +572,35 @@ export class MySliderV2 extends LitElement {
             })
         }
 	}
+    private _setHue(entity, value): void {
+        let oldVal = 0
+        let currentSaturation = 0
+        if (entity.attributes.hs_color) {
+            oldVal = parseFloat(entity.attributes.hs_color[0])
+            currentSaturation = parseFloat(entity.attributes.hs_color[1])
+        }
+        if (entity.state === 'off' || Math.abs((value - oldVal)) > this.step) {
+            this.hass.callService("light", "turn_on", {
+                entity_id: entity.entity_id,
+                hs_color: [value, currentSaturation]
+            })
+        }
+    }
+    private _setSaturation(entity, value): void {
+        let oldVal = 0
+        let currentHue = 0
+        if (entity.attributes.hs_color) {
+            oldVal = parseFloat(entity.attributes.hs_color[1])
+            currentHue = parseFloat(entity.attributes.hs_color[0])
+        }
+        if (entity.state === 'off' || Math.abs((value - oldVal)) > this.step) {
+            this.hass.callService("light", "turn_on", {
+                entity_id: entity.entity_id,
+                hs_color: [currentHue, value]
+            })
+        }
+    }
+
 	private _setInputNumber(entity, value): void {
         let oldVal = parseFloat(entity.state)
         if (!this.showMin) {
@@ -723,7 +775,8 @@ export class MySliderV2 extends LitElement {
 /*
 type: custom:my-slider-v2
 entity: light.sofa_spots
-warmth: false
+colorMode: 'brightness' (Can be 'brightness', 'temperature', 'hue', 'saturation')
+// warmth: false (Will be removed now!)
 vertical: false (This will set the vertical to be vertical and handled from bottom to top. Automatically used on covers)
 flipped: false (This will just flip the slider to go from right to left or top to bottom. Automatically used on covers)
 inverse: false (Will inverse how far the slider has progressed compared to value. so if brightness is 75%, then it will only be 25% progressed. This is useful for cover, where it is automatically used.)
@@ -748,6 +801,18 @@ styles:
 
 /*
 TODO:
+- Create colorMode config key. It should accept: (https://developers.home-assistant.io/docs/core/entity/light/)
+    'brightness', 'temperature', 'hue' 'saturation', 'red', 'green', 'blue', 'white', 'x_color', 'y_color' and 'toggle'
+    Future maybe: 'hs', 'rgb', 'rgbw', 'xy_color'. This will be where there will automatically be multiple sliders with same config in the same card
+    - brightness: Adjust brightness of light (IMPLEMENTED)
+    - temperature: Adjust temperature/warmth of light (IMPLEMENTED)
+    - hue: Adjust Hue value in hs_color (0-360)
+    - saturation: Adjust Saturation in hs_color (0-100)
 
+
+    - hs: Adjust Hue & Saturation of light
+    - rgb: Adjust Red, Green & Blue colors on light
+    - rgbw: Adjust Red, Green, Blue & white colors on light
+    - xy_color: Adjust lights colors by adjust xy_color attribute
 TODONE:
 */
