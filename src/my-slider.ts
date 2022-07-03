@@ -55,14 +55,24 @@ export class MySlider extends LitElement {
 
 	// https://lit-element.polymer-project.org/guide/properties#accessors-custom
 	public setConfig(config: MySliderCardConfig): void {
+        const allowedEntities = [
+            'input_number',
+			'number',
+            'light',
+			'media_player',
+			'cover',
+			'fan',
+			'switch',
+			'lock'
+        ]
 
 		if (!config.entity) {
 			throw new Error("You need to define entity");
 		}
 
-		if (!config.entity.includes("input_number.") && !config.entity.includes("light.") && !config.entity.includes("media_player.") && !config.entity.includes("cover.") && !config.entity.includes("fan.") && !config.entity.includes("switch.") && !config.entity.includes("lock.") ) {
-			throw new Error("Entity has to be a light, input_number, media_player, cover or a fan.");
-		}
+        if (!allowedEntities.includes(config.entity.split('.')[0])) {
+            throw new Error(`Entity has to be one of the following: ${allowedEntities.map(e => ' ' + e)}`)
+        }
 
 		this.config = {
 			name: 'MySlider',
@@ -97,13 +107,15 @@ export class MySlider extends LitElement {
 
   		// // Size Variables
 		var step = conf.step ? conf.step: "1"
-		if (entityId.includes("input_number.")) {
-			step = conf.step ? conf.step: entity.attributes.step;
-		}
 		var minBar = conf.minBar ? conf.minBar : 0;
 		var maxBar = conf.maxBar ? conf.maxBar : 100;
 		var minSet = conf.minSet ? conf.minSet : 0;
 		var maxSet = conf.maxSet ? conf.maxSet : 100;
+		if (entityId.includes("input_number.") || entityId.includes('number.')) {
+			step = conf.step ? conf.step: entity.attributes.step;
+			minSet = conf.minSet ? conf.minSet : entity.attributes.min;
+			maxSet = conf.maxSet ? conf.maxSet : entity.attributes.max;
+		}
 		var width = conf.width ? conf.width : "100%";
 		var height = conf.height ? conf.height : "50px";
 		var radius = conf.radius ? conf.radius : "4px";
@@ -190,7 +202,7 @@ export class MySlider extends LitElement {
 				} else {
 					this._setBrightness(entity, e.target, minSet, maxSet)
 				}
-			} else if (entityId.includes("input_number.")) {
+			} else if (entityId.includes("input_number.") || entityId.includes('number.')) {
 				this._setInputNumber(entity, e.target, minSet, maxSet)
 			} else if (entityId.includes("media_player.")) {
 				this._setMediaVolume(entity, e.target, minSet, maxSet)
@@ -256,12 +268,12 @@ export class MySlider extends LitElement {
 			}
 		}
 
-		if (entityId.includes("input_number.")) {
+		if (entityId.includes("input_number.") || entityId.includes('number.')) {
 			return html`
 				<ha-card>
 					<div class="slider-container" style="${styleStr}">
 						<input name="foo" type="range" class="${entity.state}" style="${styleStr}"
-							min="${entity.attributes.min}" max="${entity.attributes.max}"
+							min="${minSet}" max="${maxSet}"
 							step="${step}" .value="${entity.state}"
 							@input=${handleInput} @change=${handleChange}
 							@touchstart=${conf.toggle_scroll ? toggleScroll : null}
@@ -397,10 +409,18 @@ export class MySlider extends LitElement {
 			value = _minSet;
 		}
 
-		this.hass.callService("input_number", "set_value", {
-			entity_id: _entity.entity_id,
-			value: value
-		});
+		if (_entity.entity_id.includes('input_number.')) {
+			this.hass.callService("input_number", "set_value", {
+				entity_id: _entity.entity_id,
+				value: value
+			});
+		}
+		else if (_entity.entity_id.includes('number.')) {
+			this.hass.callService("number", "set_value", {
+				entity_id: _entity.entity_id,
+				value: value
+			});
+		}
 
 		_target.value = value;
 	}
