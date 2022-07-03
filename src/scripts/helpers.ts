@@ -17,8 +17,8 @@ export const getClickPosRelToTarget = (event, slider) => {
     if(event.type == 'touchstart' || event.type == 'touchmove' || event.type == 'touchend' || event.type == 'touchcancel'){
         let evt = (typeof event.originalEvent === 'undefined') ? event : event.originalEvent
         let touch = evt.touches[0] || evt.changedTouches[0]
-        cords.x = touch.pageX
-        cords.y = touch.pageY
+        cords.x = touch.clientX
+        cords.y = touch.clientY
     } else if (event.type == 'mousedown' || event.type == 'mouseup' || event.type == 'mousemove' || event.type == 'mouseover'|| event.type=='mouseout' || event.type=='mouseenter' || event.type=='mouseleave') {
         cords.x = event.clientX
         cords.y = event.clientY

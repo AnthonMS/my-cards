@@ -186,22 +186,21 @@ export class MySliderV2 extends LitElement {
             switch (event.type) {
                 case 'mousedown':
                     if (this.touchInput) return
-                    console.log('MOUSE DOWN:', event)
+                    // console.log('MOUSE DOWN:', event)
                     startInput(event)
                     
                     break
 
                 case 'touchstart':
                     this.touchInput = true
-                    console.log('TOUCH START:', event)
+                    // console.log('TOUCH START:', event)
                     startInput(event)
                     break
                     
                 case 'mousemove':
                     if (this.touchInput) return
-
-                    if (this.actionTaken)
-                        console.log('MOUSE MOVE:', event)
+                    // if (this.actionTaken)
+                    //     console.log('MOUSE MOVE:', event)
 
                     moveInput(event)
                     break
@@ -209,9 +208,9 @@ export class MySliderV2 extends LitElement {
                 case 'touchmove':
                     if (this.disableScroll)
                         event.preventDefault()
+                    // if (this.actionTaken)
+                    //     console.log('TOUCH MOVE:', event)
 
-                    if (this.actionTaken)
-                        console.log('TOUCH MOVE:', event)
                     moveInput(event)
                     break
 
@@ -250,6 +249,7 @@ export class MySliderV2 extends LitElement {
             }
             this.thumbTapped = false
             this.actionTaken = false
+            this.touchInput = false
         }
 
         const moveInput = event => {
@@ -426,7 +426,7 @@ export class MySliderV2 extends LitElement {
 
                 break
             default:
-                console.log('Default')
+                console.log('No Entity type initiated... (' + this._config!.entity.split('.')[0] + ')')
                 break
         }
 
@@ -436,25 +436,25 @@ export class MySliderV2 extends LitElement {
     private calcProgress(event) {
         if (this.sliderEl == undefined || this.sliderEl === null) return
         const clickPos = getClickPosRelToTarget(event, this.sliderEl)
-        console.log('Click Pos:', clickPos)
+        // console.log('Click Pos:', clickPos)
         const sliderWidth = this.sliderEl.offsetWidth
         const sliderHeight = this.sliderEl.offsetHeight
         // Calculate what the percentage is of the clickPos.x between 0 and sliderWidth / clickPos.y between 0 and sliderHeight
         const clickPercent = this.vertical ? roundPercentage(clickPos.y/sliderHeight * 100) : roundPercentage(clickPos.x/sliderWidth * 100)
-        console.log('Click Percent:', clickPercent)
+        // console.log('Click Percent:', clickPercent)
         const newValue = clickPercent / 100 * (this.max - 0)
         const flippedValue = this.max - newValue
         let val = this.flipped ? Math.round(flippedValue) : Math.round(newValue)
         // Set val to be either min, max, zero or value
         val = val < this.min && this.showMin ? this.min : val > this.max ? this.max : val < this.zero ? this.zero : val
-        console.log('Setting progress to:', val)
+        // console.log('Setting progress to:', val)
         this.setProgress(this.sliderEl, Math.round(val), event.type)
     }
 
     private setProgress(slider, val, action) {
         const progressEl = slider.querySelector('.my-slider-custom-progress')
         const valuePercentage = roundPercentage(percentage(val, this.max))
-        console.log('Setting progress width or height %:', valuePercentage)
+        // console.log('Setting progress width or height %:', valuePercentage)
         if (this.vertical) {
             // Set progessHeight to match value
             progressEl.style.height = valuePercentage.toString() + '%'
@@ -478,7 +478,7 @@ export class MySliderV2 extends LitElement {
 
     private setValue(val, valPercent) {
         if (!this.entity) return
-        console.log('Setting value 1 val/%:', val, valPercent)
+        // console.log('Setting value 1 val/%:', val, valPercent)
         this.setSliderValues(val, valPercent)
         if (!this.showMin) {
             val = val + this.min  // Adding saved min to make up for minimum not being 0
@@ -487,9 +487,9 @@ export class MySliderV2 extends LitElement {
             val = this.max - val
             valPercent = 100 - valPercent
         } 
-        console.log('Setting value 2 val/%:', val, valPercent)
+        // console.log('Setting value 2 val/%:', val, valPercent)
         if (!this.actionTaken) return // We do not want to set any values based on pure movement of slider. Only set it on user action.
-        console.log('Setting value 3 val/%:', val, valPercent)
+        // console.log('Setting value 3 val/%:', val, valPercent)
         
         switch (this._config!.entity.split('.')[0]) {
             case 'light':
