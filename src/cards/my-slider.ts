@@ -97,6 +97,7 @@ export class MySliderV2 extends LitElement {
         const allowedEntities = [
             'light',
             'input_number',
+            'number',
             'media_player',
             'cover',
             'fan',
@@ -346,7 +347,8 @@ export class MySliderV2 extends LitElement {
                 }
 
                 break
-            case 'input_number': /* ------------ INPUT_BOOLEAN ------------ */
+            case 'input_number': /* ------------ INPUT_NUMBER ------------ */
+            case 'number':
                 this.step = this._config!.step ? this._config!.step : this.entity.attributes.step
                 this.min = this._config!.min ? this._config!.min : this.entity.attributes.min
                 this.max = this._config!.max ? this._config!.max : this.entity.attributes.max
@@ -501,6 +503,7 @@ export class MySliderV2 extends LitElement {
                 }
                 break
             case 'input_number':
+            case 'number':
                 this._setInputNumber(this.entity, val)
                 break
             case 'media_player':
@@ -553,7 +556,7 @@ export class MySliderV2 extends LitElement {
         }
 
         if (Math.abs((value - oldVal)) > this.step) {
-            this.hass.callService("input_number", "set_value", {
+            this.hass.callService(entity.entity_id.split('.')[0], "set_value", { // either "input_number" or "number"
                 entity_id: entity.entity_id,
                 value: value
             })
