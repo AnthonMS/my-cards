@@ -14,8 +14,11 @@ Hopefully some of you find these updates as exciting as I do. I'm looking forwar
 
 
 ## Table of contents
-- [Installation](/docs/installation.md)
-- [my-slider](/docs/cards/slider.md)
-- [my-slider-v2](/docs/cards/slider-v2.md)
-- [my-button](/docs/cards/button.md)
-- [Development](/docs/dev.md)
+  - [Installation](/docs/installation.md)
+  - [my-slider](/docs/cards/slider.md)
+    - ![Example](/docs/images/my-slider/ha-slider-card-demo.gif)
+  - [my-slider-v2](/docs/cards/slider-v2.md)
+    - ![Examples](/docs/images/my-slider-v2/examples.png)
+  - [my-button](/docs/cards/button.md)
+    - ![Examples](/docs/images/my-button/example-1.png)
+  - [Development](/docs/dev.md)
