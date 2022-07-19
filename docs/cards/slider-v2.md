@@ -42,7 +42,7 @@ It is completely customizable now and fully templatable.
 
 
 ## Examples
-![Examples](/other/docs/captures/my-slider-v2/examples.png)
+![Examples](/docs/images/my-slider-v2/examples.png)
 ```yaml
 - type: custom:my-slider-v2
   entity: light.bar_spots
