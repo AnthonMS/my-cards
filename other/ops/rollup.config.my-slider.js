@@ -32,7 +32,7 @@ const plugins = [
 
 export default [
   {
-    input: 'src/my-slider.ts',
+    input: 'src/old-cards/my-slider.ts',
     output: {
       // dir: 'dist',
       file: 'dist/my-slider.js',

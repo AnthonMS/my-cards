@@ -1,6 +1,5 @@
 {
   "name": "My Cards Bundle",
   "filename": "my-cards.js",
-  "render_readme": true,
-  "domains": ["media_player", "light", "fan", "cover", "input_number", "lock", "switch"]
+  "render_readme": true
 }
