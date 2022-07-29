@@ -174,7 +174,7 @@ export class MySliderV2 extends LitElement {
         }
 
         const setElements = (event) => {
-            const sliderMaybe = event.path.find(el => el.classList.contains('my-slider-custom'))
+            const sliderMaybe = event.composedPath().find(el => el.classList.contains('my-slider-custom'))
             if (!sliderMaybe) {
                 this.sliderEl = event.target
             }
