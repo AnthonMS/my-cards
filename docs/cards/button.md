@@ -28,12 +28,12 @@ It is completely customizable now and fully templatable.
 | layout | string | vertical | Layout of card. Default is horizontal on cover entities. [Beautiful illustration of different layouts](#layouts)  |
 | icon | string/object | "lightbulb-outline" | The icon to use. Can be an object like in the example. |
 | label | string/object | "entity.friendly_name" | The label text. Can be an object like the icon. Holds text, show and actions |
-| slider | object | [Default slider config](/other/docs/slider-v2.md) | The icon to use. Can be an object like in the example. |
+| slider | object | [Default slider config](/docs/cards/slider-v2.md) | The icon to use. Can be an object like in the example. |
 | styles | object | [Default styles](#default-styles) | Style each component used in the card. |
 
 
 ## Examples
-![Examples](/other/docs/captures/my-button/example-1.png)
+![Examples](/docs/images/my-button/example-1.png)
 ```yaml
 - type: custom:my-button
   entity: light.front_door_spots
@@ -117,7 +117,7 @@ styles:
 Here you see an illustration of where the different elements are so you can better style them. With the default styles above, you should be able to figure out what and where things go.
 I will add more layout options as we go, also are more freestyle layout where you will just have the card and then everything in the root of that to put wherever you want. I'm not good with css, so if anyone has good ideas to layouts I should implement. Then please let me know.
 
-![Layout Illustration](/other/docs/captures/my-button/layouts-illustration.png)
+![Layout Illustration](/docs/images/my-button/layouts-illustration.png)
 
 - **row1** will fit content inside
 - **row2** will fill the remaining space between row1 and 2
