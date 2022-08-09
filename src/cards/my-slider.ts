@@ -175,7 +175,7 @@ export class MySliderV2 extends LitElement {
         }
 
         const setElements = (event) => {
-            const sliderMaybe = event.composedPath().find(el => el.classList.contains('my-slider-custom'))
+            const sliderMaybe = event.composedPath().find(el => el.classList.contains('my-slider-custom-container'))
             if (!sliderMaybe) {
                 this.sliderEl = event.target
             }
@@ -262,8 +262,8 @@ export class MySliderV2 extends LitElement {
 
         this.createAndCleanupEventListeners(sliderHandler)
         return html`
-            <ha-card style="${styleMap(cardStl)}">
-                <div class="my-slider-custom" id="${this.sliderId}" style="${styleMap(containerStl)}" data-value="${this.sliderVal}" data-progress-percent="${this.sliderValPercent}"
+            <ha-card class="my-slider-custom-card" style="${styleMap(cardStl)}">
+                <div class="my-slider-custom-container" id="${this.sliderId}" style="${styleMap(containerStl)}" data-value="${this.sliderVal}" data-progress-percent="${this.sliderValPercent}"
                     @mousedown="${sliderHandler}"
                     @mouseup="${sliderHandler}"
                     @mousemove="${sliderHandler}"
