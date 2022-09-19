@@ -587,6 +587,9 @@ export class MySliderV2 extends LitElement {
                 color_temp: value
             })
         }
+        else {
+            console.debug('DID NOT SET COLOR TEMP BECAUSE ITS EITHER ON ALREADY OR THE STEP WAS BELOW THRESHOLD! SUPPOSEDLY')
+        }
 	}
     private _setHue(entity, value): void {
         let oldVal = 0
