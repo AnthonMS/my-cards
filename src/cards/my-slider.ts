@@ -582,14 +582,16 @@ export class MySliderV2 extends LitElement {
         console.debug('oldVal:', oldVal)
         console.debug('this.step:', this.step)
         if (entity.state === 'off' || Math.abs((value - oldVal)) > this.step) {
-            this.hass.callService("light", "turn_on", {
-                entity_id: entity.entity_id,
-                color_temp: value
-            })
+            console.debug('DID MEET THE CRITERIA!')
         }
         else {
-            console.debug('DID NOT SET COLOR TEMP BECAUSE ITS EITHER ON ALREADY OR THE STEP WAS BELOW THRESHOLD! SUPPOSEDLY')
+            console.debug('DID NOT MEET THE CRITERIA! BECAUSE ITS EITHER ON ALREADY OR THE STEP WAS BELOW THRESHOLD! SUPPOSEDLY')
         }
+
+        this.hass.callService("light", "turn_on", {
+            entity_id: entity.entity_id,
+            color_temp: value
+        })
 	}
     private _setHue(entity, value): void {
         let oldVal = 0
