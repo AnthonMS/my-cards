@@ -28,6 +28,7 @@ It is completely customizable now and fully templatable.
 | type | string | **Required** | `custom:my-slider-v2` |
 | entity | string | **Required** | `light.livingroom` |
 | colorMode | string | brightness | Can be brightness, temperature, hue, saturation |
+| coverMode | string | position | Can be position or tilt |
 | vertical | boolean | false | This will set the slider to be vertical and handled from bottom to top. Default on covers |
 | flipped | boolean | false | This will just flip the slider to go from right to left or top to bottom. Default on covers |
 | inverse | boolean | false | Will inverse how far the slider has progressed compared to value. so if brightness is 75%, then it will only be 25% progressed. This is useful for cover, where it is Default. |

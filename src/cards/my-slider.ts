@@ -796,6 +796,7 @@ export class MySliderV2 extends LitElement {
 type: custom:my-slider-v2
 entity: light.sofa_spots
 colorMode: 'brightness' (Can be 'brightness', 'temperature', 'hue', 'saturation')
+coverMode: 'position' (Accept: 'position', 'tilt')
 // warmth: false (Will be removed now!)
 vertical: false (This will set the vertical to be vertical and handled from bottom to top. Automatically used on covers)
 flipped: false (This will just flip the slider to go from right to left or top to bottom. Automatically used on covers)
