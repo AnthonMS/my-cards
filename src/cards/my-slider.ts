@@ -577,6 +577,10 @@ export class MySliderV2 extends LitElement {
         // if (!this.showMin) {
         //     oldVal = oldVal - this.min // Subtracting savedMin to make slider 0 be far left
         // }
+        console.debug('Math.abs((value - oldVal)) > this.step :', Math.abs((value - oldVal)) > this.step)
+        console.debug('value:', value)
+        console.debug('oldVal:', oldVal)
+        console.debug('this.step:', this.step)
         if (entity.state === 'off' || Math.abs((value - oldVal)) > this.step) {
             this.hass.callService("light", "turn_on", {
                 entity_id: entity.entity_id,
