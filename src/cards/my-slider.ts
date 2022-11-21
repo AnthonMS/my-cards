@@ -33,7 +33,6 @@ console.info(
     'color: orange; font-weight: bold; background: black',
     'color: white; font-weight: bold; background: green',
 );
-console.info('HELLO FROM SLIDER-V2');
 
 // This puts your card into the UI card picker dialog
 (window as any).customCards = (window as any).customCards || [];
