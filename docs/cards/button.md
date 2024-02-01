@@ -3,17 +3,14 @@
 
 ## Description
 
-My Slider V2 is a customizable card for light, input_number, covers, fans, switches, locks & media_player volume_level entity sliders, for the Home Assistant Lovelace frontend.
+My Button is a customizable card for lights, covers, switches, for the Home Assistant Lovelace frontend.
 
-It is completely customizable now and fully templatable.
+It is completely customizable now and fully templatable. But is still very much under development. So be sure to be ready to update config if using this card. Nothing will be removed, but the default styling might change going forward, extra functionality might be added that is not wanted in your setup. I am trying to keep it as pretty and usable as I can make it without configuring it from yaml.
 
 ### Features
-- Fully customizable slider card for lights, input_numbers, media_players, covers, fans, switches, and locks
+- Fully customizable button card with built in slider for lights, covers, switches
 - Templating
 - Styles can be fully customized easily within the card itself
-- Vertical
-- Flipped
-- Inverse
 
 ### Future features (Maybe)
 - Animation on click. Make different animation configs for user to choose between. One for ripple, scale out/in for card, scale out/in for icon, loading around icon until action has been performed?.

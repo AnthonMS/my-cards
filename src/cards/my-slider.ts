@@ -17,7 +17,6 @@ import {
     hasConfigOrEntityChanged,
     LovelaceCard
 } from 'custom-card-helpers'; // This is a community maintained npm module with common helper functions/types
-import { disableBodyScroll, enableBodyScroll } from 'body-scroll-lock'
 
 import type { MySliderCardConfig } from './extras/types'
 import { SLIDER_VERSION } from './extras/const'
@@ -42,7 +41,6 @@ console.info(
     description: 'Custom Slider Card V2 for Lovelace.',
 });
 
-// TODONE Name your custom element
 @customElement('my-slider-v2')
 export class MySliderV2 extends LitElement {
     @property() private _config?: MySliderCardConfig
@@ -54,7 +52,13 @@ export class MySliderV2 extends LitElement {
     private touchInput: Boolean = false
     private disableScroll: Boolean = true
     private allowTapping: Boolean = true
+    private allowSliding: Boolean = false
+    private slideDistance: number = 10
+    private marginOfError: number = 10
     private thumbTapped: Boolean = false
+    private isSliding: Boolean = false
+    private clientXLast: number = 0
+    private clientYLast: number = 0
     private actionTaken: Boolean = false
     private vertical: Boolean = false
     private flipped: Boolean = false
@@ -67,6 +71,7 @@ export class MySliderV2 extends LitElement {
     private minThreshold: number = 0
     private maxThreshold: number = 100
     private step: number = 1
+    private oldVal: number = 0
     private sliderVal: number = 0
     private sliderValPercent: number = 0.00
     private setSliderValues(val, valPercent): void {
@@ -188,34 +193,21 @@ export class MySliderV2 extends LitElement {
             switch (event.type) {
                 case 'mousedown':
                     if (this.touchInput) return
-                    // console.log('MOUSE DOWN:', event)
                     startInput(event)
-
                     break
-
                 case 'touchstart':
                     this.touchInput = true
-                    // console.log('TOUCH START:', event)
                     startInput(event)
                     break
-
                 case 'mousemove':
                     if (this.touchInput) return
-                    // if (this.actionTaken)
-                    //     console.log('MOUSE MOVE:', event)
-
                     moveInput(event)
                     break
-
                 case 'touchmove':
                     if (this.disableScroll)
                         event.preventDefault()
-                    // if (this.actionTaken)
-                    //     console.log('TOUCH MOVE:', event)
-
                     moveInput(event)
                     break
-
                 case 'mouseup':
                 case 'touchend':
                 case 'touchcancel':
@@ -227,18 +219,49 @@ export class MySliderV2 extends LitElement {
         const startInput = (event) => {
             if (this.actionTaken) return
             setElements(event)
+            const clickX = event.clientX || event.touches[0].clientX
+            const clickY = event.clientY || event.touches[0].clientY
+            if (this.clientXLast === 0) {
+                this.clientXLast = clickX
+            }
+            if (this.clientYLast === 0) {
+                this.clientYLast = clickY
+            }
 
             if (this.allowTapping) {
                 this.actionTaken = true
                 this.calcProgress(event)
+                return
             }
             else {
-                if (event.path[0].classList.contains('my-slider-custom-thumb')) {
+                const actualTarget = event.composedPath()[0]
+                const thumbElement = this.shadowRoot?.querySelector('.my-slider-custom-thumb')
+                if (actualTarget.classList.contains('my-slider-custom-thumb')) {
                     this.thumbTapped = true
                     this.actionTaken = true
                     this.calcProgress(event)
-                } // else: tapping not allowed
+                    return
+                }
+                else if (thumbElement) {
+                    const thumbRect = thumbElement.getBoundingClientRect()
+
+                    if (clickX >= thumbRect.left - this.marginOfError &&
+                        clickX <= thumbRect.right + this.marginOfError &&
+                        clickY >= thumbRect.top - this.marginOfError &&
+                        clickY <= thumbRect.bottom + this.marginOfError) {
+                        this.thumbTapped = true
+                        this.actionTaken = true
+                        this.calcProgress(event)
+                        return
+                    }
+                }
             }
+            if (this.allowSliding) {
+                this.actionTaken = true
+            }
+
+            this.clientYLast = clickY
+            this.clientXLast = clickX
         }
 
         const stopInput = (event) => {
@@ -249,14 +272,41 @@ export class MySliderV2 extends LitElement {
             else if (this.thumbTapped) {
                 this.calcProgress(event)
             }
+            else if (this.isSliding) {
+                this.calcProgress(event)
+            }
             this.thumbTapped = false
             this.actionTaken = false
             this.touchInput = false
+            this.isSliding = false
         }
 
         const moveInput = event => {
             if (this.actionTaken) {
-                this.calcProgress(event)
+                const clickX = event.clientX || event.touches[0].clientX
+                const clickY = event.clientY || event.touches[0].clientY
+                if (this.allowTapping || this.isSliding ||
+                    (!this.allowTapping && this.thumbTapped)) {
+                    this.calcProgress(event)
+                    this.clientXLast = clickX
+                    this.clientYLast = clickY
+                }
+                else if (this.allowSliding) {
+                    if (!this.vertical) {
+                        if (Math.abs(clickX - this.clientXLast) >= this.slideDistance) {
+                            this.isSliding = true
+                            this.clientXLast = clickX
+                            this.clientYLast = clickY
+                        }
+                    }
+                    else {
+                        if (Math.abs(clickY - this.clientYLast) >= this.slideDistance) {
+                            this.isSliding = true
+                            this.clientXLast = clickX
+                            this.clientYLast = clickY
+                        }
+                    }
+                }
             }
         }
 
@@ -288,15 +338,15 @@ export class MySliderV2 extends LitElement {
             this._config = this._objectEvalTemplate(this.entity, this.config)
         } catch (e) {
             if (e instanceof Error) {
-              if (e.stack) console.error(e.stack)
-              else console.error(e)
-              const errorCard = document.createElement('hui-error-card') as LovelaceCard
-              errorCard.setConfig({
-                  type: 'error',
-                  error: e.toString(),
-                  origConfig: this.config,
-              })
-              return errorCard
+                if (e.stack) console.error(e.stack)
+                else console.error(e)
+                const errorCard = document.createElement('hui-error-card') as LovelaceCard
+                errorCard.setConfig({
+                    type: 'error',
+                    error: e.toString(),
+                    origConfig: this.config,
+                })
+                return errorCard
             }
             else {
                 console.log('Unexpected error evaluating config on init:', e)
@@ -311,6 +361,9 @@ export class MySliderV2 extends LitElement {
         this.inverse = this._config!.inverse !== undefined ? this._config!.inverse : false
         this.disableScroll = this._config!.disableScroll !== undefined ? this._config!.disableScroll : true
         this.allowTapping = this._config!.allowTapping !== undefined ? this._config!.allowTapping : true
+        this.allowSliding = this._config!.allowSliding !== undefined ? this._config!.allowSliding : false
+        this.marginOfError = this._config!.marginOfError !== undefined ? this._config!.marginOfError : 10
+        this.slideDistance = this._config!.slideDistance !== undefined ? this._config!.slideDistance : 10
         this.showMin = this._config!.showMin !== undefined ? this._config!.showMin : false
         this.min = this._config!.min ? this._config!.min : 0
         this.max = this._config!.max ? this._config!.max : 100
@@ -323,6 +376,7 @@ export class MySliderV2 extends LitElement {
 
             case 'light': /* ------------ LIGHT ------------ */
                 if (this.colorMode === 'brightness') {
+                    this.oldVal = Math.ceil(percentage(this.entity.attributes.brightness, 256))
                     if (this.entity.state === 'on') {
                         tmpVal = Math.round(this.entity.attributes.brightness / 2.56)
                         if (!this.showMin) { // Subtracting savedMin to make slider 0 be far left
@@ -338,6 +392,7 @@ export class MySliderV2 extends LitElement {
                     this.min = this._config!.min ? this._config!.min : this.entity.attributes.min_mireds
                     this.max = this._config!.max ? this._config!.max : this.entity.attributes.max_mireds
                     tmpVal = parseFloat(this.entity.attributes.color_temp)
+                    this.oldVal = parseFloat(this.entity.attributes.color_temp)
                     if (!this.showMin) { // Subtracting savedMin to make slider 0 be far left
                         this.max = this.max - this.min
                         tmpVal = tmpVal - this.min
@@ -348,6 +403,7 @@ export class MySliderV2 extends LitElement {
 
                     this.min = this._config!.min ? this._config!.min : 0
                     this.max = this._config!.max ? this._config!.max : 360
+                    this.oldVal = parseFloat(this.entity.attributes.hs_color[0])
 
                     tmpVal = parseFloat(this.entity.attributes.hs_color[0])
                     if (!this.showMin) { // Subtracting savedMin to make slider 0 be far left
@@ -362,6 +418,7 @@ export class MySliderV2 extends LitElement {
                     // const currentSaturation = parseFloat(entity.attributes.hs_color[1])
                     this.min = this._config!.min ? this._config!.min : 0
                     this.max = this._config!.max ? this._config!.max : 100
+                    this.oldVal = parseFloat(this.entity.attributes.hs_color[1])
 
                     tmpVal = parseFloat(this.entity.attributes.hs_color[1])
                     if (!this.showMin) { // Subtracting savedMin to make slider 0 be far left
@@ -378,6 +435,7 @@ export class MySliderV2 extends LitElement {
                 this.step = this._config!.step ? this._config!.step : this.entity.attributes.step
                 this.min = this._config!.min ? this._config!.min : this.entity.attributes.min
                 this.max = this._config!.max ? this._config!.max : this.entity.attributes.max
+                this.oldVal = parseFloat(this.entity.state)
                 tmpVal = parseFloat(this.entity.state)
                 if (!this.showMin) { // Subtracting savedMin to make slider 0 be far left
                     this.max = this.max - this.min
@@ -393,6 +451,7 @@ export class MySliderV2 extends LitElement {
                 if (this.entity.attributes.volume_level != undefined) {
                     tmpVal = Number(this.entity.attributes.volume_level * 100)
                 }
+                this.oldVal = tmpVal
 
                 if (!this.showMin) { // Subtracting savedMin to make slider 0 be far left
                     this.max = this.max - this.min
@@ -414,6 +473,7 @@ export class MySliderV2 extends LitElement {
                         tmpVal = Number(this.entity.attributes.current_tilt_position)
                     }
                 }
+                this.oldVal = tmpVal
 
                 if (!this.showMin) { // Subtracting savedMin to make slider 0 be far left
                     this.max = this.max - this.min
@@ -434,6 +494,7 @@ export class MySliderV2 extends LitElement {
                 if (this.entity.attributes.percentage != undefined) {
                     tmpVal = Number(this.entity.attributes.percentage)
                 }
+                this.oldVal = tmpVal
 
                 if (!this.showMin) { // Subtracting savedMin to make slider 0 be far left (sometimes needed, sometimes not. I dont have a fan to test this. Sorry)
                     this.max = this.max - this.min
@@ -441,8 +502,6 @@ export class MySliderV2 extends LitElement {
                 }
 
                 this.setSliderValues(tmpVal, roundPercentage(percentage(tmpVal, this.max)))
-
-
                 break
             case 'switch': /* ------------ SWITCH ------------ */
                 this.minThreshold = this._config!.minThreshold ? this._config!.minThreshold : 15
@@ -456,7 +515,8 @@ export class MySliderV2 extends LitElement {
                 this.minThreshold = this._config!.minThreshold ? this._config!.minThreshold : 15
                 this.maxThreshold = this._config!.maxThreshold ? this._config!.maxThreshold : 75
                 tmpVal = Number(Math.max(this.zero, this.minThreshold))// Set slider to larger of 2 minimums
-                this.setSliderValues(tmpVal,tmpVal)
+                this.oldVal = tmpVal
+                this.setSliderValues(tmpVal, tmpVal)
 
                 break
             default:
@@ -473,7 +533,7 @@ export class MySliderV2 extends LitElement {
         const sliderWidth = this.sliderEl.offsetWidth
         const sliderHeight = this.sliderEl.offsetHeight
         // Calculate what the percentage is of the clickPos.x between 0 and sliderWidth / clickPos.y between 0 and sliderHeight
-        const clickPercent = this.vertical ? roundPercentage(clickPos.y/sliderHeight * 100) : roundPercentage(clickPos.x/sliderWidth * 100)
+        const clickPercent = this.vertical ? roundPercentage(clickPos.y / sliderHeight * 100) : roundPercentage(clickPos.x / sliderWidth * 100)
         const newValue = clickPercent / 100 * (this.max - 0)
         const flippedValue = this.max - newValue
         let val = this.flipped ? Math.round(flippedValue) : Math.round(newValue)
@@ -484,6 +544,10 @@ export class MySliderV2 extends LitElement {
 
     private setProgress(slider, val, action) {
         const progressEl = slider.querySelector('.my-slider-custom-progress')
+
+        // Round val to nearest step
+        val = Math.round(val / this.step) * this.step
+
         const valuePercentage = roundPercentage(percentage(val, this.max))
         if (this.vertical) {
             // Set progessHeight to match value
@@ -497,10 +561,8 @@ export class MySliderV2 extends LitElement {
         // Check if value has changed
         if (this.sliderVal !== val) {
             // Check if we should update entity on mousemove or mouseup
-            if (this._config!.intermediate && (action === 'mousemove' || action === 'touchmove')) {
-                this.setValue(val, valuePercentage)
-            }
-            else if (!this._config!.intermediate && (action === 'mouseup' || action === 'touchend' || action === 'touchcancel')) {
+            if ((this._config!.intermediate && (action === 'mousemove' || action === 'mousedown' || action === 'touchmove' || action === 'touchstart')) ||
+                (!this._config!.intermediate && (action === 'mouseup' || action === 'touchend' || action === 'touchcancel'))) {
                 this.setValue(val, valuePercentage)
             }
         }
@@ -563,27 +625,21 @@ export class MySliderV2 extends LitElement {
     }
 
     private _setBrightness(entity, value): void {
-        if (entity.state === 'off' || (Math.abs((value - Math.round(entity.attributes.brightness / 2.56))) > this.step)) {
-            this.hass.callService("light", "turn_on", {
-                entity_id: entity.entity_id,
-                brightness: value * 2.56
-            })
-        }
+        this.hass.callService("light", "turn_on", {
+            entity_id: entity.entity_id,
+            brightness: value * 2.56
+        })
+        this.oldVal = value
     }
-	private _setColorTemp(entity, value): void {
+    private _setColorTemp(entity, value): void {
         let oldVal = parseFloat(entity.attributes.color_temp)
-        // // Do not ask me why this is not needed here. In my mind it should be required, but it's off by that much when subtracting. (Should not code with corona)
-        // if (!this.showMin) {
-        //     oldVal = oldVal - this.min // Subtracting savedMin to make slider 0 be far left
-        // }
-        
-        if (entity.state === 'off' || isNaN(oldVal) || Math.abs((value - oldVal)) > this.step) {
-            this.hass.callService("light", "turn_on", {
-                entity_id: entity.entity_id,
-                color_temp: value
-            })
-        }
-	}
+        this.hass.callService("light", "turn_on", {
+            entity_id: entity.entity_id,
+            color_temp: value
+        })
+        this.oldVal = value
+
+    }
     private _setHue(entity, value): void {
         let oldVal = 0
         let currentSaturation = 0
@@ -591,12 +647,11 @@ export class MySliderV2 extends LitElement {
             oldVal = parseFloat(entity.attributes.hs_color[0])
             currentSaturation = parseFloat(entity.attributes.hs_color[1])
         }
-        if (entity.state === 'off' || Math.abs((value - oldVal)) > this.step) {
-            this.hass.callService("light", "turn_on", {
-                entity_id: entity.entity_id,
-                hs_color: [value, currentSaturation]
-            })
-        }
+        this.hass.callService("light", "turn_on", {
+            entity_id: entity.entity_id,
+            hs_color: [value, currentSaturation]
+        })
+        this.oldVal = value
     }
     private _setSaturation(entity, value): void {
         let oldVal = 0
@@ -605,69 +660,90 @@ export class MySliderV2 extends LitElement {
             oldVal = parseFloat(entity.attributes.hs_color[1])
             currentHue = parseFloat(entity.attributes.hs_color[0])
         }
-        if (entity.state === 'off' || Math.abs((value - oldVal)) > this.step) {
-            this.hass.callService("light", "turn_on", {
-                entity_id: entity.entity_id,
-                hs_color: [currentHue, value]
-            })
-        }
+        this.hass.callService("light", "turn_on", {
+            entity_id: entity.entity_id,
+            hs_color: [currentHue, value]
+        })
+        this.oldVal = value
     }
 
-	private _setInputNumber(entity, value): void {
+    private _setInputNumber(entity, value): void {
         let oldVal = parseFloat(entity.state)
         if (!this.showMin) {
             oldVal = oldVal - this.min // Subtracting savedMin to make slider 0 be far left
         }
 
-        if (Math.abs((value - oldVal)) > this.step) {
-            this.hass.callService(entity.entity_id.split('.')[0], "set_value", { // either "input_number" or "number"
-                entity_id: entity.entity_id,
-                value: value
-            })
-        }
-	}
-	private _setMediaVolume(entity, value): void {
+        this.hass.callService(entity.entity_id.split('.')[0], "set_value", { // either "input_number" or "number"
+            entity_id: entity.entity_id,
+            value: value
+        })
+        this.oldVal = value
+    }
+    private _setMediaVolume(entity, value): void {
         let oldVal = Number(this.entity!.attributes.volume_level * 100)
         if (!this.showMin) { // Subtracting savedMin to make slider 0 be far left
             oldVal = oldVal - this.min
         }
 
-        // TODO: This will be false if entity is off. Set volume even when off/not playing/idle? (whatever states to check for?)
-        if (Math.abs((value - oldVal)) > this.step) {
-            this.hass.callService("media_player", "volume_set", {
-                entity_id: entity.entity_id,
-                volume_level: value / 100
-            })
-        }
-	}
-	private _setCover(entity, value): void {
-		this.hass.callService("cover", "set_cover_position", {
-			entity_id: entity.entity_id,
-			position: value
-		});
-	}
+        this.hass.callService("media_player", "volume_set", {
+            entity_id: entity.entity_id,
+            volume_level: value / 100
+        })
+        this.oldVal = value
+    }
+    private _setCover(entity, value): void {
+        this.hass.callService("cover", "set_cover_position", {
+            entity_id: entity.entity_id,
+            position: value
+        })
+        this.oldVal = value
+    }
 
     private _setCoverTilt(entity, value): void {
         this.hass.callService("cover", "set_cover_tilt_position", {
             entity_id: entity.entity_id,
             tilt_position: value
-        });
+        })
+        this.oldVal = value
     }
 
-	private _setFan(entity, value): void {
-		this.hass.callService("fan", "set_percentage", {
-			entity_id: entity.entity_id,
-			percentage: value
-		})
-	}
+    private _setFan(entity, value): void {
+        this.hass.callService("fan", "set_percentage", {
+            entity_id: entity.entity_id,
+            percentage: value
+        })
+        this.oldVal = value
+    }
 
-	private _setSwitch(entity, value): void {
-		var threshold = Math.min(this.max, this.maxThreshold) //pick lesser of the two
-		if (Number(threshold) <= value) {
-			this.hass.callService('homeassistant', 'toggle', {
-				entity_id: entity.entity_id
-			})
-		}
+    private _setSwitch(entity, value): void {
+        var threshold = Math.min(this.max, this.maxThreshold) //pick lesser of the two
+        if (Number(threshold) <= value) {
+            this.hass.callService('homeassistant', 'toggle', {
+                entity_id: entity.entity_id
+            })
+            this.oldVal = value
+        }
+
+        const val = Number(Math.max(this.zero, this.minThreshold))
+        const valPercent = roundPercentage(percentage(val, this.max))
+        this.setSliderValues(val, valPercent) // Set slider to larger of 2 minimums
+        const progressEl: HTMLElement | null = this.sliderEl!.querySelector('.my-slider-custom-progress')
+
+        const currentTransition = progressEl!.style.transition
+        progressEl!.style.transition = !this.vertical ? 'width 0.2s ease 0s' : 'height 0.2s ease 0s' // Make it spring back nicely
+        progressEl!.style.width = valPercent.toString() + '%'
+        setTimeout(() => { // Remove transition when done
+            progressEl!.style.transition = currentTransition
+        }, 200)
+    }
+    private _setLock(entity, value): void {
+        var threshold = Math.min(this.max, this.maxThreshold) //pick lesser of the two
+        if (Number(threshold) <= value) {
+            var newLockState = entity.state === "locked" ? 'unlock' : 'lock'
+            this.hass.callService("lock", newLockState, {
+                entity_id: entity.entity_id
+            })
+        }
 
         const val = Number(Math.max(this.zero, this.minThreshold))
         const valPercent = roundPercentage(percentage(val, this.max))
@@ -678,26 +754,7 @@ export class MySliderV2 extends LitElement {
         setTimeout(() => { // Remove transition when done
             progressEl!.style.transition = 'initial'
         }, 200)
-	}
-	private _setLock(entity, value): void {
-		var threshold = Math.min(this.max, this.maxThreshold) //pick lesser of the two
-		if (Number(threshold) <= value) {
-			var newLockState = entity.state === "locked" ? 'unlock' : 'lock'
-			this.hass.callService("lock", newLockState, {
-				entity_id: entity.entity_id
-			})
-		}
-
-        const val = Number(Math.max(this.zero, this.minThreshold))
-        const valPercent = roundPercentage(percentage(val, this.max))
-        this.setSliderValues(val, valPercent) // Set slider to larger of 2 minimums
-        const progressEl: HTMLElement | null = this.sliderEl!.querySelector('.my-slider-custom-progress')
-        progressEl!.style.transition = 'width 0.2s ease 0s' // Make it sprong back nicely
-        progressEl!.style.width = valPercent.toString() + '%'
-        setTimeout(() => { // Remove transition when done
-            progressEl!.style.transition = 'initial'
-        }, 200)
-	}
+    }
 
     private createAndCleanupEventListeners(func): void {
         document.removeEventListener("mouseup", func)
@@ -777,10 +834,10 @@ export class MySliderV2 extends LitElement {
                 e.message = `${e.name}: ${e.message} in '${funcTrimmed}'`;
                 e.name = 'MyCardJSTemplateError';
                 throw e;
-              }
-              else {
-                  console.log('Unexpected error (_evalTemplate)', e);
-              }
+            }
+            else {
+                console.log('Unexpected error (_evalTemplate)', e);
+            }
         }
     }
 
@@ -798,7 +855,7 @@ entity: light.sofa_spots
 colorMode: 'brightness' (Can be 'brightness', 'temperature', 'hue', 'saturation')
 coverMode: 'position' (Accept: 'position', 'tilt')
 // warmth: false (Will be removed now!)
-vertical: false (This will set the vertical to be vertical and handled from bottom to top. Automatically used on covers)
+vertical: false (This will set the slider to be vertical and handled from bottom to top. Automatically used on covers)
 flipped: false (This will just flip the slider to go from right to left or top to bottom. Automatically used on covers)
 inverse: false (Will inverse how far the slider has progressed compared to value. so if brightness is 75%, then it will only be 25% progressed. This is useful for cover, where it is automatically used.)
 min: 0
