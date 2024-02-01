@@ -35,6 +35,8 @@ It is completely customizable now and fully templatable.
 | intermediate | boolean | false | If set to `true` the slider sends immediate updates while sliding. Not recommended by default, since it may generate too many updates. |
 | disableScroll | boolean | true | Disable scrolling on touch devices when starting the touchmove from within the slider. Default true on covers. |
 | allowTapping | boolean | true | Allow tapping on slider track to activate. If false only dragging by thumb will activate it. |
+| marginOfError | number | 10 | Pixel distance the input can be from the thumb if allowTapping is set to false |
+| allowSliding | boolean | true | Allow sliding on slider track to activate. (Not yet done) |
 | showMin | boolean | false | Show the minimum on the slider. If false, the min will be far left (if not flipped or vertical) |
 | minThreshold | number | 15 | Only used for determining how much progress should be shown on a switch or lock |
 | maxThreshold | number | 75 | Only used to determine how far users have to slide to activate toggle commands for switch and lock |
