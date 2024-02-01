@@ -52,9 +52,13 @@ export class MySliderV2 extends LitElement {
     private touchInput: Boolean = false
     private disableScroll: Boolean = true
     private allowTapping: Boolean = true
-    private allowSliding: Boolean = true
+    private allowSliding: Boolean = false
+    private slideDistance: number = 10
     private marginOfError: number = 10
     private thumbTapped: Boolean = false
+    private isSliding: Boolean = false
+    private clientXLast: number = 0
+    private clientYLast: number = 0
     private actionTaken: Boolean = false
     private vertical: Boolean = false
     private flipped: Boolean = false
@@ -189,34 +193,21 @@ export class MySliderV2 extends LitElement {
             switch (event.type) {
                 case 'mousedown':
                     if (this.touchInput) return
-                    // console.log('MOUSE DOWN:', event)
                     startInput(event)
-
                     break
-
                 case 'touchstart':
                     this.touchInput = true
-                    // console.log('TOUCH START:', event)
                     startInput(event)
                     break
-
                 case 'mousemove':
                     if (this.touchInput) return
-                    // if (this.actionTaken)
-                    //     console.log('MOUSE MOVE:', event)
-
                     moveInput(event)
                     break
-
                 case 'touchmove':
                     if (this.disableScroll)
                         event.preventDefault()
-                    // if (this.actionTaken)
-                    //     console.log('TOUCH MOVE:', event)
-
                     moveInput(event)
                     break
-
                 case 'mouseup':
                 case 'touchend':
                 case 'touchcancel':
@@ -228,10 +219,19 @@ export class MySliderV2 extends LitElement {
         const startInput = (event) => {
             if (this.actionTaken) return
             setElements(event)
+            const clickX = event.clientX || event.touches[0].clientX
+            const clickY = event.clientY || event.touches[0].clientY
+            if (this.clientXLast === 0) {
+                this.clientXLast = clickX
+            }
+            if (this.clientYLast === 0) {
+                this.clientYLast = clickY
+            }
 
             if (this.allowTapping) {
                 this.actionTaken = true
                 this.calcProgress(event)
+                return
             }
             else {
                 const actualTarget = event.composedPath()[0]
@@ -240,25 +240,28 @@ export class MySliderV2 extends LitElement {
                     this.thumbTapped = true
                     this.actionTaken = true
                     this.calcProgress(event)
+                    return
                 }
                 else if (thumbElement) {
-                    const thumbRect = thumbElement.getBoundingClientRect();
-                    const clickX = event.clientX || event.touches[0].clientX;
-                    const clickY = event.clientY || event.touches[0].clientY;
+                    const thumbRect = thumbElement.getBoundingClientRect()
 
                     if (clickX >= thumbRect.left - this.marginOfError &&
                         clickX <= thumbRect.right + this.marginOfError &&
                         clickY >= thumbRect.top - this.marginOfError &&
                         clickY <= thumbRect.bottom + this.marginOfError) {
-                        this.thumbTapped = true;
-                        this.actionTaken = true;
-                        this.calcProgress(event);
+                        this.thumbTapped = true
+                        this.actionTaken = true
+                        this.calcProgress(event)
+                        return
                     }
                 }
-                else {
-                    console.log('Not allowed tapping')
-                }
             }
+            if (this.allowSliding) {
+                this.actionTaken = true
+            }
+
+            this.clientYLast = clickY
+            this.clientXLast = clickX
         }
 
         const stopInput = (event) => {
@@ -269,14 +272,41 @@ export class MySliderV2 extends LitElement {
             else if (this.thumbTapped) {
                 this.calcProgress(event)
             }
+            else if (this.isSliding) {
+                this.calcProgress(event)
+            }
             this.thumbTapped = false
             this.actionTaken = false
             this.touchInput = false
+            this.isSliding = false
         }
 
         const moveInput = event => {
             if (this.actionTaken) {
-                this.calcProgress(event)
+                const clickX = event.clientX || event.touches[0].clientX
+                const clickY = event.clientY || event.touches[0].clientY
+                if (this.allowTapping || this.isSliding ||
+                    (!this.allowTapping && this.thumbTapped)) {
+                    this.calcProgress(event)
+                    this.clientXLast = clickX
+                    this.clientYLast = clickY
+                }
+                else if (this.allowSliding) {
+                    if (!this.vertical) {
+                        if (Math.abs(clickX - this.clientXLast) >= this.slideDistance) {
+                            this.isSliding = true
+                            this.clientXLast = clickX
+                            this.clientYLast = clickY
+                        }
+                    }
+                    else {
+                        if (Math.abs(clickY - this.clientYLast) >= this.slideDistance) {
+                            this.isSliding = true
+                            this.clientXLast = clickX
+                            this.clientYLast = clickY
+                        }
+                    }
+                }
             }
         }
 
@@ -331,8 +361,9 @@ export class MySliderV2 extends LitElement {
         this.inverse = this._config!.inverse !== undefined ? this._config!.inverse : false
         this.disableScroll = this._config!.disableScroll !== undefined ? this._config!.disableScroll : true
         this.allowTapping = this._config!.allowTapping !== undefined ? this._config!.allowTapping : true
-        this.allowSliding = this._config!.allowSliding !== undefined ? this._config!.allowSliding : true
+        this.allowSliding = this._config!.allowSliding !== undefined ? this._config!.allowSliding : false
         this.marginOfError = this._config!.marginOfError !== undefined ? this._config!.marginOfError : 10
+        this.slideDistance = this._config!.slideDistance !== undefined ? this._config!.slideDistance : 10
         this.showMin = this._config!.showMin !== undefined ? this._config!.showMin : false
         this.min = this._config!.min ? this._config!.min : 0
         this.max = this._config!.max ? this._config!.max : 100
@@ -513,10 +544,10 @@ export class MySliderV2 extends LitElement {
 
     private setProgress(slider, val, action) {
         const progressEl = slider.querySelector('.my-slider-custom-progress')
-        
+
         // Round val to nearest step
         val = Math.round(val / this.step) * this.step
-        
+
         const valuePercentage = roundPercentage(percentage(val, this.max))
         if (this.vertical) {
             // Set progessHeight to match value
@@ -530,9 +561,9 @@ export class MySliderV2 extends LitElement {
         // Check if value has changed
         if (this.sliderVal !== val) {
             // Check if we should update entity on mousemove or mouseup
-            if ((this._config!.intermediate && (action === 'mousemove' || action === 'touchmove')) ||
+            if ((this._config!.intermediate && (action === 'mousemove' || action === 'mousedown' || action === 'touchmove' || action === 'touchstart')) ||
                 (!this._config!.intermediate && (action === 'mouseup' || action === 'touchend' || action === 'touchcancel'))) {
-                    this.setValue(val, valuePercentage)
+                this.setValue(val, valuePercentage)
             }
         }
     }
@@ -641,7 +672,7 @@ export class MySliderV2 extends LitElement {
         if (!this.showMin) {
             oldVal = oldVal - this.min // Subtracting savedMin to make slider 0 be far left
         }
-        
+
         this.hass.callService(entity.entity_id.split('.')[0], "set_value", { // either "input_number" or "number"
             entity_id: entity.entity_id,
             value: value
