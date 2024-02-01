@@ -1,8 +1,4 @@
 export const percentage = (val, max = 100, min = 0) => {
-    // console.log('Finding percentage of value:', val)
-    // console.log('Min:', min)
-    // console.log('Max:', max)
-    // console.log('Test:', (max-min))
     return val / (max - min) * 100
 }
 
@@ -49,4 +45,46 @@ export const camelToKebab = str => {
             ? `${idx !== 0 ? '-' : ''}${letter.toLowerCase()}`
             : letter;
     }).join('');
+}
+
+
+export function deepMerge(target: any, source: any) {
+    const output = Object.assign({}, target);
+    if (isObject(target) && isObject(source)) {
+        Object.keys(source).forEach(key => {
+            if (Array.isArray(source[key])) {
+                output[key] = source[key].map((item, index) => {
+                    if (target[key] && isObject(target[key][index]) && isObject(item)) {
+                        return deepMerge(target[key][index], item);
+                    } else {
+                        return item;
+                    }
+                });
+            } else if (isObject(source[key])) {
+                if (!(key in target))
+                    Object.assign(output, { [key]: source[key] });
+                else
+                    output[key] = deepMerge(target[key], source[key]);
+            } else {
+                Object.assign(output, { [key]: source[key] });
+            }
+        });
+    }
+    return output;
+}
+
+export function arrayToObject(styleArray: any[]) {
+    return styleArray.reduce((styleObject, style) => {
+        const [key, value] = Object.entries(style)[0];
+        styleObject[key] = value;
+        return styleObject;
+    }, {});
+}
+
+export function objectToArray(styleObject: any) {
+    return Object.entries(styleObject).map(([key, value]) => ({ [key]: value }));
+}
+
+export function isObject(item: any) {
+    return (item && typeof item === 'object' && !Array.isArray(item));
 }

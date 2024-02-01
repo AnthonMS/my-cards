@@ -25,6 +25,7 @@ import { BUTTON_VERSION } from './extras/const';
 import { localize } from '../localize/localize';
 import { getStyle } from './styles/my-button.styles'
 import { deflate } from '../scripts/deflate'
+import { deepMerge, percentage } from '../scripts/helpers'
 
 /* eslint no-console: 0 */
 console.info(
@@ -50,12 +51,14 @@ export class MyButton extends LitElement {
     private iconConfig: any = {}
     private labelConfig: any = {}
     private sliderConfig: any = {}
+    private statsConfig: any = {}
 
     // STYLES
     private cardStl: StyleInfo = {}
     private containerStl: StyleInfo = {}
     private containerColumnStl: StyleInfo = {}
     private iconStl: StyleInfo = {}
+    private statsStl: StyleInfo = {}
     private labelWrapperStl: StyleInfo = {}
     private labelStl: StyleInfo = {}
     private row1Stl: StyleInfo = {}
@@ -83,7 +86,8 @@ export class MyButton extends LitElement {
     public setConfig(config: MyButtonCardConfig): void {
         const allowedEntities = [
             'light',
-            'cover'
+            'cover',
+            'switch'
         ]
 
         if (!config.entity) {
@@ -131,17 +135,19 @@ export class MyButton extends LitElement {
                     <div style="${styleMap(this.row1Stl)}"
                         @action=${e => this._handleAction(e, this.config)}
                         .actionHandler=${actionHandler({
-                        hasDoubleClick: this.config?.double_tap_action?.action !== 'none',
-                        hasHold: this.config?.hold_action?.action !== 'none',
-                    })}>
+            hasDoubleClick: this.config?.double_tap_action?.action !== 'none',
+            hasHold: this.config?.hold_action?.action !== 'none',
+        })}>
                         ${this.iconElement()}
+
+                        ${this.statsElement()}
                     </div>
                     <div style="${styleMap(this.row2Stl)}"
                         @action=${e => this._handleAction(e, this.config)}
                         .actionHandler=${actionHandler({
-                        hasDoubleClick: this.config?.double_tap_action?.action !== 'none',
-                        hasHold: this.config?.hold_action?.action !== 'none',
-                    })}>
+            hasDoubleClick: this.config?.double_tap_action?.action !== 'none',
+            hasHold: this.config?.hold_action?.action !== 'none',
+        })}>
                         ${this.labelElement()}
                     </div>
                     <div style="${styleMap(this.row3Stl)}">
@@ -160,17 +166,17 @@ export class MyButton extends LitElement {
                             <div style="${styleMap(this.row1Stl)}"
                                 @action=${e => this._handleAction(e, this.config)}
                                 .actionHandler=${actionHandler({
-                                hasDoubleClick: this.config?.double_tap_action?.action !== 'none',
-                                hasHold: this.config?.hold_action?.action !== 'none',
-                            })}>
+            hasDoubleClick: this.config?.double_tap_action?.action !== 'none',
+            hasHold: this.config?.hold_action?.action !== 'none',
+        })}>
                                 ${this.iconElement()}
                             </div>
                             <div style="${styleMap(this.row2Stl)}"
                                 @action=${e => this._handleAction(e, this.config)}
                                 .actionHandler=${actionHandler({
-                                hasDoubleClick: this.config?.double_tap_action?.action !== 'none',
-                                hasHold: this.config?.hold_action?.action !== 'none',
-                            })}>
+            hasDoubleClick: this.config?.double_tap_action?.action !== 'none',
+            hasHold: this.config?.hold_action?.action !== 'none',
+        })}>
                                 ${this.labelElement()}
                             </div>
                             <div style="${styleMap(this.row3Stl)}">
@@ -204,7 +210,32 @@ export class MyButton extends LitElement {
             `
         }
     }
-    
+    private statsElement(): TemplateResult {
+        if (!this.statsConfig.show) return html``
+
+        if (this.statsConfig.tap_action || this.statsConfig.double_tap_action || this.statsConfig.hold_action) {
+            return html`
+                <div style="${styleMap(this.statsStl)}"
+                    @action=${e => this._handleAction(e, this.statsConfig)}
+                    .actionHandler=${actionHandler({
+                hasDoubleClick: this.statsConfig.double_tap_action?.action !== 'none',
+                hasHold: this.statsConfig.hold_action?.action !== 'none',
+            })}>
+
+                ${this.statsConfig.text}
+
+                </div>
+            `
+        }
+        else {
+            return html`
+                <div style="${styleMap(this.statsStl)}">
+                ${this.statsConfig.text}
+                </div>
+            `
+        }
+    }
+
     private labelElement(): TemplateResult {
         if (!this.labelConfig.show) return html``
 
@@ -215,9 +246,9 @@ export class MyButton extends LitElement {
                         <label style="${styleMap(this.labelStl)}"
                             @action=${e => this._handleAction(e, this.labelConfig)}
                             .actionHandler=${actionHandler({
-                        hasDoubleClick: this.labelConfig.double_tap_action?.action !== 'none',
-                        hasHold: this.labelConfig.hold_action?.action !== 'none',
-                    })}
+                hasDoubleClick: this.labelConfig.double_tap_action?.action !== 'none',
+                hasHold: this.labelConfig.hold_action?.action !== 'none',
+            })}
                         >${this.labelConfig.text}</label>
                 </div>
             `
@@ -241,7 +272,6 @@ export class MyButton extends LitElement {
             this.sliderConfig.styles.card.width = this.sliderConfig.styles.card.width ? this.sliderConfig.styles.card.width : '35px'
         }
 
-        // <div>Slider Goes here...</div>
         return html`
             <my-slider-v2 .hass="${this.hass}" .config="${this.sliderConfig}"></my-slider-v2>
         `
@@ -273,62 +303,129 @@ export class MyButton extends LitElement {
             }
         }
         if (!this._config) return html`Error with this._config...`
-
+        const entityType = this._config.entity.split('.')[0]
         // ---- Default Icon Config ---- //
         const defaultIconAttr = {
             show: true,
             icon: 'mdi:lightbulb-outline'
         }
-        if (this._config.entity.split('.')[0] === 'cover') {
+        if (entityType === 'cover') {
             defaultIconAttr.icon = this.entity.attributes?.current_position >= 50 ? 'mdi:blinds-open' : 'mdi:blinds'
         }
+        else if (entityType === 'switch') {
+            defaultIconAttr.icon = this.entity.state === 'on' ? 'mdi:power-plug' : 'mdi:power-plug-off'
+        }
+
         // ---- Default Label Config ---- //
         const defaultLabelAttr = {
             show: true,
             text: this.entity.attributes.friendly_name
         }
-        // ---- Default Slider Config ---- //
-        const defaultSliderConfig = {
-            show: true,
-            entity: this.entity.entity_id,
-        }
-        
+
         this.layout = this._config.layout ? this._config.layout : 'vertical'
         if (this._config.entity.split('.')[0] === 'cover') {
             this.layout = this._config.layout ? this._config.layout : 'horizontal'
         }
         // If icon is just a string, then save that under iconConfig. If it's an object, then combine default with custom configs. If nothing then just use default config
-        this.iconConfig = typeof this._config.icon === 'string' ? { ...defaultIconAttr, icon: this._config.icon } : typeof this._config.icon === 'object' ? { ...defaultIconAttr, ...this._config.icon } : defaultIconAttr
-        this.labelConfig = typeof this._config.label === 'string' ? { ...defaultLabelAttr, text: this._config.label } : typeof this._config.label === 'object' ? { ...defaultLabelAttr, ...this._config.label } : defaultLabelAttr
-        this.sliderConfig = this._config.slider ? { ...defaultSliderConfig, ...this._config.slider } : defaultSliderConfig
+        this.iconConfig = typeof this._config.icon === 'string' ? { ...defaultIconAttr, icon: this._config.icon } : typeof this._config.icon === 'object' ? deepMerge(defaultIconAttr, this._config.icon) : defaultIconAttr
+        this.labelConfig = typeof this._config.label === 'string' ? { ...defaultLabelAttr, text: this._config.label } : typeof this._config.label === 'object' ? deepMerge(defaultLabelAttr, this._config.label) : defaultLabelAttr
+
+        const defaultStatsAttr = {
+            show: this.entity.attributes.brightness ? true : false,
+            text: this.entity.attributes.brightness && Math.ceil(percentage(this.entity.attributes.brightness, 256))
+        }
+        this.statsConfig = typeof this._config.stats === 'string' ? { ...defaultStatsAttr, text: this._config.stats } : typeof this._config.stats === 'object' ? deepMerge(defaultStatsAttr, this._config.stats) : defaultStatsAttr
 
 
-        const deflatedCardStl = deflate(this._config.styles?.card) ? deflate(this._config.styles?.card) : {}
-        const deflatedContainerStl = deflate(this._config.styles?.container) ? deflate(this._config.styles?.container) : {}
-        const deflatedContainerColumnStl = deflate(this._config.styles?.containerColumn) ? deflate(this._config.styles?.containerColumn) : {}
-        const deflatedIconStl = deflate(this._config.styles?.icon) ? deflate(this._config.styles?.icon) : {}
-        const deflatedLabelWrapperStl = deflate(this._config.styles?.labelWrapper) ? deflate(this._config.styles?.labelWrapper) : {}
-        const deflatedLabelStl = deflate(this._config.styles?.label) ? deflate(this._config.styles?.label) : {}
-        const deflatedRow1Stl = deflate(this._config.styles?.row1) ? deflate(this._config.styles?.row1) : {}
-        const deflatedRow2Stl = deflate(this._config.styles?.row2) ? deflate(this._config.styles?.row2) : {}
-        const deflatedRow3Stl = deflate(this._config.styles?.row3) ? deflate(this._config.styles?.row3) : {}
-        const deflatedColumn1Stl = deflate(this._config.styles?.column1) ? deflate(this._config.styles?.column1) : {}
-        const deflatedColumn2Stl = deflate(this._config.styles?.column2) ? deflate(this._config.styles?.column2) : {}
-        
 
-        // ---------- Styles ---------- //
-        this.cardStl = getStyle('card', deflatedCardStl)
-        this.containerStl = getStyle('container', deflatedContainerStl)
-        this.containerColumnStl = getStyle('container-column', deflatedContainerColumnStl)
-        this.iconStl = getStyle('icon', deflatedIconStl)
-        this.labelWrapperStl = getStyle('label-wrapper', deflatedLabelWrapperStl)
-        this.labelStl = getStyle('label', deflatedLabelStl)
-        this.row1Stl = getStyle('row1', deflatedRow1Stl)
-        this.row2Stl = getStyle('row2', deflatedRow2Stl)
-        this.row3Stl = getStyle('row3', deflatedRow3Stl)
-        this.column1Stl = getStyle('column1', deflatedColumn1Stl)
-        this.column2Stl = getStyle('column2', deflatedColumn2Stl)
+        const defaultSliderConfig = {
+            show: true,
+            entity: this.entity.entity_id,
+            styles: {
+                card: [{
+                    'border-radius': '0px',
+                    background: 'transparent',
+                    'box-shadow': 'none',
+                    cursor: 'default',
+                }],
+                container: [{
+                    'border-radius': '0px',
+                    // 'box-shadow': this.entity.state === 'on' ? '0 0 3px rgba(0,0,0,0.6)' : '0 0 3px rgba(0,0,0,0.3)'
+                }],
+                thumb: this.layout === 'vertical' ? [{
+                    'height': '20px',
+                    'width': '3px',
+                    'top': '6px',
+                    'right': '2px',
+                    'border-radius': '50px',
+                    // 'cursor': 'ew-resize'
+                }] : [{
+                    'width': '20px',
+                    'height': '3px',
+                    'bottom': '2px',
+                    'left': '7px',
+                    'border-radius': '50px',
+                    // 'cursor': 'ns-resize'
+                }],
+                track: [{
+                    background: 'transparent',
+                }],
+                progress: this.layout === 'vertical' ? [{
+                    'background': 'linear-gradient(to top, var(--paper-item-icon-active-color), transparent)',
+                }] : [{
+                    'background': 'linear-gradient(to left, var(--paper-item-icon-active-color), transparent)',
+                }]
+            },
+        }
+        if (entityType === 'switch') {
+            defaultSliderConfig.show = false
+        }
+        this.sliderConfig = this._config.slider ? deepMerge(defaultSliderConfig, this._config.slider) : defaultSliderConfig
 
+        let defaultCardStyle: any[] = []
+        if (entityType === 'light') {
+            if (this.entity.attributes.brightness) {
+                let divisor = 1 + (this.entity.attributes.brightness / 256);
+                const cardBg = `radial-gradient(circle at top left, rgba(230, 230, 230, 0.7), var(--card-background-color) ${Math.ceil(percentage(this.entity.attributes.brightness, 256)) / divisor + '%'})`
+                defaultCardStyle = [
+                    { 'background': cardBg },
+                ]
+            }
+            else {
+                defaultCardStyle = [
+                    { 'background': `radial-gradient(circle at top left, rgba(230, 230, 230, 0.5), var(--card-background-color) 40%)` },
+                ]
+            }
+        }
+        else if (entityType === 'switch') {
+            const cardBg = this.entity.state === 'on' ?
+                `radial-gradient(circle at top left, rgba(230, 230, 230, 0.7), var(--card-background-color) 50%)` :
+                `radial-gradient(circle at top left, rgba(230, 230, 230, 0.5), var(--card-background-color) 40%)`
+            defaultCardStyle = [
+                { 'background': cardBg },
+            ]
+        }
+        const cardStyle = this._config.styles?.card ? { ...defaultCardStyle, ...this._config.styles.card } : defaultCardStyle;
+
+        const defaultIconStyle = [
+            { 'color': this.entity.state === 'on' ? 'var(--paper-item-icon-active-color)' : 'var(--paper-item-icon-color)' },
+            { 'filter': this.entity.state === 'on' ? 'drop-shadow(2px 2px 2px rgba(0,0,0,0.6)' : 'drop-shadow(3px 3px 2px rgba(0,0,0,0.3)' },
+        ]
+        const iconStyle = this._config.styles?.icon ? { ...defaultIconStyle, ...this._config.styles.icon } : defaultIconStyle;
+
+        // ---------- Styles ---------- // deflate the array of objects to a single object
+        this.cardStl = getStyle('card', deflate(cardStyle) ? deflate(cardStyle) : {})
+        this.containerStl = getStyle('container', deflate(this._config.styles?.container) ? deflate(this._config.styles?.container) : {})
+        this.containerColumnStl = getStyle('container-column', deflate(this._config.styles?.containerColumn) ? deflate(this._config.styles?.containerColumn) : {})
+        this.iconStl = getStyle('icon', deflate(iconStyle) ? deflate(iconStyle) : {})
+        this.statsStl = getStyle('stats', deflate(this._config.styles?.stats) ? deflate(this._config.styles?.stats) : {})
+        this.labelWrapperStl = getStyle('label-wrapper', deflate(this._config.styles?.labelWrapper) ? deflate(this._config.styles?.labelWrapper) : {})
+        this.labelStl = getStyle('label', deflate(this._config.styles?.label) ? deflate(this._config.styles?.label) : {})
+        this.row1Stl = getStyle('row1', deflate(this._config.styles?.row1) ? deflate(this._config.styles?.row1) : {})
+        this.row2Stl = getStyle('row2', deflate(this._config.styles?.row2) ? deflate(this._config.styles?.row2) : {})
+        this.row3Stl = getStyle('row3', deflate(this._config.styles?.row3) ? deflate(this._config.styles?.row3) : {})
+        this.column1Stl = getStyle('column1', deflate(this._config.styles?.column1) ? deflate(this._config.styles?.column1) : {})
+        this.column2Stl = getStyle('column2', deflate(this._config.styles?.column2) ? deflate(this._config.styles?.column2) : {})
         return null // Success in this case
     }
 
