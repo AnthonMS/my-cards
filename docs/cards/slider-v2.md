@@ -27,6 +27,7 @@ It is completely customizable now and fully templatable.
 | ---- | ---- | ------- | ----------- |
 | type | string | **Required** | `custom:my-slider-v2` |
 | entity | string | **Required** | `light.livingroom` |
+| step | string | "1" | Number of steps to take (For input number, if step is not specified, it will use step from attributes.) (For media_player, if step is not specified it will step by 0.01. (It will actually step by 1, but it will convert 27 to 0.27. So if you set a custom step, set it between 0 and 100.)) |
 | colorMode | string | brightness | Can be brightness, temperature, hue, saturation |
 | coverMode | string | position | Can be position or tilt |
 | vertical | boolean | false | This will set the slider to be vertical and handled from bottom to top. Default on covers |
@@ -35,6 +36,9 @@ It is completely customizable now and fully templatable.
 | intermediate | boolean | false | If set to `true` the slider sends immediate updates while sliding. Not recommended by default, since it may generate too many updates. |
 | disableScroll | boolean | true | Disable scrolling on touch devices when starting the touchmove from within the slider. Default true on covers. |
 | allowTapping | boolean | true | Allow tapping on slider track to activate. If false only dragging by thumb will activate it. |
+| marginOfError | number | 10 | Pixel distance the input can be from the thumb if allowTapping is set to false |
+| allowSliding | boolean | false | Allow sliding on slider track to activate. This works well in conjuction with allowTapping false. It will only trigger when sliding in direction of slider or if sliding from thumb. |
+| slideDistance | number | 10 | Distance input has to travel in slider direction for allowSliding to take effect |
 | showMin | boolean | false | Show the minimum on the slider. If false, the min will be far left (if not flipped or vertical) |
 | minThreshold | number | 15 | Only used for determining how much progress should be shown on a switch or lock |
 | maxThreshold | number | 75 | Only used to determine how far users have to slide to activate toggle commands for switch and lock |
