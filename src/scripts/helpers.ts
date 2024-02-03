@@ -49,8 +49,12 @@ export const camelToKebab = str => {
 
 
 export function deepMerge(target: any, source: any) {
-    const output = Object.assign({}, target);
+    if (!isObject(target)) return isObject(source) ? source : {}
+    if (!isObject(source)) return isObject(target) ? target : {}
+
+    
     if (isObject(target) && isObject(source)) {
+        const output = Object.assign({}, target);
         Object.keys(source).forEach(key => {
             if (Array.isArray(source[key])) {
                 output[key] = source[key].map((item, index) => {
@@ -69,8 +73,12 @@ export function deepMerge(target: any, source: any) {
                 Object.assign(output, { [key]: source[key] });
             }
         });
+        return output;
     }
-    return output;
+    return {}
+}
+export function isObject(item: any) {
+    return (item && typeof item === 'object' && !Array.isArray(item));
 }
 
 export function arrayToObject(styleArray: any[]) {
@@ -83,8 +91,4 @@ export function arrayToObject(styleArray: any[]) {
 
 export function objectToArray(styleObject: any) {
     return Object.entries(styleObject).map(([key, value]) => ({ [key]: value }));
-}
-
-export function isObject(item: any) {
-    return (item && typeof item === 'object' && !Array.isArray(item));
 }

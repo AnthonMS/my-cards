@@ -45,38 +45,20 @@ console.info(
 export class MySliderV2 extends LitElement {
     @property() private _config?: MySliderCardConfig
     private entity: HassEntity | undefined
-    private colorMode: string = 'brightness'
-    private coverMode: string = 'position'
-    private sliderId: String = ''
     private sliderEl: HTMLBodyElement | undefined
     private touchInput: Boolean = false
-    private disableScroll: Boolean = true
-    private allowTapping: Boolean = true
-    private allowSliding: Boolean = false
-    private slideDistance: number = 10
-    private marginOfError: number = 10
     private thumbTapped: Boolean = false
     private isSliding: Boolean = false
     private clientXLast: number = 0
     private clientYLast: number = 0
     private actionTaken: Boolean = false
-    private vertical: Boolean = false
-    private flipped: Boolean = false
-    private inverse: Boolean = false
-    private showMin: Boolean = false
     private zero: number = 0
-    private savedMin: number = 1
-    private min: number = 0
-    private max: number = 100
-    private minThreshold: number = 0
-    private maxThreshold: number = 100
-    private step: number = 1
     private oldVal: number = 0
     private sliderVal: number = 0
     private sliderValPercent: number = 0.00
     private setSliderValues(val, valPercent): void {
-        if (this.inverse) {
-            this.sliderVal = this.max - val
+        if (this._config.inverse) {
+            this.sliderVal = this._config.max - val
             this.sliderValPercent = 100 - valPercent
         }
         else {
@@ -137,10 +119,17 @@ export class MySliderV2 extends LitElement {
         const initFailed = this.initializeConfig()
         if (initFailed !== null) return initFailed
 
+        
+        const defaultProgressStyle = [
+            // { 'transition': this.vertical ? 'height 0.2s ease 0s' : 'width 0.2s ease 0s' },
+        ]
+        const progressStyle = this._config!.styles?.progress ? { ...defaultProgressStyle, ...this._config!.styles.progress } : defaultProgressStyle
+        
         const deflatedCardStl = deflate(this._config!.styles?.card) ? deflate(this._config!.styles?.card) : {}
         const deflatedContainerStl = deflate(this._config!.styles?.container) ? deflate(this._config!.styles?.container) : {}
         const deflatedTrackStl = deflate(this._config!.styles?.track) ? deflate(this._config!.styles?.track) : {}
-        const deflatedProgressStl = deflate(this._config!.styles?.progress) ? deflate(this._config!.styles?.progress) : {}
+        const deflatedProgressStl = deflate(progressStyle)
+        // const deflatedProgressStl = deflate(this._config!.styles?.progress) ? deflate(this._config!.styles?.progress) : {}
         const deflatedThumbStl = deflate(this._config!.styles?.thumb) ? deflate(this._config!.styles?.thumb) : {}
         // ---------- Styles ---------- //
         const cardStl = getStyle('card', deflatedCardStl)
@@ -149,7 +138,7 @@ export class MySliderV2 extends LitElement {
         const progressStl = getStyle('progress', deflatedProgressStl)
         const thumbStl = getStyle('thumb', deflatedThumbStl)
 
-        if (this.vertical) {
+        if (this._config.vertical) {
             progressStl.height = this.sliderValPercent.toString() + '%'
 
             // Setting default styles for vertical if nothing is provided
@@ -161,7 +150,7 @@ export class MySliderV2 extends LitElement {
             thumbStl.width = deflatedThumbStl.width ? deflatedThumbStl.width : '100%'
             thumbStl.height = deflatedThumbStl.height ? deflatedThumbStl.height : '10px'
 
-            if (this.flipped) {
+            if (this._config.flipped) {
                 progressStl.top = deflatedProgressStl.top ? deflatedProgressStl.top : '0'
                 thumbStl.bottom = deflatedThumbStl.bottom ? deflatedThumbStl.bottom : '-5px'
             }
@@ -172,7 +161,7 @@ export class MySliderV2 extends LitElement {
         }
         else {
             progressStl.width = this.sliderValPercent.toString() + '%'
-            if (this.flipped) {
+            if (this._config.flipped) {
                 progressStl.right = deflatedProgressStl.right ? deflatedProgressStl.right : '0'
                 thumbStl.right = deflatedThumbStl.right ? deflatedThumbStl.right : 'auto'
                 thumbStl.left = deflatedThumbStl.left ? deflatedThumbStl.left : '-5px'
@@ -204,7 +193,7 @@ export class MySliderV2 extends LitElement {
                     moveInput(event)
                     break
                 case 'touchmove':
-                    if (this.disableScroll)
+                    if (this._config.disableScroll)
                         event.preventDefault()
                     moveInput(event)
                     break
@@ -228,7 +217,7 @@ export class MySliderV2 extends LitElement {
                 this.clientYLast = clickY
             }
 
-            if (this.allowTapping) {
+            if (this._config.allowTapping) {
                 this.actionTaken = true
                 this.calcProgress(event)
                 return
@@ -245,10 +234,10 @@ export class MySliderV2 extends LitElement {
                 else if (thumbElement) {
                     const thumbRect = thumbElement.getBoundingClientRect()
 
-                    if (clickX >= thumbRect.left - this.marginOfError &&
-                        clickX <= thumbRect.right + this.marginOfError &&
-                        clickY >= thumbRect.top - this.marginOfError &&
-                        clickY <= thumbRect.bottom + this.marginOfError) {
+                    if (clickX >= thumbRect.left - this._config.marginOfError &&
+                        clickX <= thumbRect.right + this._config.marginOfError &&
+                        clickY >= thumbRect.top - this._config.marginOfError &&
+                        clickY <= thumbRect.bottom + this._config.marginOfError) {
                         this.thumbTapped = true
                         this.actionTaken = true
                         this.calcProgress(event)
@@ -256,7 +245,7 @@ export class MySliderV2 extends LitElement {
                     }
                 }
             }
-            if (this.allowSliding) {
+            if (this._config.allowSliding) {
                 this.actionTaken = true
             }
 
@@ -266,7 +255,7 @@ export class MySliderV2 extends LitElement {
 
         const stopInput = (event) => {
             if (!this.actionTaken) return
-            if (this.allowTapping) {
+            if (this._config.allowTapping) {
                 this.calcProgress(event)
             }
             else if (this.thumbTapped) {
@@ -285,22 +274,22 @@ export class MySliderV2 extends LitElement {
             if (this.actionTaken) {
                 const clickX = event.clientX || event.touches[0].clientX
                 const clickY = event.clientY || event.touches[0].clientY
-                if (this.allowTapping || this.isSliding ||
-                    (!this.allowTapping && this.thumbTapped)) {
+                if (this._config.allowTapping || this.isSliding ||
+                    (!this._config.allowTapping && this.thumbTapped)) {
                     this.calcProgress(event)
                     this.clientXLast = clickX
                     this.clientYLast = clickY
                 }
-                else if (this.allowSliding) {
-                    if (!this.vertical) {
-                        if (Math.abs(clickX - this.clientXLast) >= this.slideDistance) {
+                else if (this._config.allowSliding) {
+                    if (!this._config.vertical) {
+                        if (Math.abs(clickX - this.clientXLast) >= this._config.slideDistance) {
                             this.isSliding = true
                             this.clientXLast = clickX
                             this.clientYLast = clickY
                         }
                     }
                     else {
-                        if (Math.abs(clickY - this.clientYLast) >= this.slideDistance) {
+                        if (Math.abs(clickY - this.clientYLast) >= this._config.slideDistance) {
                             this.isSliding = true
                             this.clientXLast = clickX
                             this.clientYLast = clickY
@@ -309,11 +298,11 @@ export class MySliderV2 extends LitElement {
                 }
             }
         }
-
+        
         this.createAndCleanupEventListeners(sliderHandler)
         return html`
             <ha-card class="my-slider-custom-card" style="${styleMap(cardStl)}">
-                <div class="my-slider-custom-container" id="${this.sliderId}" style="${styleMap(containerStl)}" data-value="${this.sliderVal}" data-progress-percent="${this.sliderValPercent}"
+                <div class="my-slider-custom-container" id="${this._config.sliderId}" style="${styleMap(containerStl)}" data-value="${this.sliderVal}" data-progress-percent="${this.sliderValPercent}"
                     @mousedown="${sliderHandler}"
                     @mouseup="${sliderHandler}"
                     @mousemove="${sliderHandler}"
@@ -352,97 +341,88 @@ export class MySliderV2 extends LitElement {
                 console.log('Unexpected error evaluating config on init:', e)
             }
         }
+        if (!this._config) return html`Error with evaluated _config`
+        const entityType = this._config.entity ? this._config.entity?.split('.')[0] : 'none'
 
-        this.sliderId = `slider-${this._config!.entity.replace('.', '-')}`
-        this.colorMode = this._config!.colorMode !== undefined ? this._config!.colorMode : 'brightness'
-        this.coverMode = this._config!.coverMode !== undefined ? this._config!.coverMode : 'position'
-        this.vertical = this._config!.vertical !== undefined ? this._config!.vertical : false
-        this.flipped = this._config!.flipped !== undefined ? this._config!.flipped : false
-        this.inverse = this._config!.inverse !== undefined ? this._config!.inverse : false
-        this.disableScroll = this._config!.disableScroll !== undefined ? this._config!.disableScroll : true
-        this.allowTapping = this._config!.allowTapping !== undefined ? this._config!.allowTapping : true
-        this.allowSliding = this._config!.allowSliding !== undefined ? this._config!.allowSliding : false
-        this.marginOfError = this._config!.marginOfError !== undefined ? this._config!.marginOfError : 10
-        this.slideDistance = this._config!.slideDistance !== undefined ? this._config!.slideDistance : 10
-        this.showMin = this._config!.showMin !== undefined ? this._config!.showMin : false
-        this.min = this._config!.min ? this._config!.min : 0
-        this.max = this._config!.max ? this._config!.max : 100
-        this.minThreshold = this._config!.minThreshold ? this._config!.minThreshold : 0
-        this.maxThreshold = this._config!.maxThreshold ? this._config!.maxThreshold : 100
-        this.step = this._config!.step ? this._config!.step : 1
+        this._config.mode = this._config!.mode !== undefined ? this._config!.mode : 
+                            this._config!.colorMode !== undefined ? this._config!.colorMode : 
+                            this._config!.coverMode !== undefined ? this._config!.coverMode : 
+                            entityType === 'light' ? 'brightness' : 
+                            entityType === 'cover' ? 'position' : 
+                            entityType === 'media_player' ? 'volume' : 
+                            'brightness'
+                            
 
         let tmpVal = 0
         switch (this._config!.entity.split('.')[0]) {
 
             case 'light': /* ------------ LIGHT ------------ */
-                if (this.colorMode === 'brightness') {
+                if (this._config.mode === 'brightness') {
                     this.oldVal = Math.ceil(percentage(this.entity.attributes.brightness, 256))
                     if (this.entity.state === 'on') {
-                        tmpVal = Math.round(this.entity.attributes.brightness / 2.56)
-                        if (!this.showMin) { // Subtracting savedMin to make slider 0 be far left
-                            tmpVal = tmpVal - this.min
+                        tmpVal = Math.ceil(percentage(this.entity.attributes.brightness, 256))
+                        if (!this._config.showMin && this._config.min) { // Subtracting savedMin to make slider 0 be far left
+                            tmpVal = tmpVal - this._config.min
                         }
                     }
                     else {
                         tmpVal = 0
                     }
                 }
-                else if (this.colorMode === 'temperature') {
+                else if (this._config.mode === 'temperature') {
                     if (this.entity.state !== 'on') break
-                    this.min = this._config!.min ? this._config!.min : this.entity.attributes.min_mireds
-                    this.max = this._config!.max ? this._config!.max : this.entity.attributes.max_mireds
+                    this._config.min = this._config!.min ? this._config!.min : this.entity.attributes.min_mireds
+                    this._config.max = this._config!.max ? this._config!.max : this.entity.attributes.max_mireds
                     tmpVal = parseFloat(this.entity.attributes.color_temp)
                     this.oldVal = parseFloat(this.entity.attributes.color_temp)
-                    if (!this.showMin) { // Subtracting savedMin to make slider 0 be far left
-                        this.max = this.max - this.min
-                        tmpVal = tmpVal - this.min
+                    if (!this._config.showMin) { // Subtracting savedMin to make slider 0 be far left
+                        this._config.max = this._config.max - this._config.min
+                        tmpVal = tmpVal - this._config.min
                     }
                 }
-                else if (this.colorMode === 'hue' && this.entity.attributes.color_mode === 'hs') {
+                else if (this._config.mode === 'hue' && this.entity.attributes.color_mode === 'hs') {
                     if (this.entity.state !== 'on') break
 
-                    this.min = this._config!.min ? this._config!.min : 0
-                    this.max = this._config!.max ? this._config!.max : 360
+                    this._config.min = this._config!.min ? this._config!.min : 0
+                    this._config.max = this._config!.max ? this._config!.max : 360
                     this.oldVal = parseFloat(this.entity.attributes.hs_color[0])
 
                     tmpVal = parseFloat(this.entity.attributes.hs_color[0])
-                    if (!this.showMin) { // Subtracting savedMin to make slider 0 be far left
-                        this.max = this.max - this.min
-                        tmpVal = tmpVal - this.min
+                    if (!this._config.showMin) { // Subtracting savedMin to make slider 0 be far left
+                        this._config.max = this._config.max - this._config.min
+                        tmpVal = tmpVal - this._config.min
                     }
                 }
-                else if (this.colorMode === 'saturation' && this.entity.attributes.color_mode === 'hs') {
+                else if (this._config.mode === 'saturation' && this.entity.attributes.color_mode === 'hs') {
                     if (this.entity.state !== 'on') break
 
-                    // let oldVal = parseFloat(entity.attributes.hs_color[0])
-                    // const currentSaturation = parseFloat(entity.attributes.hs_color[1])
-                    this.min = this._config!.min ? this._config!.min : 0
-                    this.max = this._config!.max ? this._config!.max : 100
+                    this._config.min = this._config!.min ? this._config!.min : 0
+                    this._config.max = this._config!.max ? this._config!.max : 100
                     this.oldVal = parseFloat(this.entity.attributes.hs_color[1])
 
                     tmpVal = parseFloat(this.entity.attributes.hs_color[1])
-                    if (!this.showMin) { // Subtracting savedMin to make slider 0 be far left
-                        this.max = this.max - this.min
-                        tmpVal = tmpVal - this.min
+                    if (!this._config.showMin) { // Subtracting savedMin to make slider 0 be far left
+                        this._config.max = this._config.max - this._config.min
+                        tmpVal = tmpVal - this._config.min
                     }
                 }
 
-                this.setSliderValues(tmpVal, roundPercentage(percentage(tmpVal, this.max)))
+                this.setSliderValues(tmpVal, roundPercentage(percentage(tmpVal, this._config.max)))
 
                 break
             case 'input_number': /* ------------ INPUT_NUMBER ------------ */
             case 'number':
-                this.step = this._config!.step ? this._config!.step : this.entity.attributes.step
-                this.min = this._config!.min ? this._config!.min : this.entity.attributes.min
-                this.max = this._config!.max ? this._config!.max : this.entity.attributes.max
+                this._config.step = this._config!.step ? this._config!.step : this.entity.attributes.step
+                this._config.min = this._config!.min ? this._config!.min : this.entity.attributes.min
+                this._config.max = this._config!.max ? this._config!.max : this.entity.attributes.max
                 this.oldVal = parseFloat(this.entity.state)
                 tmpVal = parseFloat(this.entity.state)
-                if (!this.showMin) { // Subtracting savedMin to make slider 0 be far left
-                    this.max = this.max - this.min
-                    tmpVal = tmpVal - this.min
+                if (!this._config.showMin) { // Subtracting savedMin to make slider 0 be far left
+                    this._config.max = this._config.max - this._config.min
+                    tmpVal = tmpVal - this._config.min
                 }
 
-                this.setSliderValues(tmpVal, roundPercentage(percentage(tmpVal, this.max)))
+                this.setSliderValues(tmpVal, roundPercentage(percentage(tmpVal, this._config.max)))
 
 
                 break
@@ -453,39 +433,39 @@ export class MySliderV2 extends LitElement {
                 }
                 this.oldVal = tmpVal
 
-                if (!this.showMin) { // Subtracting savedMin to make slider 0 be far left
-                    this.max = this.max - this.min
-                    tmpVal = tmpVal - this.min
+                if (!this._config.showMin) { // Subtracting savedMin to make slider 0 be far left
+                    this._config.max = this._config.max - this._config.min
+                    tmpVal = tmpVal - this._config.min
                 }
 
-                this.setSliderValues(tmpVal, roundPercentage(percentage(tmpVal, this.max)))
+                this.setSliderValues(tmpVal, roundPercentage(percentage(tmpVal, this._config.max)))
 
 
                 break
             case 'cover': /* ------------ COVER ------------ */
                 tmpVal = 0
-                if (this.coverMode === 'position') {
+                if (this._config.mode === 'position') {
                     if (this.entity.attributes.current_position != undefined) {
                         tmpVal = Number(this.entity.attributes.current_position)
                     }
-                } else if (this.coverMode === 'tilt') {
+                } else if (this._config.mode === 'tilt') {
                     if (this.entity.attributes.current_tilt_position != undefined) {
                         tmpVal = Number(this.entity.attributes.current_tilt_position)
                     }
                 }
                 this.oldVal = tmpVal
 
-                if (!this.showMin) { // Subtracting savedMin to make slider 0 be far left
-                    this.max = this.max - this.min
-                    tmpVal = tmpVal - this.min
+                if (!this._config.showMin) { // Subtracting savedMin to make slider 0 be far left
+                    this._config.max = this._config.max - this._config.min
+                    tmpVal = tmpVal - this._config.min
                 }
 
 
-                this.inverse = this._config!.inverse !== undefined ? this._config!.inverse : true
-                this.vertical = this._config!.vertical !== undefined ? this._config!.vertical : true
-                this.flipped = this._config!.flipped !== undefined ? this._config!.flipped : true
+                this._config.inverse = this._config.inverse !== undefined ? this._config.inverse : true
+                this._config.vertical = this._config.vertical !== undefined ? this._config.vertical : true
+                this._config.flipped = this._config.flipped !== undefined ? this._config.flipped : true
 
-                this.setSliderValues(tmpVal, roundPercentage(percentage(tmpVal, this.max)))
+                this.setSliderValues(tmpVal, roundPercentage(percentage(tmpVal, this._config.max)))
 
 
                 break
@@ -496,25 +476,25 @@ export class MySliderV2 extends LitElement {
                 }
                 this.oldVal = tmpVal
 
-                if (!this.showMin) { // Subtracting savedMin to make slider 0 be far left (sometimes needed, sometimes not. I dont have a fan to test this. Sorry)
-                    this.max = this.max - this.min
-                    tmpVal = tmpVal - this.min
+                if (!this._config.showMin) { // Subtracting savedMin to make slider 0 be far left (sometimes needed, sometimes not. I dont have a fan to test this. Sorry)
+                    this._config.max = this._config.max - this._config.min
+                    tmpVal = tmpVal - this._config.min
                 }
 
-                this.setSliderValues(tmpVal, roundPercentage(percentage(tmpVal, this.max)))
+                this.setSliderValues(tmpVal, roundPercentage(percentage(tmpVal, this._config.max)))
                 break
             case 'switch': /* ------------ SWITCH ------------ */
-                this.minThreshold = this._config!.minThreshold ? this._config!.minThreshold : 15
-                this.maxThreshold = this._config!.maxThreshold ? this._config!.maxThreshold : 75
-                tmpVal = Number(Math.max(this.zero, this.minThreshold))
+                this._config.minThreshold = this._config!.minThreshold ? this._config!.minThreshold : 15
+                this._config.maxThreshold = this._config!.maxThreshold ? this._config!.maxThreshold : 75
+                tmpVal = Number(Math.max(this.zero, this._config.minThreshold))
                 this.setSliderValues(tmpVal, tmpVal)
 
 
                 break
             case 'lock': /* ------------ LOCK ------------ */
-                this.minThreshold = this._config!.minThreshold ? this._config!.minThreshold : 15
-                this.maxThreshold = this._config!.maxThreshold ? this._config!.maxThreshold : 75
-                tmpVal = Number(Math.max(this.zero, this.minThreshold))// Set slider to larger of 2 minimums
+                this._config.minThreshold = this._config!.minThreshold ? this._config!.minThreshold : 15
+                this._config.maxThreshold = this._config!.maxThreshold ? this._config!.maxThreshold : 75
+                tmpVal = Number(Math.max(this.zero, this._config.minThreshold))// Set slider to larger of 2 minimums
                 this.oldVal = tmpVal
                 this.setSliderValues(tmpVal, tmpVal)
 
@@ -523,6 +503,24 @@ export class MySliderV2 extends LitElement {
                 console.log('No Entity type initiated... (' + this._config!.entity.split('.')[0] + ')')
                 break
         }
+
+        
+        this.sliderVal = tmpVal
+        this._config.sliderId = `slider-${this._config!.entity.replace('.', '-')}-${this._config.mode}`
+        this._config.vertical = this._config!.vertical !== undefined ? this._config!.vertical : false
+        this._config.flipped = this._config!.flipped !== undefined ? this._config!.flipped : false
+        this._config.inverse = this._config!.inverse !== undefined ? this._config!.inverse : false
+        this._config.disableScroll = this._config!.disableScroll !== undefined ? this._config!.disableScroll : true
+        this._config.allowTapping = this._config!.allowTapping !== undefined ? this._config!.allowTapping : true
+        this._config.allowSliding = this._config!.allowSliding !== undefined ? this._config!.allowSliding : false
+        this._config.marginOfError = this._config!.marginOfError !== undefined ? this._config!.marginOfError : 10
+        this._config.slideDistance = this._config!.slideDistance !== undefined ? this._config!.slideDistance : 10
+        this._config.showMin = this._config!.showMin !== undefined ? this._config!.showMin : false
+        this._config.min = this._config!.min ? this._config!.min : 0
+        this._config.max = this._config!.max ? this._config!.max : 100
+        this._config.minThreshold = this._config!.minThreshold ? this._config!.minThreshold : 0
+        this._config.maxThreshold = this._config!.maxThreshold ? this._config!.maxThreshold : 100
+        this._config.step = this._config!.step ? this._config!.step : 1
 
         return null // Succes in this case
     }
@@ -533,12 +531,12 @@ export class MySliderV2 extends LitElement {
         const sliderWidth = this.sliderEl.offsetWidth
         const sliderHeight = this.sliderEl.offsetHeight
         // Calculate what the percentage is of the clickPos.x between 0 and sliderWidth / clickPos.y between 0 and sliderHeight
-        const clickPercent = this.vertical ? roundPercentage(clickPos.y / sliderHeight * 100) : roundPercentage(clickPos.x / sliderWidth * 100)
-        const newValue = clickPercent / 100 * (this.max - 0)
-        const flippedValue = this.max - newValue
-        let val = this.flipped ? Math.round(flippedValue) : Math.round(newValue)
+        const clickPercent = this._config.vertical ? roundPercentage(clickPos.y / sliderHeight * 100) : roundPercentage(clickPos.x / sliderWidth * 100)
+        const newValue = clickPercent / 100 * (this._config.max - 0)
+        const flippedValue = this._config.max - newValue
+        let val = this._config.flipped ? Math.round(flippedValue) : Math.round(newValue)
         // Set val to be either min, max, zero or value
-        val = val < this.min && this.showMin ? this.min : val > this.max ? this.max : val < this.zero ? this.zero : val
+        val = val < this._config.min && this._config.showMin ? this._config.min : val > this._config.max ? this._config.max : val < this.zero ? this.zero : val
         this.setProgress(this.sliderEl, Math.round(val), event.type)
     }
 
@@ -546,10 +544,10 @@ export class MySliderV2 extends LitElement {
         const progressEl = slider.querySelector('.my-slider-custom-progress')
 
         // Round val to nearest step
-        val = Math.round(val / this.step) * this.step
+        val = Math.round(val / this._config.step) * this._config.step
 
-        const valuePercentage = roundPercentage(percentage(val, this.max))
-        if (this.vertical) {
+        const valuePercentage = roundPercentage(percentage(val, this._config.max))
+        if (this._config.vertical) {
             // Set progessHeight to match value
             progressEl.style.height = valuePercentage.toString() + '%'
         }
@@ -571,26 +569,26 @@ export class MySliderV2 extends LitElement {
     private setValue(val, valPercent) {
         if (!this.entity) return
         this.setSliderValues(val, valPercent)
-        if (!this.showMin) {
-            val = val + this.min  // Adding saved min to make up for minimum not being 0
+        if (!this._config.showMin) {
+            val = val + this._config.min  // Adding saved min to make up for minimum not being 0
         }
-        if (this.inverse) {
-            val = this.max - val
+        if (this._config.inverse) {
+            val = this._config.max - val
             valPercent = 100 - valPercent
         }
         if (!this.actionTaken) return // We do not want to set any values based on pure movement of slider. Only set it on user action.
         switch (this._config!.entity.split('.')[0]) {
             case 'light':
-                if (this.colorMode === 'brightness') {
+                if (this._config.mode === 'brightness') {
                     this._setBrightness(this.entity, val)
                 }
-                else if (this.colorMode === 'temperature') {
+                else if (this._config.mode === 'temperature') {
                     this._setColorTemp(this.entity, val)
                 }
-                else if (this.colorMode === 'hue') {
+                else if (this._config.mode === 'hue') {
                     this._setHue(this.entity, val)
                 }
-                else if (this.colorMode === 'saturation') {
+                else if (this._config.mode === 'saturation') {
                     this._setSaturation(this.entity, val)
                 }
                 break
@@ -602,9 +600,9 @@ export class MySliderV2 extends LitElement {
                 this._setMediaVolume(this.entity, val)
                 break
             case 'cover':
-                if (this.coverMode === 'position') {
+                if (this._config.mode === 'position') {
                     this._setCover(this.entity, val)
-                } else if (this.coverMode === 'tilt') {
+                } else if (this._config.mode === 'tilt') {
                     this._setCoverTilt(this.entity, val)
                 }
                 break
@@ -632,7 +630,6 @@ export class MySliderV2 extends LitElement {
         this.oldVal = value
     }
     private _setColorTemp(entity, value): void {
-        let oldVal = parseFloat(entity.attributes.color_temp)
         this.hass.callService("light", "turn_on", {
             entity_id: entity.entity_id,
             color_temp: value
@@ -641,10 +638,8 @@ export class MySliderV2 extends LitElement {
 
     }
     private _setHue(entity, value): void {
-        let oldVal = 0
         let currentSaturation = 0
         if (entity.attributes.hs_color) {
-            oldVal = parseFloat(entity.attributes.hs_color[0])
             currentSaturation = parseFloat(entity.attributes.hs_color[1])
         }
         this.hass.callService("light", "turn_on", {
@@ -654,10 +649,8 @@ export class MySliderV2 extends LitElement {
         this.oldVal = value
     }
     private _setSaturation(entity, value): void {
-        let oldVal = 0
         let currentHue = 0
         if (entity.attributes.hs_color) {
-            oldVal = parseFloat(entity.attributes.hs_color[1])
             currentHue = parseFloat(entity.attributes.hs_color[0])
         }
         this.hass.callService("light", "turn_on", {
@@ -668,11 +661,6 @@ export class MySliderV2 extends LitElement {
     }
 
     private _setInputNumber(entity, value): void {
-        let oldVal = parseFloat(entity.state)
-        if (!this.showMin) {
-            oldVal = oldVal - this.min // Subtracting savedMin to make slider 0 be far left
-        }
-
         this.hass.callService(entity.entity_id.split('.')[0], "set_value", { // either "input_number" or "number"
             entity_id: entity.entity_id,
             value: value
@@ -680,11 +668,6 @@ export class MySliderV2 extends LitElement {
         this.oldVal = value
     }
     private _setMediaVolume(entity, value): void {
-        let oldVal = Number(this.entity!.attributes.volume_level * 100)
-        if (!this.showMin) { // Subtracting savedMin to make slider 0 be far left
-            oldVal = oldVal - this.min
-        }
-
         this.hass.callService("media_player", "volume_set", {
             entity_id: entity.entity_id,
             volume_level: value / 100
@@ -716,7 +699,7 @@ export class MySliderV2 extends LitElement {
     }
 
     private _setSwitch(entity, value): void {
-        var threshold = Math.min(this.max, this.maxThreshold) //pick lesser of the two
+        var threshold = Math.min(this._config.max, this._config.maxThreshold) //pick lesser of the two
         if (Number(threshold) <= value) {
             this.hass.callService('homeassistant', 'toggle', {
                 entity_id: entity.entity_id
@@ -724,20 +707,26 @@ export class MySliderV2 extends LitElement {
             this.oldVal = value
         }
 
-        const val = Number(Math.max(this.zero, this.minThreshold))
-        const valPercent = roundPercentage(percentage(val, this.max))
+        const val = Number(Math.max(this.zero, this._config.minThreshold))
+        const valPercent = roundPercentage(percentage(val, this._config.max))
         this.setSliderValues(val, valPercent) // Set slider to larger of 2 minimums
-        const progressEl: HTMLElement | null = this.sliderEl!.querySelector('.my-slider-custom-progress')
 
-        const currentTransition = progressEl!.style.transition
-        progressEl!.style.transition = !this.vertical ? 'width 0.2s ease 0s' : 'height 0.2s ease 0s' // Make it spring back nicely
-        progressEl!.style.width = valPercent.toString() + '%'
+        const progressEl: HTMLElement | null = this.sliderEl!.querySelector('.my-slider-custom-progress')
+        const initialTransition = progressEl!.style.transition
+        if (!this._config.vertical) {
+            progressEl!.style.transition = 'width 0.2s ease 0s'
+            progressEl!.style.width = valPercent.toString() + '%'
+        }
+        else {
+            progressEl!.style.transition = 'height 0.2s ease 0s'
+            progressEl!.style.height = valPercent.toString() + '%'
+        }
         setTimeout(() => { // Remove transition when done
-            progressEl!.style.transition = currentTransition
+            progressEl!.style.transition = initialTransition
         }, 200)
     }
     private _setLock(entity, value): void {
-        var threshold = Math.min(this.max, this.maxThreshold) //pick lesser of the two
+        var threshold = Math.min(this._config.max, this._config.maxThreshold) //pick lesser of the two
         if (Number(threshold) <= value) {
             var newLockState = entity.state === "locked" ? 'unlock' : 'lock'
             this.hass.callService("lock", newLockState, {
@@ -745,14 +734,22 @@ export class MySliderV2 extends LitElement {
             })
         }
 
-        const val = Number(Math.max(this.zero, this.minThreshold))
-        const valPercent = roundPercentage(percentage(val, this.max))
+        const val = Number(Math.max(this.zero, this._config.minThreshold))
+        const valPercent = roundPercentage(percentage(val, this._config.max))
         this.setSliderValues(val, valPercent) // Set slider to larger of 2 minimums
+
         const progressEl: HTMLElement | null = this.sliderEl!.querySelector('.my-slider-custom-progress')
-        progressEl!.style.transition = 'width 0.2s ease 0s' // Make it sprong back nicely
-        progressEl!.style.width = valPercent.toString() + '%'
+        const initialTransition = progressEl!.style.transition
+        if (!this._config.vertical) {
+            progressEl!.style.transition = 'width 0.2s ease 0s'
+            progressEl!.style.width = valPercent.toString() + '%'
+        }
+        else {
+            progressEl!.style.transition = 'height 0.2s ease 0s'
+            progressEl!.style.height = valPercent.toString() + '%'
+        }
         setTimeout(() => { // Remove transition when done
-            progressEl!.style.transition = 'initial'
+            progressEl!.style.transition = initialTransition
         }, 200)
     }
 
@@ -854,6 +851,7 @@ type: custom:my-slider-v2
 entity: light.sofa_spots
 colorMode: 'brightness' (Can be 'brightness', 'temperature', 'hue', 'saturation')
 coverMode: 'position' (Accept: 'position', 'tilt')
+mode: combined colorMode, coverMode and other future modes.
 // warmth: false (Will be removed now!)
 vertical: false (This will set the slider to be vertical and handled from bottom to top. Automatically used on covers)
 flipped: false (This will just flip the slider to go from right to left or top to bottom. Automatically used on covers)
