@@ -85,7 +85,7 @@ It is completely customizable now and fully templatable. But is still very much 
 
 ## Styling configs
 It is possible to nest the styles to give a better overview of the yaml. So with the slider, it is possible to nest all the styles in the slider object like you would when using the slider card by itself.
-Likewise, it is possible to style the buttonsContainer, buttons, text and icon directly in the buttons->styles object.
+Likewise, it is possible to style the buttonsContainer, buttons, text and icon for the new buttons directly in the buttons->styles object.
 The same with the label and stats.
 When doing it nested, the names are a little different since we dont need to specify sliderContainer, now we can just style the 'container' in the slider->styles.
 

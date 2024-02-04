@@ -16,7 +16,7 @@ import {
 } from 'custom-card-helpers'; // This is a community maintained npm module with common helper functions/types
 import { disableBodyScroll, enableBodyScroll } from 'body-scroll-lock'
 
-import type { MySliderCardConfig } from '../cards/extras/types';
+import type { MySliderConfig } from '../types/types';
 import { SLIDER_VERSION } from '../cards/extras/const';
 import { localize } from '../localize/localize';
 
@@ -51,10 +51,10 @@ export class MySlider extends LitElement {
 	}
 
 	@property({ attribute: false }) public hass!: HomeAssistant;
-	@internalProperty() private config!: MySliderCardConfig;
+	@internalProperty() private config!: MySliderConfig;
 
 	// https://lit-element.polymer-project.org/guide/properties#accessors-custom
-	public setConfig(config: MySliderCardConfig): void {
+	public setConfig(config: MySliderConfig): void {
         const allowedEntities = [
             'input_number',
 			'number',

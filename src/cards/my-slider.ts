@@ -12,19 +12,19 @@ import {
 } from 'lit-element'
 import { styleMap } from 'lit-html/directives/style-map'
 import { HassEntity } from 'home-assistant-js-websocket'
-import {
-    HomeAssistant,
-    hasConfigOrEntityChanged,
-    LovelaceCard
-} from 'custom-card-helpers'; // This is a community maintained npm module with common helper functions/types
+import { hasConfigOrEntityChanged } from 'custom-card-helpers'; // community maintained npm module with common helper functions/types
 
-import type { MySliderCardConfig } from './extras/types'
+import type { LovelaceCard } from '../types/lovelace';
+import type { HomeAssistant } from '../types/homeassistant';
+import type { MySliderConfig } from '../types/types'
+
 import { SLIDER_VERSION } from './extras/const'
 import { localize } from '../localize/localize'
 import { getStyle } from './styles/my-slider.styles'
 // import './scripts/deflate.js'
 import { deflate } from '../scripts/deflate'
 import { percentage, roundPercentage, getClickPosRelToTarget } from '../scripts/helpers'
+import { objectEvalTemplate } from '../scripts/templating'
 
 /* eslint no-console: 0 */
 console.info(
@@ -43,7 +43,7 @@ console.info(
 
 @customElement('my-slider-v2')
 export class MySliderV2 extends LitElement {
-    @property() private _config?: MySliderCardConfig
+    @property() private _config?: MySliderConfig
     private entity: HassEntity | undefined
     private sliderEl: HTMLBodyElement | undefined
     private touchInput: Boolean = false
@@ -80,8 +80,8 @@ export class MySliderV2 extends LitElement {
     }
 
     @property({ attribute: false }) public hass!: HomeAssistant;
-    @state() private config!: MySliderCardConfig;
-    public setConfig(config: MySliderCardConfig): void {
+    @state() private config!: MySliderConfig;
+    public setConfig(config: MySliderConfig): void {
         const allowedEntities = [
             'light',
             'input_number',
@@ -324,7 +324,7 @@ export class MySliderV2 extends LitElement {
     private initializeConfig(): any {
         this.entity = this.hass.states[`${this.config.entity}`]
         try {
-            this._config = this._objectEvalTemplate(this.entity, this.config)
+            this._config = objectEvalTemplate(this, this.entity, this.config)
         } catch (e) {
             if (e instanceof Error) {
                 if (e.stack) console.error(e.stack)
@@ -417,7 +417,7 @@ export class MySliderV2 extends LitElement {
                 this._config.max = this._config!.max ? this._config!.max : this.entity.attributes.max
                 this.oldVal = parseFloat(this.entity.state)
                 tmpVal = parseFloat(this.entity.state)
-                if (!this._config.showMin) { // Subtracting savedMin to make slider 0 be far left
+                if (!this._config.showMin && this._config.min) { // Subtracting savedMin to make slider 0 be far left
                     this._config.max = this._config.max - this._config.min
                     tmpVal = tmpVal - this._config.min
                 }
@@ -433,7 +433,7 @@ export class MySliderV2 extends LitElement {
                 }
                 this.oldVal = tmpVal
 
-                if (!this._config.showMin) { // Subtracting savedMin to make slider 0 be far left
+                if (!this._config.showMin && this._config.min) { // Subtracting savedMin to make slider 0 be far left
                     this._config.max = this._config.max - this._config.min
                     tmpVal = tmpVal - this._config.min
                 }
@@ -455,7 +455,7 @@ export class MySliderV2 extends LitElement {
                 }
                 this.oldVal = tmpVal
 
-                if (!this._config.showMin) { // Subtracting savedMin to make slider 0 be far left
+                if (!this._config.showMin && this._config.min) { // Subtracting savedMin to make slider 0 be far left
                     this._config.max = this._config.max - this._config.min
                     tmpVal = tmpVal - this._config.min
                 }
@@ -476,7 +476,7 @@ export class MySliderV2 extends LitElement {
                 }
                 this.oldVal = tmpVal
 
-                if (!this._config.showMin) { // Subtracting savedMin to make slider 0 be far left (sometimes needed, sometimes not. I dont have a fan to test this. Sorry)
+                if (!this._config.showMin && this._config.min) { // Subtracting savedMin to make slider 0 be far left (sometimes needed, sometimes not. I dont have a fan to test this. Sorry)
                     this._config.max = this._config.max - this._config.min
                     tmpVal = tmpVal - this._config.min
                 }
@@ -761,81 +761,6 @@ export class MySliderV2 extends LitElement {
         document.addEventListener("touchend", func)
         document.addEventListener("touchcancel", func)
         document.addEventListener("mousemove", func)
-    }
-
-
-
-    // // Not used on slider since we handle the action ourselves
-    // private _evalActions(config: MySliderCardConfig, action: string): MySliderCardConfig {
-    //     // const configDuplicate = copy(config);
-    //     const configDuplicate = JSON.parse(JSON.stringify(config));
-    //     /* eslint no-param-reassign: 0 */
-    //     const __evalObject = (configEval: any): any => {
-    //         if (!configEval) {
-    //             return configEval;
-    //         }
-    //         Object.keys(configEval).forEach((key) => {
-    //             if (typeof configEval[key] === 'object') {
-    //                 configEval[key] = __evalObject(configEval[key]);
-    //             } else {
-    //                 configEval[key] = this._getTemplateOrValue(this.entity, configEval[key]);
-    //             }
-    //         });
-    //         return configEval;
-    //     };
-    //     configDuplicate[action] = __evalObject(configDuplicate[action]);
-    //     if (!configDuplicate[action].confirmation && configDuplicate.confirmation) {
-    //         configDuplicate[action].confirmation = __evalObject(configDuplicate.confirmation);
-    //     }
-    //     return configDuplicate;
-    // }
-
-    private _objectEvalTemplate(state: HassEntity | undefined, obj: any | undefined): any {
-        const objClone = JSON.parse(JSON.stringify(obj))
-        return this._getTemplateOrValue(state, objClone);
-    }
-
-    private _getTemplateOrValue(state: HassEntity | undefined, value: any | undefined): any | undefined {
-        if (['number', 'boolean'].includes(typeof value)) return value;
-        if (!value) return value;
-        if (typeof value === 'object') {
-            Object.keys(value).forEach((key) => {
-                value[key] = this._getTemplateOrValue(state, value[key]);
-            });
-            return value;
-        }
-        const trimmed = value.trim();
-        if (trimmed.substring(0, 3) === '[[[' && trimmed.slice(-3) === ']]]') {
-            const tmp = this._evalTemplate(state, trimmed.slice(3, -3))
-            return tmp
-        } else {
-            return value
-        }
-    }
-
-    private _evalTemplate(state: HassEntity | undefined, func: any): any {
-        /* eslint no-new-func: 0 */
-        try {
-            return new Function('states', 'entity', 'user', 'hass', 'html', `'use strict'; ${func}`).call(
-                this,
-                this.hass!.states,
-                state,
-                this.hass!.user,
-                this.hass,
-                html,
-            );
-        } catch (e) {
-
-            if (e instanceof Error) {
-                const funcTrimmed = func.length <= 100 ? func.trim() : `${func.trim().substring(0, 98)}...`;
-                e.message = `${e.name}: ${e.message} in '${funcTrimmed}'`;
-                e.name = 'MyCardJSTemplateError';
-                throw e;
-            }
-            else {
-                console.log('Unexpected error (_evalTemplate)', e);
-            }
-        }
     }
 
     // https://lit-element.polymer-project.org/guide/styles

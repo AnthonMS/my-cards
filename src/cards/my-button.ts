@@ -10,22 +10,23 @@ import {
     PropertyValues,
     state,
 } from 'lit-element'
-import { styleMap, StyleInfo } from 'lit-html/directives/style-map'
+import { styleMap, StyleInfo } from 'lit-html/directives/style-map' // type StyleInfo
 import { HassEntity } from 'home-assistant-js-websocket'
-import {
-    HomeAssistant,
-    hasConfigOrEntityChanged,
-    handleClick,
-    LovelaceCard
-} from 'custom-card-helpers'; // This is a community maintained npm module with common helper functions/types
-import { actionHandler } from '../scripts/action-handler-directive';
+import { hasConfigOrEntityChanged, } from 'custom-card-helpers' // This is a community maintained npm module with common helper functions/types
 
-import type { MyButtonCardConfig } from './extras/types';
-import { BUTTON_VERSION } from './extras/const';
-import { localize } from '../localize/localize';
+import { BUTTON_VERSION } from './extras/const'
+import type { LovelaceCard } from '../types/lovelace';
+import type { HomeAssistant } from '../types/homeassistant';
+import type { MyButtonConfig } from '../types/types'
+
+import { actionHandler } from '../scripts/action-handler'
+import { handleAction } from '../scripts/handle-action'
+
+import { localize } from '../localize/localize'
 import { getStyle } from './styles/my-button.styles'
 import { deflate } from '../scripts/deflate'
 import { deepMerge, percentage } from '../scripts/helpers'
+import { evalActions, objectEvalTemplate } from '../scripts/templating'
 
 /* eslint no-console: 0 */
 console.info(
@@ -40,11 +41,12 @@ console.info(
     type: 'my-button',
     name: 'My Button Card',
     description: 'Custom Button Card for Lovelace.',
-});
+})
 
 @customElement('my-button')
 export class MyButton extends LitElement {
-    @property() private _config?: MyButtonCardConfig
+    @property() private _hass?: HomeAssistant;
+    @property() private _config?: MyButtonConfig
     private entity: HassEntity | undefined
     private lastAction: number = 0
 
@@ -61,10 +63,10 @@ export class MyButton extends LitElement {
     }
 
     @property({ attribute: false }) public hass!: HomeAssistant;
-    @state() private config!: MyButtonCardConfig;
+    @state() private config!: MyButtonConfig;
 
     // https://lit-element.polymer-project.org/guide/properties#accessors-custom
-    public setConfig(config: MyButtonCardConfig): void {
+    public setConfig(config: MyButtonConfig): void {
         const allowedEntities = [
             '',
             'light',
@@ -72,6 +74,7 @@ export class MyButton extends LitElement {
             'switch',
             'button',
             'lock',
+            'media_player'
         ]
 
         // if (!config.entity) {
@@ -93,7 +96,6 @@ export class MyButton extends LitElement {
         if (!this.config) {
             return false
         }
-
         return hasConfigOrEntityChanged(this, changedProps, false)
     }
 
@@ -107,7 +109,6 @@ export class MyButton extends LitElement {
     }
     // ------------------- CUSTOM CARDS ------------------- //
     private dynamicCard(): TemplateResult {
-        console.log('Render Card:', this._config)
         return html`
             <ha-card style="${styleMap(this._config.styles.card)}">
                 <div style="display: grid; grid-template-rows: 1fr auto auto; grid-template-columns: 1fr auto; height: 100%;">
@@ -116,6 +117,8 @@ export class MyButton extends LitElement {
                     .actionHandler=${actionHandler({
             hasDoubleClick: this._config?.double_tap_action?.action !== 'none',
             hasHold: this._config?.hold_action?.action !== 'none',
+            repeat: this._config?.hold_action?.repeat,
+            repeatLimit: this._config?.hold_action?.repeat_limit,
         })}>
                         <div style="${styleMap(this._config.styles.row1)}" data-container="icon-stats-row">
                             ${this.iconElement()}
@@ -153,6 +156,8 @@ export class MyButton extends LitElement {
                     .actionHandler=${actionHandler({
                 hasDoubleClick: this._config.icon.double_tap_action?.action !== 'none',
                 hasHold: this._config.icon.hold_action?.action !== 'none',
+                repeat: this._config.icon.hold_action?.repeat,
+                repeatLimit: this._config.icon.hold_action?.repeat_limit,
             })} />
             `
         }
@@ -173,6 +178,8 @@ export class MyButton extends LitElement {
                     .actionHandler=${actionHandler({
                     hasDoubleClick: this._config.stats.double_tap_action?.action !== 'none',
                     hasHold: this._config.stats.hold_action?.action !== 'none',
+                    repeat: this._config.stats.hold_action?.repeat,
+                    repeatLimit: this._config.stats.hold_action?.repeat_limit,
                 })}>
                         <div style="${styleMap(deflate(this._config.stats.styles.container))}">
                             <ha-camera-stream style="${styleMap(deflate(this._config.stats.styles.camera))}" 
@@ -189,6 +196,8 @@ export class MyButton extends LitElement {
                         .actionHandler=${actionHandler({
                     hasDoubleClick: this._config.stats.double_tap_action?.action !== 'none',
                     hasHold: this._config.stats.hold_action?.action !== 'none',
+                    repeat: this._config.stats.hold_action?.repeat,
+                    repeatLimit: this._config.stats.hold_action?.repeat_limit,
                 })}>
     
                         <div style="${styleMap(deflate(this._config.stats.styles.container))}">
@@ -233,6 +242,8 @@ export class MyButton extends LitElement {
                             .actionHandler=${actionHandler({
                 hasDoubleClick: this._config.label.double_tap_action?.action !== 'none',
                 hasHold: this._config.label.hold_action?.action !== 'none',
+                repeat: this._config.label.hold_action?.repeat,
+                repeatLimit: this._config.label.hold_action?.repeat_limit,
             })}
                         >${this._config.label.text}</label>
                         ${this._config.label.extra ? html`<p style="${styleMap(deflate(this._config.label.styles.extraText))}">${this._config.label.extra}</p>` : ''}
@@ -265,20 +276,6 @@ export class MyButton extends LitElement {
             .filter(key => key.startsWith('button'))
             .map(key => {
                 if (!this._config.buttons[key].show) return html``
-                // if (this._config.buttons[key].styles) {
-                //     this._config.buttons[key].styles = {
-                //         text: getStyle('buttonText', deflate(this._config.buttons[key].styles?.text) ? deflate(this._config.buttons[key].styles.text) : {}),
-                //         icon: getStyle('buttonIcon', deflate(this._config.buttons[key].styles?.icon) ? deflate(this._config.buttons[key].styles.icon) : {})
-                //     }
-                // }
-                // else {
-                //     this._config.buttons[key].styles = {
-                //         text: getStyle('buttonText', {}),
-                //         icon: getStyle('buttonIcon', {}),
-                //     }
-                // }
-                console.log('Rendering button:', this._config.buttons[key])
-                console.log('this._config.buttons.styles:', this._config.buttons.styles)
                 if (this._config.buttons[key].tap_action || this._config.buttons[key].double_tap_action || this._config.buttons[key].hold_action) {
                     return html`
                     <div style="${styleMap(deflate(this._config.buttons[key].styles.container))}" data-container="button"
@@ -286,6 +283,8 @@ export class MyButton extends LitElement {
                     .actionHandler=${actionHandler({
                         hasDoubleClick: this._config.buttons[key].double_tap_action?.action !== 'none',
                         hasHold: this._config.buttons[key].hold_action?.action !== 'none',
+                        repeat: this._config.buttons[key].hold_action?.repeat,
+                        repeatLimit: this._config.buttons[key].hold_action?.repeat_limit,
                     })}>
                         ${this._config.buttons[key].text ? html`<p style="${styleMap(deflate(this._config.buttons[key].styles.text))}">${this._config.buttons[key].text}</p>` : ''}
                         ${this._config.buttons[key].icon ? html`<ha-icon style="${styleMap(deflate(this._config.buttons[key].styles.icon))}" icon="${this._config.buttons[key].icon}"></ha-icon>` : ''}
@@ -318,7 +317,7 @@ export class MyButton extends LitElement {
         }
 
         try {
-            this._config = this._objectEvalTemplate(this.entity, this.config)
+            this._config = objectEvalTemplate(this, this.entity, this.config)
         } catch (e) {
             if (e instanceof Error) {
                 if (e.stack) console.error(e.stack)
@@ -434,7 +433,7 @@ export class MyButton extends LitElement {
                 defaultSliderConfig.show = false
                 defaultStatsAttr.show = true
 
-                if (this._config.camera) {
+                if (this._config.camera && typeof this._config.camera === 'string') {
                     this._config.camera = this.hass.states[this._config.camera]
                     defaultStatsAttr.entity = this._config.camera.entity_id
                     defaultStatsAttr.tap_action = {
@@ -463,6 +462,13 @@ export class MyButton extends LitElement {
                     }
                 }
 
+            }
+            else if (entityType === 'media_player') {
+                defaultCardConfig.tap_action = {
+                    action: 'more-info'
+                }
+                defaultIconAttr.icon = this.entity.state === 'playing' || this.entity.state === 'paused' || this.entity.state === 'idle' ? 'mdi:speaker' : 'mdi:speaker-off'
+                defaultSliderConfig.vertical = true
             }
         }
         else {
@@ -503,10 +509,10 @@ export class MyButton extends LitElement {
             card: getStyle('sliderCard', deflate(this._config.styles?.sliderCard) ? deflate(this._config.styles?.sliderCard) : {}),
             container: getStyle('sliderContainer', deflate(this._config.styles?.sliderContainer) ? deflate(this._config.styles?.sliderContainer) : {}),
             track: getStyle('sliderTrack', deflate(this._config.styles?.sliderTrack) ? deflate(this._config.styles?.sliderTrack) : {}),
-            progress: verticalSlider ? getStyle('sliderProgressVer', deflate(this._config.styles?.sliderProgressVer) ? deflate(this._config.styles?.sliderProgressVer) : {}) : 
-                                        getStyle('sliderProgressHor', deflate(this._config.styles?.sliderProgressHor) ? deflate(this._config.styles?.sliderProgressHor) : {}),
-            thumb: verticalSlider ? getStyle('sliderThumbVer', deflate(this._config.styles?.sliderThumbVer) ? deflate(this._config.styles?.sliderThumbVer) : {}) : 
-                                    getStyle('sliderThumbHor', deflate(this._config.styles?.sliderThumbHor) ? deflate(this._config.styles?.sliderThumbHor) : {}),
+            progress: verticalSlider ? getStyle('sliderProgressVer', deflate(this._config.styles?.sliderProgressVer) ? deflate(this._config.styles?.sliderProgressVer) : {}) :
+                getStyle('sliderProgressHor', deflate(this._config.styles?.sliderProgressHor) ? deflate(this._config.styles?.sliderProgressHor) : {}),
+            thumb: verticalSlider ? getStyle('sliderThumbVer', deflate(this._config.styles?.sliderThumbVer) ? deflate(this._config.styles?.sliderThumbVer) : {}) :
+                getStyle('sliderThumbHor', deflate(this._config.styles?.sliderThumbHor) ? deflate(this._config.styles?.sliderThumbHor) : {}),
         }
         const defaultStatsStyle: any = {
             container: getStyle('stats', deflate(this._config.styles?.stats) ? deflate(this._config.styles?.stats) : {}),
@@ -517,13 +523,13 @@ export class MyButton extends LitElement {
             label: getStyle('label', deflate(this._config.styles?.label) ? deflate(this._config.styles?.label) : {}),
             extraText: getStyle('extraText', deflate(this._config.styles?.extraText) ? deflate(this._config.styles?.extraText) : {}),
         }
-        const defaultButtonsStyle:any = {
+        const defaultButtonsStyle: any = {
             container: getStyle('buttonsContainer', deflate(this._config.styles?.buttonsContainer) ? deflate(this._config.styles?.buttonsContainer) : {}),
             button: getStyle('button', deflate(this._config.styles?.button) ? deflate(this._config.styles?.button) : {}),
             text: getStyle('buttonText', deflate(this._config.styles?.buttonText) ? deflate(this._config.styles?.buttonText) : {}),
             icon: getStyle('buttonIcon', deflate(this._config.styles?.buttonIcon) ? deflate(this._config.styles?.buttonIcon) : {})
         }
-        
+
         if (this._config.buttons.vertical) {
             defaultButtonsStyle.container['flex-direction'] = 'column'
             defaultButtonsContainerStyle['padding'] = '10px 5px 10px 0px'
@@ -624,37 +630,21 @@ export class MyButton extends LitElement {
 
     // ------------------- ACTION HANDLER FUNC ------------------- //
     private _handleAction(ev: any, actionConfig: any): void {
-        ev.stopPropagation()
-        ev.stopImmediatePropagation()
-
-        const now = new Date().getTime()
-
-        // Check here if lastAction was performed longer than 100 ms
-        // If not then we want to return and break out of the function
-        if (now - this.lastAction < 100) {
-            return
-        }
-        // We will only get here if enough time has passed
-        // So safely set the new lastAction
-        this.lastAction = new Date().getTime()
-
+        
         if (!actionConfig.entity) {
             actionConfig.entity = this._config!.entity
         }
-
         if (ev.detail?.action) {
             switch (ev.detail.action) {
                 case 'tap':
-                    if (actionConfig.tap_action)
-                        this._handleTap(actionConfig);
-                    break;
                 case 'hold':
-                    if (actionConfig.hold_action)
-                        this._handleHold(actionConfig);
-                    break;
                 case 'double_tap':
-                    if (actionConfig.double_tap_action)
-                        this._handleDblTap(actionConfig);
+                    const config = this._config;
+                    if (!config) return;
+                    const action = ev.detail.action;
+                    const localAction = evalActions(this, config, `${action}_action`);
+                    // @ts-ignore
+                    handleAction(this, this.hass!, localAction, action);
                     break;
                 default:
                     break;
@@ -662,98 +652,6 @@ export class MyButton extends LitElement {
         }
     }
 
-    private _handleTap(actionConfig: any): void {
-        if (actionConfig) { }
-        handleClick(this, this.hass!, this._evalActions(actionConfig, 'tap_action'), false, false)
-    }
-
-    private _handleHold(actionConfig: any): void {
-        if (actionConfig) { }
-        handleClick(this, this.hass!, this._evalActions(actionConfig, 'hold_action'), true, false)
-    }
-
-    private _handleDblTap(actionConfig: any): void {
-        if (actionConfig) { }
-        handleClick(this, this.hass!, this._evalActions(actionConfig, 'double_tap_action'), false, true)
-    }
-
-    private _evalActions(config: MyButtonCardConfig, action: string): MyButtonCardConfig {
-        // const configDuplicate = copy(config);
-        const configDuplicate = JSON.parse(JSON.stringify(config));
-        /* eslint no-param-reassign: 0 */
-        const __evalObject = (configEval: any): any => {
-            if (!configEval) {
-                return configEval;
-            }
-            Object.keys(configEval).forEach((key) => {
-                if (typeof configEval[key] === 'object') {
-                    configEval[key] = __evalObject(configEval[key]);
-                } else {
-                    configEval[key] = this._getTemplateOrValue(this.entity, configEval[key]);
-                }
-            });
-            return configEval;
-        };
-        configDuplicate[action] = __evalObject(configDuplicate[action]);
-        if (!configDuplicate[action].confirmation && configDuplicate.confirmation) {
-            configDuplicate[action].confirmation = __evalObject(configDuplicate.confirmation);
-        }
-        return configDuplicate;
-    }
-
-
-    // ------------------- TEMPLATING FUNC ------------------- //
-    private _objectEvalTemplate(state: HassEntity | undefined, obj: any | undefined): any {
-        const objClone = JSON.parse(JSON.stringify(obj))
-        return this._getTemplateOrValue(state, objClone);
-    }
-
-    private _getTemplateOrValue(state: HassEntity | undefined, value: any | undefined): any | undefined {
-        if (['number', 'boolean'].includes(typeof value)) return value;
-        if (!value) return value;
-        if (typeof value === 'object') {
-            Object.keys(value).forEach((key) => {
-                value[key] = this._getTemplateOrValue(state, value[key]);
-            });
-            return value;
-        }
-        const trimmed = value.trim();
-        if (trimmed.substring(0, 3) === '[[[' && trimmed.slice(-3) === ']]]') {
-            const tmp = this._evalTemplate(state, trimmed.slice(3, -3))
-            return tmp
-        } else {
-            return value
-        }
-    }
-
-    private _evalTemplate(state: HassEntity | undefined, func: any): any {
-        /* eslint no-new-func: 0 */
-        try {
-            return new Function('states', 'entity', 'user', 'hass', 'html', `'use strict'; ${func}`).call(
-                this,
-                this.hass!.states,
-                state,
-                this.hass!.user,
-                this.hass,
-                html,
-            );
-        } catch (e) {
-
-            if (e instanceof Error) {
-                const funcTrimmed = func.length <= 100 ? func.trim() : `${func.trim().substring(0, 98)}...`;
-                e.message = `${e.name}: ${e.message} in '${funcTrimmed}'`;
-                e.name = 'MyCardJSTemplateError';
-                throw e;
-            }
-            else {
-                console.log('Unexpected error (_evalTemplate)', e);
-            }
-        }
-    }
-
     // https://lit-element.polymer-project.org/guide/styles
-    static get styles(): CSSResult {
-
-        return css``;
-    }
+    static get styles(): CSSResult { return css``; }
 }

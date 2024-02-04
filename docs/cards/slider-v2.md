@@ -17,9 +17,8 @@ It is completely customizable now and fully templatable.
 
 ### Future features (Maybe)
 - Text inside slider (Should be easily done with this new slider)
-- Radius attribute to set how close to the thumb user has to be when allowTapping is set to false
 - If user is not actively changing the slider, then it should animate between states.
-- **If you would like a new feature, please feel free to create an issue asking for it.**
+- **If you would like something made or fixed, please feel free to create an issue asking about it.**
 
 
 ## Options
