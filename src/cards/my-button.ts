@@ -606,8 +606,6 @@ export class MyButton extends LitElement {
 
 
 
-        const cardStyle = this._config.styles?.card ? { ...defaultCardStyle, ...this._config.styles.card } : defaultCardStyle
-        const iconStyle = this._config.styles?.icon ? { ...defaultIconStyle, ...this._config.styles.icon } : defaultIconStyle
 
         // Here we deep merge the default styles with the styles given in the specific element configs
         const sliderStyle = this._config.slider?.styles ? deepMerge(defaultSliderStyle, this._config.slider.styles) : defaultSliderStyle
@@ -615,13 +613,14 @@ export class MyButton extends LitElement {
         const labelStyle = this._config.label?.styles ? deepMerge(defaultLabelStyle, this._config.label.styles) : defaultLabelStyle
         const buttonsStyle = this._config.buttons?.styles ? deepMerge(defaultButtonsStyle, this._config.buttons.styles) : defaultButtonsStyle
 
+        const cardStyle = this._config.styles?.card ? { ...defaultCardStyle, ...this._config.styles.card } : defaultCardStyle
+        const iconStyle = this._config.styles?.icon ? { ...defaultIconStyle, ...this._config.styles.icon } : defaultIconStyle
         this._config.styles.card = getStyle('card', deflate(cardStyle))
         this._config.styles.icon = getStyle('icon', deflate(iconStyle))
-
         this._config.styles.row1 = getStyle('row1', deflate(this._config.styles?.row1) ? deflate(this._config.styles?.row1) : {})
         this._config.styles.row2 = getStyle('row2', deflate(this._config.styles?.row2) ? deflate(this._config.styles?.row2) : {})
-
         this._config.styles.button = getStyle('button', deflate(this._config.styles?.button) ? deflate(this._config.styles?.button) : {})
+        
         this._config.slider.styles = sliderStyle
         this._config.stats.styles = statsStyle
         this._config.label.styles = labelStyle

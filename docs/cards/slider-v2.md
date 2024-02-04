@@ -29,7 +29,7 @@ It is completely customizable now and fully templatable.
 | step | string | "1" | Number of steps to take (For input number, if step is not specified, it will use step from attributes.) (For media_player, if step is not specified it will step by 0.01. (It will actually step by 1, but it will convert 27 to 0.27. So if you set a custom step, set it between 0 and 100.)) |
 | colorMode (Deprecated: Use 'mode' instead) | string | brightness | Can be brightness, temperature, hue, saturation |
 | coverMode (Deprecated: Use 'mode' instead) | string | position | Can be position or tilt |
-| mode | string | cover:position, light:brightness | Can be position, tilt, brightness, temperature, hue, saturation |
+| mode | string | cover:position, light:brightness | Can be position, tilt, brightness, temperature, hue, saturation, volume & seekbar |
 | vertical | boolean | false | This will set the slider to be vertical and handled from bottom to top. Default on covers |
 | flipped | boolean | false | This will just flip the slider to go from right to left or top to bottom. Default on covers |
 | inverse | boolean | false | Will inverse how far the slider has progressed compared to value. so if brightness is 75%, then it will only be 25% progressed. This is useful for cover, where it is Default. |

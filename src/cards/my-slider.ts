@@ -23,7 +23,7 @@ import { localize } from '../localize/localize'
 import { getStyle } from './styles/my-slider.styles'
 // import './scripts/deflate.js'
 import { deflate } from '../scripts/deflate'
-import { percentage, roundPercentage, getClickPosRelToTarget } from '../scripts/helpers'
+import { percentage, roundPercentage, getClickPosRelToTarget, stateActive } from '../scripts/helpers'
 import { objectEvalTemplate } from '../scripts/templating'
 
 /* eslint no-console: 0 */
@@ -111,20 +111,32 @@ export class MySliderV2 extends LitElement {
         if (!this.config) {
             return false
         }
-
+        if (this._config !== undefined) {
+            // If slider is a seekbar for a media_player and it is currently playing, we want to keep updating the card since we have to calcuate progress ourselves
+            if (this._config.mode === 'seekbar' && this.entity.state === 'playing') {
+                // return true
+            }
+        }
         return hasConfigOrEntityChanged(this, changedProps, false)
+    }
+    // After your component has been rendered
+    updated(changedProperties: PropertyValues) {
+        super.updated(changedProperties);
+        if (this.sliderEl === undefined) {
+            this.sliderEl = this.shadowRoot?.querySelector('.my-slider-custom-container');
+        }
     }
 
     protected render(): TemplateResult | void {
         const initFailed = this.initializeConfig()
         if (initFailed !== null) return initFailed
+        // console.log('Render card, it was updated!')
 
-        
         const defaultProgressStyle = [
             // { 'transition': this.vertical ? 'height 0.2s ease 0s' : 'width 0.2s ease 0s' },
         ]
         const progressStyle = this._config!.styles?.progress ? { ...defaultProgressStyle, ...this._config!.styles.progress } : defaultProgressStyle
-        
+
         const deflatedCardStl = deflate(this._config!.styles?.card) ? deflate(this._config!.styles?.card) : {}
         const deflatedContainerStl = deflate(this._config!.styles?.container) ? deflate(this._config!.styles?.container) : {}
         const deflatedTrackStl = deflate(this._config!.styles?.track) ? deflate(this._config!.styles?.track) : {}
@@ -168,16 +180,6 @@ export class MySliderV2 extends LitElement {
             }
         }
 
-        const setElements = (event) => {
-            const sliderMaybe = event.composedPath().find(el => el.classList.contains('my-slider-custom-container'))
-            if (!sliderMaybe) {
-                this.sliderEl = event.target
-            }
-            else {
-                this.sliderEl = sliderMaybe
-            }
-        }
-
         const sliderHandler = (event) => {
             switch (event.type) {
                 case 'mousedown':
@@ -207,7 +209,6 @@ export class MySliderV2 extends LitElement {
 
         const startInput = (event) => {
             if (this.actionTaken) return
-            setElements(event)
             const clickX = event.clientX || event.touches[0].clientX
             const clickY = event.clientY || event.touches[0].clientY
             if (this.clientXLast === 0) {
@@ -298,7 +299,7 @@ export class MySliderV2 extends LitElement {
                 }
             }
         }
-        
+
         this.createAndCleanupEventListeners(sliderHandler)
         return html`
             <ha-card class="my-slider-custom-card" style="${styleMap(cardStl)}">
@@ -322,6 +323,7 @@ export class MySliderV2 extends LitElement {
     }
 
     private initializeConfig(): any {
+        if (this.actionTaken) return null
         this.entity = this.hass.states[`${this.config.entity}`]
         try {
             this._config = objectEvalTemplate(this, this.entity, this.config)
@@ -344,14 +346,31 @@ export class MySliderV2 extends LitElement {
         if (!this._config) return html`Error with evaluated _config`
         const entityType = this._config.entity ? this._config.entity?.split('.')[0] : 'none'
 
-        this._config.mode = this._config!.mode !== undefined ? this._config!.mode : 
-                            this._config!.colorMode !== undefined ? this._config!.colorMode : 
-                            this._config!.coverMode !== undefined ? this._config!.coverMode : 
-                            entityType === 'light' ? 'brightness' : 
-                            entityType === 'cover' ? 'position' : 
-                            entityType === 'media_player' ? 'volume' : 
-                            'brightness'
-                            
+        this._config.mode = this._config!.mode !== undefined ? this._config!.mode :
+            this._config!.colorMode !== undefined ? this._config!.colorMode :
+                this._config!.coverMode !== undefined ? this._config!.coverMode :
+                    entityType === 'light' ? 'brightness' :
+                        entityType === 'cover' ? 'position' :
+                            entityType === 'media_player' ? 'volume' :
+                                'brightness'
+
+
+        this._config.sliderId = `slider-${this._config!.entity.replace('.', '-')}-${this._config.mode}`
+        this._config.vertical = this._config!.vertical !== undefined ? this._config!.vertical : false
+        this._config.flipped = this._config!.flipped !== undefined ? this._config!.flipped : false
+        this._config.inverse = this._config!.inverse !== undefined ? this._config!.inverse : false
+        this._config.disableScroll = this._config!.disableScroll !== undefined ? this._config!.disableScroll : true
+        this._config.allowTapping = this._config!.allowTapping !== undefined ? this._config!.allowTapping : true
+        this._config.allowSliding = this._config!.allowSliding !== undefined ? this._config!.allowSliding : false
+        this._config.marginOfError = this._config!.marginOfError !== undefined ? this._config!.marginOfError : 10
+        this._config.slideDistance = this._config!.slideDistance !== undefined ? this._config!.slideDistance : 10
+        this._config.showMin = this._config!.showMin !== undefined ? this._config!.showMin : false
+        this._config.min = this._config!.min ? this._config!.min : 0
+        this._config.max = this._config!.max ? this._config!.max : 100
+        this._config.minThreshold = this._config!.minThreshold ? this._config!.minThreshold : 0
+        this._config.maxThreshold = this._config!.maxThreshold ? this._config!.maxThreshold : 100
+        this._config.step = this._config!.step ? this._config!.step : 1
+
 
         let tmpVal = 0
         switch (this._config!.entity.split('.')[0]) {
@@ -428,18 +447,38 @@ export class MySliderV2 extends LitElement {
                 break
             case 'media_player': /* ------------ MEDIA_PLAYER ------------ */
                 tmpVal = 0
-                if (this.entity.attributes.volume_level != undefined) {
-                    tmpVal = Number(this.entity.attributes.volume_level * 100)
-                }
-                this.oldVal = tmpVal
+                if (this._config.mode === 'volume') {
+                    if (this.entity.attributes.volume_level != undefined) {
+                        tmpVal = Number(this.entity.attributes.volume_level * 100)
+                    }
+                    this.oldVal = tmpVal
 
-                if (!this._config.showMin && this._config.min) { // Subtracting savedMin to make slider 0 be far left
-                    this._config.max = this._config.max - this._config.min
-                    tmpVal = tmpVal - this._config.min
+                    if (!this._config.showMin && this._config.min) { // Subtracting savedMin to make slider 0 be far left
+                        this._config.max = this._config.max - this._config.min
+                        tmpVal = tmpVal - this._config.min
+                    }
+
+                }
+                else if (this._config.mode === 'seekbar') {
+                    this._config.min = 0
+                    this._config.max = this.entity.attributes.media_duration
+                    const now = new Date();
+                    const updatedAt = new Date(this.entity.attributes.media_position_updated_at)
+                    const initialPosition = this.entity.attributes.media_position
+                    // Calculate the difference in seconds
+                    let timeDifference = (now.getTime() - updatedAt.getTime()) / 1000
+                    // Calculate the current position
+                    let currentPosition = initialPosition + timeDifference
+                    // Ensure the current position does not exceed the duration
+                    currentPosition = Math.min(currentPosition, this._config.max);
+                    tmpVal = currentPosition
+                    this.oldVal = tmpVal
                 }
 
                 this.setSliderValues(tmpVal, roundPercentage(percentage(tmpVal, this._config.max)))
-
+                if (this._config.mode === 'seekbar' && this.entity.state === 'playing') {
+                    this.updateSeekbar()
+                }
 
                 break
             case 'cover': /* ------------ COVER ------------ */
@@ -504,25 +543,41 @@ export class MySliderV2 extends LitElement {
                 break
         }
 
-        
+
         this.sliderVal = tmpVal
-        this._config.sliderId = `slider-${this._config!.entity.replace('.', '-')}-${this._config.mode}`
-        this._config.vertical = this._config!.vertical !== undefined ? this._config!.vertical : false
-        this._config.flipped = this._config!.flipped !== undefined ? this._config!.flipped : false
-        this._config.inverse = this._config!.inverse !== undefined ? this._config!.inverse : false
-        this._config.disableScroll = this._config!.disableScroll !== undefined ? this._config!.disableScroll : true
-        this._config.allowTapping = this._config!.allowTapping !== undefined ? this._config!.allowTapping : true
-        this._config.allowSliding = this._config!.allowSliding !== undefined ? this._config!.allowSliding : false
-        this._config.marginOfError = this._config!.marginOfError !== undefined ? this._config!.marginOfError : 10
-        this._config.slideDistance = this._config!.slideDistance !== undefined ? this._config!.slideDistance : 10
-        this._config.showMin = this._config!.showMin !== undefined ? this._config!.showMin : false
-        this._config.min = this._config!.min ? this._config!.min : 0
-        this._config.max = this._config!.max ? this._config!.max : 100
-        this._config.minThreshold = this._config!.minThreshold ? this._config!.minThreshold : 0
-        this._config.maxThreshold = this._config!.maxThreshold ? this._config!.maxThreshold : 100
-        this._config.step = this._config!.step ? this._config!.step : 1
 
         return null // Succes in this case
+    }
+
+    private async updateSeekbar() {
+        // if (this.sliderEl === undefined) return
+        if (this.sliderEl === undefined) {
+            setTimeout(() => this.updateSeekbar(), 500);
+            return
+        }
+        if (this.entity.state !== 'playing') {
+            return
+        }
+        // console.log('Update seekbar!')
+
+        let tmpVal = 0
+        this._config.max = this.entity.attributes.media_duration
+        const now = new Date()
+        const updatedAt = new Date(this.entity.attributes.media_position_updated_at)
+        const initialPosition = this.entity.attributes.media_position
+        // Calculate the difference in seconds
+        let timeDifference = (now.getTime() - updatedAt.getTime()) / 1000
+        // Calculate the current position
+        let currentPosition = initialPosition + timeDifference
+        // Ensure the current position does not exceed the duration
+        currentPosition = Math.min(currentPosition, this._config.max)
+        tmpVal = currentPosition
+
+        this.setSliderValues(tmpVal, roundPercentage(percentage(tmpVal, this._config.max)));
+        this.setProgress(this.sliderEl, Math.round(tmpVal), 'updateSeekbar')
+
+        // Update seekbar in 1 second again
+        setTimeout(() => this.updateSeekbar(), 1000);
     }
 
     private calcProgress(event) {
@@ -597,7 +652,12 @@ export class MySliderV2 extends LitElement {
                 this._setInputNumber(this.entity, val)
                 break
             case 'media_player':
-                this._setMediaVolume(this.entity, val)
+                if (this._config.mode === 'volume') {
+                    this._setMediaVolume(this.entity, val)
+                }
+                else if (this._config.mode === 'seekbar') {
+                    this._setMediaSeek(this.entity, val)
+                }
                 break
             case 'cover':
                 if (this._config.mode === 'position') {
@@ -671,6 +731,13 @@ export class MySliderV2 extends LitElement {
         this.hass.callService("media_player", "volume_set", {
             entity_id: entity.entity_id,
             volume_level: value / 100
+        })
+        this.oldVal = value
+    }
+    private _setMediaSeek(entity, value): void {
+        this.hass.callService("media_player", "media_seek", {
+            entity_id: entity.entity_id,
+            seek_position: value
         })
         this.oldVal = value
     }
