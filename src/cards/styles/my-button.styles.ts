@@ -15,7 +15,7 @@ const styles = {
     card: {
             height: '125px',
             width: '100%',
-            'min-width': 'fit-content',
+            // 'min-width': 'fit-content',
             background: 'var(--card-background-color)',
             overflow: 'hidden',
             cursor: 'pointer',
@@ -51,27 +51,34 @@ const styles = {
         'overflow': 'hidden',
     },
     labelContainer: {
-            width: '100%',
-            height: '100%',
-            display: 'flex',
-            'flex-direction': 'column',
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        'flex-direction': 'column',
+        'align-items': 'flex-start',
+        overflow: 'hidden',
     },
     label: {
-            padding: '0',
-            margin: '0 10px',
-            color: 'var(--primary-text-color)',
-            'font-weight': 'bold',
-            cursor: 'pointer',
+        padding: '0',
+        margin: '0 10px',
+        color: 'var(--primary-text-color)',
+        'font-weight': 'bold',
+        cursor: 'pointer',
     },
     extraText: {
         margin: '0 10px',
         color: 'var(--primary-text-color)',
         'font-weight': 'normal',
-        'font-size': '12px'
+        'font-size': '12px',
+        'white-space': 'nowrap',
+        overflow: 'hidden',
+        // 'text-overflow': 'ellipsis'
+        // animation: 'marquee 10s linear infinite',
     },
     row1: {
-            display: 'flex',
-            'justify-content': 'space-between',
+        display: 'flex',
+        'justify-content': 'space-between',
+        'min-height': '55px',
     },
     row2: {
     },
@@ -88,9 +95,9 @@ const styles = {
         display: 'flex',
         'align-items': 'center',
         'justify-content': 'center',
-        'border-radius': '50%',
-        'box-shadow': '0px 4px 8px rgba(0, 0, 0, 0.2)',
-        'border': '1px solid var(--secondary-background-color)'
+        // 'border-radius': '50%',
+        // 'box-shadow': '0px 4px 8px rgba(0, 0, 0, 0.2)',
+        // 'border': '1px solid var(--secondary-background-color)'
     },
     buttonText: {
         padding: '0px',
@@ -137,5 +144,30 @@ const styles = {
     },
     sliderProgressVer: {
         'background': 'linear-gradient(to left, var(--paper-item-icon-active-color), transparent)'
+    },
+
+    seekbarCard: {
+        'border-radius': '0px',
+        background: 'transparent',
+        'box-shadow': 'none',
+        cursor: 'default',
+        'margin-left': '30px'
+    },
+    seekbarContainer: {
+        'border-radius': '0px',
+    },
+    seekbarTrack: {
+        background: 'transparent',
+    },
+    seekbarThumb: {
+        'height': '100%',
+        'width': '3px',
+        // 'top': '6px',
+        'right': '0px',
+        'border-radius': '50px',
+        'background': 'linear-gradient(to top, var(--paper-item-icon-active-color) -20%, transparent 70%)'
+    },
+    seekbarProgress: {
+        'background': 'transparent'
     }
 }

@@ -150,6 +150,11 @@ export interface MyButtonStylesConfig {
   sliderThumbVer?: CssStyleConfig;
   sliderProgressHor?: CssStyleConfig;
   sliderProgressVer?: CssStyleConfig;
+  seekbarCard?: CssStyleConfig;
+  seekbarContainer?: CssStyleConfig;
+  seekbarTrack?: CssStyleConfig;
+  seekbarThumb?: CssStyleConfig;
+  seekbarProgress?: CssStyleConfig;
 }
 
 

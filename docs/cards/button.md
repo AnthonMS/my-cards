@@ -28,11 +28,70 @@ It is completely customizable now and fully templatable. But is still very much 
 | stats | object | depends on entity type | This is a static container that can be used to display a statistic in the top right corner. Default for light is brightness % otherwise it's entity state. You can give the stats container actions like any other component. |
 | camera | string | Nothing | This can be set as a camera entity and then it can display the stream in the stats container. Only used with locks. |
 | slider | object | [Slider config](/docs/cards/slider-v2.md) | Config for slider inside card. Look at available config keys in readme. Only extra key here is 'show': true/false |
+| seekbar | object | [Slider config](/docs/cards/slider-v2.md) | Just another slider config with extra key 'show', but only used for media_player seekbars |
 | styles | object | [Button styles](/src/cards/styles/my-button.styles.ts) | Default harcoded styles. For dynamic styles you can inspect the DOM to find css key to style or reference 'initializeStyles' function in [my-button.ts](/src/cards/my-button.ts) |
 
 
 ## Examples
-![Examples](/docs/images/my-button/example-1.png)
+![Examples](/docs/images/my-button/lights.png)
+![Examples](/docs/images/my-button/lock.png)
+<br>
+![Examples](/docs/images/my-button/Light-switch-mediaplayer.png)
+![Examples](/docs/images/my-button/media_player.gif)
+
+```yaml
+- type: custom:my-button
+  entity: light.basement_room_spots
+  label: Room
+  icon: mdi:wall-sconce-flat
+
+- type: custom:my-button
+  entity: light.basement_entrance_spots
+  label: Entrance
+  icon: mdi:wall-sconce-flat
+
+- type: custom:my-button
+  entity: light.basement_hall_spots
+  label: Hall
+  icon: mdi:wall-sconce-flat
+
+  
+- type: custom:my-button
+  entity: lock.front_door
+  label: Front Door
+  camera: camera.front_door_cam
+  tap_action:
+    action: none
+  slider:
+    show: true
+
+
+- type: custom:my-button
+  entity: media_player.office_google
+  label: Google Speaker
+
+
+- type: horizontal-stack
+  title: Office
+  cards:
+    - type: custom:my-button
+      entity: light.grono_lamp_office
+      label: Lamp
+      icon: mdi:desk-lamp
+
+    - type: custom:my-button
+      entity: switch.anthon_beast
+      label: PC
+      slider:
+        show: true
+      tap_action:
+        action: more-info
+
+    - type: custom:my-button
+      entity: media_player.office_google
+      label: Google Speaker
+```
+
 ```yaml
 - type: custom:my-button
   entity: light.front_door_spots
@@ -66,6 +125,17 @@ It is completely customizable now and fully templatable. But is still very much 
           - color: 'orange'
       tap_action:
         action: toggle
+  slider:
+    show: true
+    vertical: true
+    styles:
+      card:
+        - background: 'orange'
+  seekbar:
+    show: true
+    styles:
+      card:
+        - background: 'purple'
   styles:
     card:
       - background: rgba(230, 230, 230, 0.5)
@@ -90,7 +160,7 @@ The same with the label and stats.
 When doing it nested, the names are a little different since we dont need to specify sliderContainer, now we can just style the 'container' in the slider->styles.
 
 ```yaml
-Styles can be set to the background of the track by setting it from the styles config in the root:
+'Styles can be set on the background of the track by setting it from the styles config in the root:'
 - type: horizontal-stack
   cards:
     - type: custom:my-button
@@ -105,7 +175,7 @@ Styles can be set to the background of the track by setting it from the styles c
         sliderTrack:
           - background: rgba(255, 0, 0, 0.5)
 
-Or by setting it in the track directly on the slider:
+'Or by setting it in the track directly on the slider:'
 - type: custom:my-button
   entity: lock.front_door
   label: 
@@ -118,7 +188,7 @@ Or by setting it in the track directly on the slider:
       track:
         - background: rgba(255, 0, 0, 0.5)
 
-If using the buttons, you can set individual styling for each button. Or set a default for all of them and specify a specific style for one of them:
+'If using the buttons, you can set individual styling for each button. Or set a default for all of them and specify a specific style for one of them:'
 - type: custom:my-button
   entity: lock.front_door
   label: 

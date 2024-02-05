@@ -25,7 +25,7 @@ import { handleAction } from '../scripts/handle-action'
 import { localize } from '../localize/localize'
 import { getStyle } from './styles/my-button.styles'
 import { deflate } from '../scripts/deflate'
-import { deepMerge, percentage } from '../scripts/helpers'
+import { deepMerge, percentage, stateActive } from '../scripts/helpers'
 import { evalActions, objectEvalTemplate } from '../scripts/templating'
 
 /* eslint no-console: 0 */
@@ -72,6 +72,7 @@ export class MyButton extends LitElement {
             'light',
             'cover',
             'switch',
+            'input_boolean',
             'button',
             'lock',
             'media_player'
@@ -98,6 +99,35 @@ export class MyButton extends LitElement {
         }
         return hasConfigOrEntityChanged(this, changedProps, false)
     }
+    // After your component has been rendered
+    updated(changedProperties: PropertyValues) {
+        super.updated(changedProperties);
+        requestAnimationFrame(() => {
+            const labelEl = this.shadowRoot?.querySelector('[data-container="label-row"]') as HTMLElement;
+            const extraText = labelEl?.querySelector('p') as HTMLElement;
+
+            if (labelEl && extraText) {
+                const extraTextStyles = window.getComputedStyle(extraText)
+                const labelElStyles = window.getComputedStyle(labelEl)
+
+                const labelElWidth = labelEl.offsetWidth
+                const extraTextWidth = extraText.offsetWidth
+                const extraTextMarginLeft = parseFloat(extraTextStyles.marginLeft)
+                const extraTextMarginRight = parseFloat(extraTextStyles.marginRight)
+                const labelElPaddingLeft = parseFloat(labelElStyles.paddingLeft)
+                const labelElPaddingRight = parseFloat(labelElStyles.paddingRight)
+
+                const totalExtraTextWidth = extraTextWidth + extraTextMarginLeft + extraTextMarginRight;
+                const availableLabelElWidth = labelElWidth - labelElPaddingLeft - labelElPaddingRight;
+                if (totalExtraTextWidth < availableLabelElWidth) {
+                    extraText.style.animation = ''
+                }
+                else {
+                    extraText.style.animation = 'marquee 10s linear infinite'
+                }
+            }
+        })
+    }
 
     // https://lit-element.polymer-project.org/guide/templates
     protected render(): TemplateResult | void {
@@ -111,8 +141,8 @@ export class MyButton extends LitElement {
     private dynamicCard(): TemplateResult {
         return html`
             <ha-card style="${styleMap(this._config.styles.card)}">
-                <div style="display: grid; grid-template-rows: 1fr auto auto; grid-template-columns: 1fr auto; height: 100%;">
-                    <div style="grid-row: 1 / 2; grid-column: 1 / 2;" data-container="content"
+                <div style="display: grid; grid-template-rows: 1fr auto auto; grid-template-columns: minmax(0, 1fr) auto; height: 100%;">
+                    <div style="grid-row: 1 / 2; grid-column: 1 / 2; width: 100%;" data-container="content"
                     @action=${e => this._handleAction(e, this._config)}
                     .actionHandler=${actionHandler({
             hasDoubleClick: this._config?.double_tap_action?.action !== 'none',
@@ -134,11 +164,12 @@ export class MyButton extends LitElement {
                     </div>
                     <div style="grid-row: 3 / 4; grid-column: 1 / 3;" data-container="slider-row">
                         ${this._config.slider.vertical === false ? this.sliderElement() : ''}
+                        ${this._config.seekbar.show ? this.seekbarElement() : ''}
                     </div>
                     <div style="grid-row: 1 / 3; grid-column: 2 / 3; display: flex;" data-container="buttons-column">
                         ${this._config.buttons.vertical === true ? this.buttonsElement() : ''}
                     </div>
-                    <div style="grid-row: 1 / 4; grid-column: 3 / 3;" data-container="buttons-column">
+                    <div style="grid-row: 1 / 4; grid-column: 3 / 3;" data-container="slider-column">
                         ${this._config.slider.vertical === true ? this.sliderElement() : ''}
                     </div>
                 </div>
@@ -355,28 +386,24 @@ export class MyButton extends LitElement {
         const defaultStatsAttr: any = {
             show: false,
         }
-        const defaultButtonsAttr = {
+        const defaultButtonsAttr: any = {
             show: false,
             vertical: true,
-            // button0: {
-            //     show: true,
-            //     text: 'B0',
-            //     styles: {
-            //         text: getStyle('buttonText', deflate(this._config.buttons?.button1?.styles?.text) ? deflate(this._config.buttons?.button1?.styles?.text) : {}),
-            //         icon: getStyle('buttonIcon', deflate(this._config.buttons?.button1?.styles?.icon) ? deflate(this._config.buttons?.button1?.styles?.icon) : {}),
-            //     }
-            // }
+            styles: {}
         }
 
         // TODO: If slider is flipped, we need to position thumb correct
         const defaultSliderConfig: any = {
             show: true,
-            vertical: false
+            vertical: false,
+            entity: this._config.entity,
+            allowTapping: false,
+            marginOfError: 10,
         }
         const defaultSeekbarConfig: any = {
-            show: false
+            show: false,
+            entity: this._config.entity
         }
-
 
         if (entityType !== 'none') {
             const verticalSlider = entityType === 'cover' ? true : false
@@ -404,6 +431,8 @@ export class MyButton extends LitElement {
                     defaultStatsAttr.text = Math.ceil(percentage(this.entity.attributes.brightness, 256)) + '%'
                 }
                 defaultStatsAttr.show = true
+                defaultSliderConfig.allowSliding = true
+                defaultSliderConfig.slideDistance = 15
             }
             else if (entityType === 'cover') {
                 defaultCardConfig.hold_action = {
@@ -411,7 +440,7 @@ export class MyButton extends LitElement {
                 }
                 defaultIconAttr.icon = this.entity.attributes?.current_position >= 50 ? 'mdi:blinds-open' : 'mdi:blinds'
             }
-            else if (entityType === 'switch') {
+            else if (entityType === 'switch' || entityType === 'input_boolean') {
                 defaultCardConfig.tap_action = {
                     action: 'toggle'
                 }
@@ -477,11 +506,43 @@ export class MyButton extends LitElement {
                 defaultCardConfig.tap_action = {
                     action: 'more-info'
                 }
-                defaultIconAttr.icon = this.entity.state === 'playing' || this.entity.state === 'paused' || this.entity.state === 'idle' ? 'mdi:speaker' : 'mdi:speaker-off'
-                defaultSliderConfig.show = false
+                defaultIconAttr.icon = stateActive(this.entity, this.entity.state) ? 'mdi:speaker' : 'mdi:speaker-off'
+
+                defaultSliderConfig.show = stateActive(this.entity, this.entity.state)
                 defaultSliderConfig.vertical = true
-                defaultSliderConfig.sliderMin = 10
+                defaultSliderConfig.sliderMin = 5
                 defaultSliderConfig.min = 1
+                defaultSliderConfig.allowTapping = false
+                defaultSliderConfig.marginOfError = 10
+
+                defaultSeekbarConfig.show = stateActive(this.entity, this.entity.state)
+                defaultSeekbarConfig.vertical = false
+                defaultSeekbarConfig.allowTapping = false
+                defaultSeekbarConfig.marginOfError = 5
+                defaultSeekbarConfig.mode = 'seekbar'
+
+                if (this.entity.attributes.media_title) {
+                    defaultLabelAttr.extra = this.entity.attributes.media_title + ' - ' + this.entity.attributes.media_artist
+                }
+
+                defaultButtonsAttr.vertical = false
+                defaultButtonsAttr.show = true
+                defaultButtonsAttr.button0 = {
+                    show: true,
+                    icon: this.entity.state === 'playing' ? 'mdi:pause' : 'mdi:play',
+                    styles: {
+                        container: {
+                            'position': 'absolute',
+                        }
+                    },
+                    tap_action: {
+                        action: 'call-service',
+                        service: this.entity.state === 'playing' ? 'media_player.media_pause' : 'media_player.media_play',
+                        service_data: {
+                            entity_id: this.entity.entity_id
+                        }
+                    }
+                }
             }
         }
         else {
@@ -497,11 +558,11 @@ export class MyButton extends LitElement {
         this._config.stats = typeof this._config!.stats === 'string' ? { ...defaultStatsAttr, text: this._config!.stats } : typeof this._config!.stats === 'object' ? deepMerge(defaultStatsAttr, this._config!.stats) : defaultStatsAttr
         this._config.buttons = typeof this._config!.buttons === 'object' ? deepMerge(defaultButtonsAttr, this._config!.buttons) : defaultButtonsAttr
         this._config.slider = this._config!.slider ? deepMerge(defaultSliderConfig, this._config!.slider) : defaultSliderConfig
+        this._config.seekbar = this._config!.seekbar ? deepMerge(defaultSeekbarConfig, this._config!.seekbar) : defaultSeekbarConfig
         if (this._config.styles === undefined || this._config.styles === null) {
             this._config.styles = {}
         }
         this.initializeStyles()
-
         return null // Success in this case
     }
 
@@ -522,7 +583,7 @@ export class MyButton extends LitElement {
             track: getStyle('sliderTrack', deflate(this._config.styles?.sliderTrack) ? deflate(this._config.styles?.sliderTrack) : {}),
             progress: this._config.slider.vertical ? getStyle('sliderProgressVer', deflate(this._config.styles?.sliderProgressVer) ? deflate(this._config.styles?.sliderProgressVer) : {}) :
                 getStyle('sliderProgressHor', deflate(this._config.styles?.sliderProgressHor) ? deflate(this._config.styles?.sliderProgressHor) : {}),
-            thumb: this._config.slider.vertical ? 
+            thumb: this._config.slider.vertical ?
                 getStyle('sliderThumbVer', deflate(this._config.styles?.sliderThumbVer) ? deflate(this._config.styles?.sliderThumbVer) : {}) :
                 getStyle('sliderThumbHor', deflate(this._config.styles?.sliderThumbHor) ? deflate(this._config.styles?.sliderThumbHor) : {}),
         }
@@ -541,6 +602,13 @@ export class MyButton extends LitElement {
             text: getStyle('buttonText', deflate(this._config.styles?.buttonText) ? deflate(this._config.styles?.buttonText) : {}),
             icon: getStyle('buttonIcon', deflate(this._config.styles?.buttonIcon) ? deflate(this._config.styles?.buttonIcon) : {})
         }
+        const defaultSeekbarStyle: any = {
+            card: getStyle('seekbarCard', deflate(this._config.styles?.seekbarCard) ? deflate(this._config.styles?.seekbarCard) : {}),
+            container: getStyle('seekbarContainer', deflate(this._config.styles?.seekbarContainer) ? deflate(this._config.styles?.seekbarContainer) : {}),
+            track: getStyle('seekbarTrack', deflate(this._config.styles?.seekbarTrack) ? deflate(this._config.styles?.seekbarTrack) : {}),
+            progress: getStyle('seekbarProgress', deflate(this._config.styles?.seekbarProgress) ? deflate(this._config.styles?.seekbarProgress) : {}),
+            thumb: getStyle('seekbarThumb', deflate(this._config.styles?.seekbarThumb) ? deflate(this._config.styles?.seekbarThumb) : {}),
+        }
 
         if (this._config.slider.vertical && this._config.slider.flipped) {
             defaultSliderStyle.thumb['top'] = 'initial'
@@ -551,6 +619,46 @@ export class MyButton extends LitElement {
             defaultButtonsStyle.container['flex-direction'] = 'column'
             defaultButtonsContainerStyle['padding'] = '10px 5px 10px 0px'
         }
+
+
+        // Here we set the default styles for the card based on entity type and state
+        if (entityType !== 'none') {
+            if (stateActive(this.entity, this.entity.state)) {
+                defaultIconStyle.color = 'var(--paper-item-icon-active-color)'
+                defaultIconStyle.filter = 'drop-shadow(2px 2px 2px rgba(0,0,0,0.75)'
+            }
+
+            if (entityType === 'light') {
+
+                if (this.entity.attributes.brightness) {
+                    let divisor = 1 + (this.entity.attributes.brightness / 256);
+                    const cardBg = `radial-gradient(circle at top left, rgba(230, 230, 230, 0.7), var(--card-background-color) ${Math.ceil(percentage(this.entity.attributes.brightness, 256)) / divisor + '%'})`
+                    defaultCardStyle['background'] = cardBg
+                }
+                else {
+                    defaultCardStyle['background'] = `radial-gradient(circle at top left, rgba(230, 230, 230, 0.5), var(--card-background-color) 40%)`
+                }
+            }
+            else if (entityType === 'switch' || entityType === 'input_boolean') {
+                const cardBg = this.entity.state === 'on' ?
+                    `radial-gradient(circle at top left, rgba(230, 230, 230, 0.7), var(--card-background-color) 50%)` :
+                    `radial-gradient(circle at top left, rgba(230, 230, 230, 0.5), var(--card-background-color) 40%)`
+                defaultCardStyle['background'] = cardBg
+            }
+            else if (entityType === 'lock') {
+                if (this.entity.state === 'locked') {
+                    // defaultIconStyle.color = 'green'
+                }
+                else if (this.entity.state === 'unlocked') {
+                    defaultIconStyle.color = 'var(--paper-item-icon-active-color)'
+                }
+            }
+            else if (entityType === 'media_player') {
+
+            }
+
+        }
+
 
         Object.keys(this._config.buttons)
             .filter(key => key.startsWith('button'))
@@ -585,51 +693,9 @@ export class MyButton extends LitElement {
                 return null
             })
 
-        // Here we set the default styles for the card based on entity type and state
-        if (entityType !== 'none') {
-            if (this.entity.state === 'on') {
-                defaultIconStyle.color = 'var(--paper-item-icon-active-color)'
-                defaultIconStyle.filter = 'drop-shadow(2px 2px 2px rgba(0,0,0,0.75)'
-            }
-
-            if (entityType === 'light') {
-
-                if (this.entity.attributes.brightness) {
-                    let divisor = 1 + (this.entity.attributes.brightness / 256);
-                    const cardBg = `radial-gradient(circle at top left, rgba(230, 230, 230, 0.7), var(--card-background-color) ${Math.ceil(percentage(this.entity.attributes.brightness, 256)) / divisor + '%'})`
-                    defaultCardStyle['background'] = cardBg
-                }
-                else {
-                    defaultCardStyle['background'] = `radial-gradient(circle at top left, rgba(230, 230, 230, 0.5), var(--card-background-color) 40%)`
-                }
-            }
-            else if (entityType === 'switch') {
-                const cardBg = this.entity.state === 'on' ?
-                    `radial-gradient(circle at top left, rgba(230, 230, 230, 0.7), var(--card-background-color) 50%)` :
-                    `radial-gradient(circle at top left, rgba(230, 230, 230, 0.5), var(--card-background-color) 40%)`
-                defaultCardStyle['background'] = cardBg
-            }
-            else if (entityType === 'lock') {
-                if (this.entity.state === 'locked') {
-                    // defaultIconStyle.color = 'green'
-                }
-                else if (this.entity.state === 'unlocked') {
-                    defaultIconStyle.color = 'var(--paper-item-icon-active-color)'
-                }
-            }
-
-        }
 
 
-
-
-
-        // Here we deep merge the default styles with the styles given in the specific element configs
-        const sliderStyle = this._config.slider?.styles ? deepMerge(defaultSliderStyle, this._config.slider.styles) : defaultSliderStyle
-        const statsStyle = this._config.stats?.styles ? deepMerge(defaultStatsStyle, this._config.stats.styles) : defaultStatsStyle
-        const labelStyle = this._config.label?.styles ? deepMerge(defaultLabelStyle, this._config.label.styles) : defaultLabelStyle
-        const buttonsStyle = this._config.buttons?.styles ? deepMerge(defaultButtonsStyle, this._config.buttons.styles) : defaultButtonsStyle
-
+        // Merge default styles with the styles given in the specific element configs
         const cardStyle = this._config.styles?.card ? { ...defaultCardStyle, ...this._config.styles.card } : defaultCardStyle
         const iconStyle = this._config.styles?.icon ? { ...defaultIconStyle, ...this._config.styles.icon } : defaultIconStyle
         this._config.styles.card = getStyle('card', deflate(cardStyle))
@@ -637,30 +703,37 @@ export class MyButton extends LitElement {
         this._config.styles.row1 = getStyle('row1', deflate(this._config.styles?.row1) ? deflate(this._config.styles?.row1) : {})
         this._config.styles.row2 = getStyle('row2', deflate(this._config.styles?.row2) ? deflate(this._config.styles?.row2) : {})
         this._config.styles.button = getStyle('button', deflate(this._config.styles?.button) ? deflate(this._config.styles?.button) : {})
-        
-        this._config.slider.styles = sliderStyle
-        this._config.stats.styles = statsStyle
-        this._config.label.styles = labelStyle
-        this._config.buttons.styles = buttonsStyle
+
+        this._config.slider.styles = this._config.slider?.styles ? deepMerge(defaultSliderStyle, this._config.slider.styles) : defaultSliderStyle
+        this._config.stats.styles = this._config.stats?.styles ? deepMerge(defaultStatsStyle, this._config.stats.styles) : defaultStatsStyle
+        this._config.label.styles = this._config.label?.styles ? deepMerge(defaultLabelStyle, this._config.label.styles) : defaultLabelStyle
+        this._config.buttons.styles = this._config.buttons?.styles ? deepMerge(defaultButtonsStyle, this._config.buttons.styles) : defaultButtonsStyle
+        this._config.seekbar.styles = this._config.seekbar?.styles ? deepMerge(defaultSeekbarStyle, this._config.seekbar.styles) : defaultSeekbarStyle
     }
 
     // ------------------- ACTION HANDLER FUNC ------------------- //
     private _handleAction(ev: any, actionConfig: any): void {
-        
+        ev.stopPropagation()
+        ev.stopImmediatePropagation()
+        const now = new Date().getTime()
+        if (now - this.lastAction < 25) { return } // Simple guard for multiple calls when one was triggered...
+        this.lastAction = new Date().getTime()
+
+
         if (!actionConfig.entity) {
-            actionConfig.entity = this._config!.entity
+            actionConfig.entity = this._config.entity
         }
+
         if (ev.detail?.action) {
             switch (ev.detail.action) {
                 case 'tap':
                 case 'hold':
                 case 'double_tap':
-                    const config = this._config;
-                    if (!config) return;
-                    const action = ev.detail.action;
-                    const localAction = evalActions(this, config, `${action}_action`);
+                    if (!actionConfig) return
+                    const action = ev.detail.action
+                    const localAction = evalActions(this, actionConfig, `${action}_action`)
                     // @ts-ignore
-                    handleAction(this, this.hass!, localAction, action);
+                    handleAction(this, this.hass!, localAction, action)
                     break;
                 default:
                     break;
@@ -669,5 +742,12 @@ export class MyButton extends LitElement {
     }
 
     // https://lit-element.polymer-project.org/guide/styles
-    static get styles(): CSSResult { return css``; }
+    static get styles(): CSSResult {
+        return css`
+            @keyframes marquee {
+                0%   { text-indent: 100% }
+                100% { text-indent: -100% }
+            }
+        `;
+    }
 }
