@@ -44,6 +44,7 @@ It is completely customizable now and fully templatable.
 | maxThreshold | number | 75 | Only used to determine how far users have to slide to activate toggle commands for switch and lock |
 | min | number | 0 | Minimum value you can set the entity state |
 | max | number | 100 | Maximum value you can set the entity state |
+| sliderMin | number | 0 | The minimum percentage progress to show always |
 | styles | object | [Default styles](/src/cards/styles/my-slider.styles.ts) | Style each component used in the card. |
 
 

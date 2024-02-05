@@ -463,9 +463,9 @@ export class MySliderV2 extends LitElement {
                 break
             case 'input_number': /* ------------ INPUT_NUMBER ------------ */
             case 'number':
-                defaultConfig.step = defaultConfig!.step ? defaultConfig!.step : this.entity.attributes.step
-                defaultConfig.min = defaultConfig!.min ? defaultConfig!.min : this.entity.attributes.min
-                defaultConfig.max = defaultConfig!.max ? defaultConfig!.max : this.entity.attributes.max
+                defaultConfig.step = this.entity.attributes.step
+                defaultConfig.min = this.entity.attributes.min
+                defaultConfig.max = this.entity.attributes.max
                 this.oldVal = parseFloat(this.entity.state)
                 tmpVal = parseFloat(this.entity.state)
                 if (!defaultConfig.showMin && defaultConfig.min) { // Subtracting savedMin to make slider 0 be far left
@@ -583,6 +583,7 @@ export class MySliderV2 extends LitElement {
         }
 
         this._config = deepMerge(defaultConfig, this._config)
+        console.log('CONFIG:', this._config)
 
         return null // Success in this case
     }
@@ -618,7 +619,7 @@ export class MySliderV2 extends LitElement {
     }
 
     private calcProgress(event) {
-        if (this.sliderEl == undefined || this.sliderEl === null) return
+        if (this.sliderEl === undefined || this.sliderEl === null) return
         const clickPos = getClickPosRelToTarget(event, this.sliderEl)
         const sliderWidth = this.sliderEl.offsetWidth
         const sliderHeight = this.sliderEl.offsetHeight
@@ -626,10 +627,10 @@ export class MySliderV2 extends LitElement {
         const clickPercent = this._config.vertical ? roundPercentage(clickPos.y / sliderHeight * 100) : roundPercentage(clickPos.x / sliderWidth * 100)
         const newValue = clickPercent / 100 * (this._config.max - 0)
         const flippedValue = this._config.max - newValue
-        let val = this._config.flipped ? Math.round(flippedValue) : Math.round(newValue)
+        let val = this._config.flipped ? flippedValue : newValue
         // Set val to be either min, max, zero or value
         val = val < this._config.min && this._config.showMin ? this._config.min : val > this._config.max ? this._config.max : val < this.zero ? this.zero : val
-        this.setProgress(this.sliderEl, Math.round(val), event.type)
+        this.setProgress(this.sliderEl, val, event.type)
     }
 
     private setProgress(slider, val, action) {
@@ -642,11 +643,9 @@ export class MySliderV2 extends LitElement {
         valuePercentage = valuePercentage < this._config.sliderMin ? this._config.sliderMin : valuePercentage
 
         if (this._config.vertical) {
-            // Set progessHeight to match value
             progressEl.style.height = valuePercentage.toString() + '%'
         }
         else {
-            // Set progessWidth to match value
             progressEl.style.width = valuePercentage.toString() + '%'
         }
 

@@ -1,4 +1,8 @@
 # slider-card
+If you find the project useful, please consider starring the repository :)
+
+[![stars - my-cards](https://img.shields.io/github/stars/AnthonMS/my-cards?style=social)](https://github.com/AnthonMS/my-cards)
+[![forks - my-cards](https://img.shields.io/github/forks/AnthonMS/my-cards?style=social)](https://github.com/AnthonMS/my-cards)
 
 ## Update Notes
 
