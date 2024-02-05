@@ -309,6 +309,13 @@ export class MyButton extends LitElement {
         `
     }
 
+    private seekbarElement(): TemplateResult {
+        if (!this._config.slider.show) return html``
+
+        return html`
+            <my-slider-v2 .hass="${this.hass}" .config="${this._config.seekbar}"></my-slider-v2>
+        `
+    }
     // ------------------- INITIALIZE CUSTOM CARD CONFIGURATION ------------------- //
     private initializeConfig(): any {
         this.entity = this.hass.states[`${this.config.entity}`]
@@ -365,6 +372,9 @@ export class MyButton extends LitElement {
         const defaultSliderConfig: any = {
             show: true,
             vertical: false
+        }
+        const defaultSeekbarConfig: any = {
+            show: false
         }
 
 
@@ -468,7 +478,10 @@ export class MyButton extends LitElement {
                     action: 'more-info'
                 }
                 defaultIconAttr.icon = this.entity.state === 'playing' || this.entity.state === 'paused' || this.entity.state === 'idle' ? 'mdi:speaker' : 'mdi:speaker-off'
+                defaultSliderConfig.show = false
                 defaultSliderConfig.vertical = true
+                defaultSliderConfig.sliderMin = 10
+                defaultSliderConfig.min = 1
             }
         }
         else {
@@ -483,7 +496,7 @@ export class MyButton extends LitElement {
         this._config.label = typeof this._config!.label === 'string' ? { ...defaultLabelAttr, text: this._config!.label } : typeof this._config!.label === 'object' ? deepMerge(defaultLabelAttr, this._config!.label) : defaultLabelAttr
         this._config.stats = typeof this._config!.stats === 'string' ? { ...defaultStatsAttr, text: this._config!.stats } : typeof this._config!.stats === 'object' ? deepMerge(defaultStatsAttr, this._config!.stats) : defaultStatsAttr
         this._config.buttons = typeof this._config!.buttons === 'object' ? deepMerge(defaultButtonsAttr, this._config!.buttons) : defaultButtonsAttr
-        this._config.slider = this._config!.slider ? deepMerge(defaultSliderConfig, this._config!.slider) : defaultSliderConfig // deepMerge(this._config.slider, defaultSliderConfig)
+        this._config.slider = this._config!.slider ? deepMerge(defaultSliderConfig, this._config!.slider) : defaultSliderConfig
         if (this._config.styles === undefined || this._config.styles === null) {
             this._config.styles = {}
         }
@@ -495,8 +508,6 @@ export class MyButton extends LitElement {
     private initializeStyles(): any {
         if (!this._config) return
         const entityType = this._config.entity ? this._config.entity?.split('.')[0] : 'none'
-        const verticalSlider = entityType === 'cover' ? true : false
-        const flippedSlider = entityType === 'cover' ? true : false
 
         const defaultCardStyle: any = {}
         const defaultButtonsContainerStyle: any = {}
@@ -509,9 +520,10 @@ export class MyButton extends LitElement {
             card: getStyle('sliderCard', deflate(this._config.styles?.sliderCard) ? deflate(this._config.styles?.sliderCard) : {}),
             container: getStyle('sliderContainer', deflate(this._config.styles?.sliderContainer) ? deflate(this._config.styles?.sliderContainer) : {}),
             track: getStyle('sliderTrack', deflate(this._config.styles?.sliderTrack) ? deflate(this._config.styles?.sliderTrack) : {}),
-            progress: verticalSlider ? getStyle('sliderProgressVer', deflate(this._config.styles?.sliderProgressVer) ? deflate(this._config.styles?.sliderProgressVer) : {}) :
+            progress: this._config.slider.vertical ? getStyle('sliderProgressVer', deflate(this._config.styles?.sliderProgressVer) ? deflate(this._config.styles?.sliderProgressVer) : {}) :
                 getStyle('sliderProgressHor', deflate(this._config.styles?.sliderProgressHor) ? deflate(this._config.styles?.sliderProgressHor) : {}),
-            thumb: verticalSlider ? getStyle('sliderThumbVer', deflate(this._config.styles?.sliderThumbVer) ? deflate(this._config.styles?.sliderThumbVer) : {}) :
+            thumb: this._config.slider.vertical ? 
+                getStyle('sliderThumbVer', deflate(this._config.styles?.sliderThumbVer) ? deflate(this._config.styles?.sliderThumbVer) : {}) :
                 getStyle('sliderThumbHor', deflate(this._config.styles?.sliderThumbHor) ? deflate(this._config.styles?.sliderThumbHor) : {}),
         }
         const defaultStatsStyle: any = {
@@ -528,6 +540,11 @@ export class MyButton extends LitElement {
             button: getStyle('button', deflate(this._config.styles?.button) ? deflate(this._config.styles?.button) : {}),
             text: getStyle('buttonText', deflate(this._config.styles?.buttonText) ? deflate(this._config.styles?.buttonText) : {}),
             icon: getStyle('buttonIcon', deflate(this._config.styles?.buttonIcon) ? deflate(this._config.styles?.buttonIcon) : {})
+        }
+
+        if (this._config.slider.vertical && this._config.slider.flipped) {
+            defaultSliderStyle.thumb['top'] = 'initial'
+            defaultSliderStyle.thumb['bottom'] = '2px'
         }
 
         if (this._config.buttons.vertical) {

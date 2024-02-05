@@ -128,7 +128,7 @@ const styles = {
     sliderThumbVer: {
         'width': '20px',
         'height': '3px',
-        'bottom': '2px',
+        'top': '2px',
         'left': '7px',
         'border-radius': '50px',
     },

@@ -40,10 +40,9 @@ export interface MySliderConfig extends MyCardConfig {
   maxThreshold?: number;
   min?: number;
   max?: number;
-  
-  tap_action?: ActionConfig;
-  hold_action?: ActionConfig;
-  double_tap_action?: ActionConfig;
+  sliderMin?: number;
+  sliderId?: string;
+
   styles?: MySliderStylesConfig;
 }
 
