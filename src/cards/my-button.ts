@@ -10,22 +10,23 @@ import {
     PropertyValues,
     state,
 } from 'lit-element'
-import { styleMap, StyleInfo } from 'lit-html/directives/style-map'
+import { styleMap, StyleInfo } from 'lit-html/directives/style-map' // type StyleInfo
 import { HassEntity } from 'home-assistant-js-websocket'
-import {
-    HomeAssistant,
-    hasConfigOrEntityChanged,
-    handleClick,
-    LovelaceCard
-} from 'custom-card-helpers'; // This is a community maintained npm module with common helper functions/types
-import { actionHandler } from '../scripts/action-handler-directive';
+import { hasConfigOrEntityChanged, } from 'custom-card-helpers' // This is a community maintained npm module with common helper functions/types
 
-import type { MyButtonCardConfig } from './extras/types';
-import { BUTTON_VERSION } from './extras/const';
-import { localize } from '../localize/localize';
+import { BUTTON_VERSION } from './extras/const'
+import type { LovelaceCard } from '../types/lovelace';
+import type { HomeAssistant } from '../types/homeassistant';
+import type { MyButtonConfig } from '../types/types'
+
+import { actionHandler } from '../scripts/action-handler'
+import { handleAction } from '../scripts/handle-action'
+
+import { localize } from '../localize/localize'
 import { getStyle } from './styles/my-button.styles'
 import { deflate } from '../scripts/deflate'
-import { deepMerge, percentage } from '../scripts/helpers'
+import { deepMerge, percentage, stateActive } from '../scripts/helpers'
+import { evalActions, objectEvalTemplate } from '../scripts/templating'
 
 /* eslint no-console: 0 */
 console.info(
@@ -40,32 +41,14 @@ console.info(
     type: 'my-button',
     name: 'My Button Card',
     description: 'Custom Button Card for Lovelace.',
-});
+})
 
 @customElement('my-button')
 export class MyButton extends LitElement {
-    @property() private _config?: MyButtonCardConfig
+    @property() private _hass?: HomeAssistant;
+    @property() private _config?: MyButtonConfig
     private entity: HassEntity | undefined
     private lastAction: number = 0
-    private layout: string = 'vertical'
-    private iconConfig: any = {}
-    private labelConfig: any = {}
-    private sliderConfig: any = {}
-    private statsConfig: any = {}
-
-    // STYLES
-    private cardStl: StyleInfo = {}
-    private containerStl: StyleInfo = {}
-    private containerColumnStl: StyleInfo = {}
-    private iconStl: StyleInfo = {}
-    private statsStl: StyleInfo = {}
-    private labelWrapperStl: StyleInfo = {}
-    private labelStl: StyleInfo = {}
-    private row1Stl: StyleInfo = {}
-    private row2Stl: StyleInfo = {}
-    private row3Stl: StyleInfo = {}
-    private column1Stl: StyleInfo = {}
-    private column2Stl: StyleInfo = {}
 
     public static getStubConfig(): object {
         return {}
@@ -80,21 +63,26 @@ export class MyButton extends LitElement {
     }
 
     @property({ attribute: false }) public hass!: HomeAssistant;
-    @state() private config!: MyButtonCardConfig;
+    @state() private config!: MyButtonConfig;
 
     // https://lit-element.polymer-project.org/guide/properties#accessors-custom
-    public setConfig(config: MyButtonCardConfig): void {
+    public setConfig(config: MyButtonConfig): void {
         const allowedEntities = [
+            '',
             'light',
             'cover',
-            'switch'
+            'switch',
+            'input_boolean',
+            'button',
+            'lock',
+            'media_player'
         ]
 
-        if (!config.entity) {
-            throw new Error("You need to define entity")
-        }
+        // if (!config.entity) {
+        //     throw new Error("You need to define entity")
+        // }
 
-        if (!allowedEntities.includes(config.entity.split('.')[0])) {
+        if (config.entity && !allowedEntities.includes(config.entity.split('.')[0])) {
             throw new Error(`Entity has to be one of the following: ${allowedEntities.map(e => ' ' + e)}`)
         }
 
@@ -109,82 +97,80 @@ export class MyButton extends LitElement {
         if (!this.config) {
             return false
         }
-
         return hasConfigOrEntityChanged(this, changedProps, false)
+    }
+    // After your component has been rendered
+    updated(changedProperties: PropertyValues) {
+        super.updated(changedProperties);
+        requestAnimationFrame(() => {
+            const labelEl = this.shadowRoot?.querySelector('[data-container="label-row"]') as HTMLElement;
+            const extraText = labelEl?.querySelector('p') as HTMLElement;
+
+            if (labelEl && extraText) {
+                const extraTextStyles = window.getComputedStyle(extraText)
+                const labelElStyles = window.getComputedStyle(labelEl)
+
+                const labelElWidth = labelEl.offsetWidth
+                const extraTextWidth = extraText.offsetWidth
+                const extraTextMarginLeft = parseFloat(extraTextStyles.marginLeft)
+                const extraTextMarginRight = parseFloat(extraTextStyles.marginRight)
+                const labelElPaddingLeft = parseFloat(labelElStyles.paddingLeft)
+                const labelElPaddingRight = parseFloat(labelElStyles.paddingRight)
+
+                const totalExtraTextWidth = extraTextWidth + extraTextMarginLeft + extraTextMarginRight;
+                const availableLabelElWidth = labelElWidth - labelElPaddingLeft - labelElPaddingRight;
+                if (totalExtraTextWidth < availableLabelElWidth) {
+                    extraText.style.animation = ''
+                }
+                else {
+                    extraText.style.animation = 'marquee 10s linear infinite'
+                }
+            }
+        })
     }
 
     // https://lit-element.polymer-project.org/guide/templates
     protected render(): TemplateResult | void {
         const initFailed = this.initializeConfig()
         if (initFailed !== null) return initFailed
-        if (!this.entity || !this._config) return html``
+        if (!this._config) return html``
 
-
-        if (this.layout === 'vertical') {
-            return this.verticalLayoutCard()
-        }
-        else {
-            return this.horizontalLayoutCard()
-        }
+        return this.dynamicCard()
     }
     // ------------------- CUSTOM CARDS ------------------- //
-    private verticalLayoutCard(): TemplateResult {
+    private dynamicCard(): TemplateResult {
         return html`
-            <ha-card style="${styleMap(this.cardStl)}">
-                <div style="${styleMap(this.containerStl)}">
-                    <div style="${styleMap(this.row1Stl)}"
-                        @action=${e => this._handleAction(e, this.config)}
-                        .actionHandler=${actionHandler({
-            hasDoubleClick: this.config?.double_tap_action?.action !== 'none',
-            hasHold: this.config?.hold_action?.action !== 'none',
+            <ha-card style="${styleMap(this._config.styles.card)}">
+                <div style="display: grid; grid-template-rows: 1fr auto auto; grid-template-columns: minmax(0, 1fr) auto; height: 100%;">
+                    <div style="grid-row: 1 / 2; grid-column: 1 / 2; width: 100%;" data-container="content"
+                    @action=${e => this._handleAction(e, this._config)}
+                    .actionHandler=${actionHandler({
+            hasDoubleClick: this._config?.double_tap_action?.action !== 'none',
+            hasHold: this._config?.hold_action?.action !== 'none',
+            repeat: this._config?.hold_action?.repeat,
+            repeatLimit: this._config?.hold_action?.repeat_limit,
         })}>
-                        ${this.iconElement()}
-
-                        ${this.statsElement()}
-                    </div>
-                    <div style="${styleMap(this.row2Stl)}"
-                        @action=${e => this._handleAction(e, this.config)}
-                        .actionHandler=${actionHandler({
-            hasDoubleClick: this.config?.double_tap_action?.action !== 'none',
-            hasHold: this.config?.hold_action?.action !== 'none',
-        })}>
-                        ${this.labelElement()}
-                    </div>
-                    <div style="${styleMap(this.row3Stl)}">
-                        ${this.sliderElement()}
-                    </div>
-                </div>
-            </ha-card>
-        `;
-    }
-    private horizontalLayoutCard(): TemplateResult {
-        return html`
-            <ha-card style="${styleMap(this.cardStl)}">
-                <div style="${styleMap(this.containerColumnStl)}">
-                    <div style="${styleMap(this.column1Stl)}">
-                        <div style="${styleMap(this.containerStl)}">
-                            <div style="${styleMap(this.row1Stl)}"
-                                @action=${e => this._handleAction(e, this.config)}
-                                .actionHandler=${actionHandler({
-            hasDoubleClick: this.config?.double_tap_action?.action !== 'none',
-            hasHold: this.config?.hold_action?.action !== 'none',
-        })}>
-                                ${this.iconElement()}
-                            </div>
-                            <div style="${styleMap(this.row2Stl)}"
-                                @action=${e => this._handleAction(e, this.config)}
-                                .actionHandler=${actionHandler({
-            hasDoubleClick: this.config?.double_tap_action?.action !== 'none',
-            hasHold: this.config?.hold_action?.action !== 'none',
-        })}>
-                                ${this.labelElement()}
-                            </div>
-                            <div style="${styleMap(this.row3Stl)}">
-                            </div>
+                        <div style="${styleMap(this._config.styles.row1)}" data-container="icon-stats-row">
+                            ${this.iconElement()}
+                            ${this.statsElement()}
                         </div>
+                        <div style="${styleMap(this._config.styles.row2)}" data-container="label-row">
+                            ${this.labelElement()}
+                        </div>
+
                     </div>
-                    <div style="${styleMap(this.column2Stl)}">
-                        ${this.sliderElement()}
+                    <div style="grid-row: 2 / 3; grid-column: 1 / 2; display: flex;" data-container="buttons-row">
+                        ${this._config.buttons.vertical === false ? this.buttonsElement() : ''}
+                    </div>
+                    <div style="grid-row: 3 / 4; grid-column: 1 / 3;" data-container="slider-row">
+                        ${this._config.slider.vertical === false ? this.sliderElement() : ''}
+                        ${this._config.seekbar.show ? this.seekbarElement() : ''}
+                    </div>
+                    <div style="grid-row: 1 / 3; grid-column: 2 / 3; display: flex;" data-container="buttons-column">
+                        ${this._config.buttons.vertical === true ? this.buttonsElement() : ''}
+                    </div>
+                    <div style="grid-row: 1 / 4; grid-column: 3 / 3;" data-container="slider-column">
+                        ${this._config.slider.vertical === true ? this.sliderElement() : ''}
                     </div>
                 </div>
             </ha-card>
@@ -192,91 +178,175 @@ export class MyButton extends LitElement {
     }
 
     private iconElement(): TemplateResult {
-        if (!this.iconConfig.show) return html``
+        if (!this._config.icon.show) return html``
 
-        if (this.iconConfig.tap_action || this.iconConfig.double_tap_action || this.iconConfig.hold_action) {
+        if (this._config.icon.tap_action || this._config.icon.double_tap_action || this._config.icon.hold_action) {
             return html`
-                <ha-icon icon="${this.iconConfig.icon}" style="${styleMap(this.iconStl)}"
-                    @action=${e => this._handleAction(e, this.iconConfig)}
+                <ha-icon icon="${this._config.icon.icon}" style="${styleMap(this._config.styles.icon)}"
+                    @action=${e => this._handleAction(e, this._config.icon)}
                     .actionHandler=${actionHandler({
-                hasDoubleClick: this.iconConfig.double_tap_action?.action !== 'none',
-                hasHold: this.iconConfig.hold_action?.action !== 'none',
+                hasDoubleClick: this._config.icon.double_tap_action?.action !== 'none',
+                hasHold: this._config.icon.hold_action?.action !== 'none',
+                repeat: this._config.icon.hold_action?.repeat,
+                repeatLimit: this._config.icon.hold_action?.repeat_limit,
             })} />
             `
         }
         else {
             return html`
-                <ha-icon icon="${this.iconConfig.icon}" style="${styleMap(this.iconStl)}" />
+                <ha-icon icon="${this._config.icon.icon}" style="${styleMap(this._config.styles.icon)}" />
             `
         }
     }
     private statsElement(): TemplateResult {
-        if (!this.statsConfig.show) return html``
+        if (!this._config.stats.show) return html``
 
-        if (this.statsConfig.tap_action || this.statsConfig.double_tap_action || this.statsConfig.hold_action) {
-            return html`
-                <div style="${styleMap(this.statsStl)}"
-                    @action=${e => this._handleAction(e, this.statsConfig)}
+        if (this._config.stats.tap_action || this._config.stats.double_tap_action || this._config.stats.hold_action) {
+            if (this._config.camera) {
+                return html`
+                    <div data-container="stats"
+                    @action=${e => this._handleAction(e, this._config.stats)}
                     .actionHandler=${actionHandler({
-                hasDoubleClick: this.statsConfig.double_tap_action?.action !== 'none',
-                hasHold: this.statsConfig.hold_action?.action !== 'none',
-            })}>
-
-                ${this.statsConfig.text}
-
-                </div>
-            `
+                    hasDoubleClick: this._config.stats.double_tap_action?.action !== 'none',
+                    hasHold: this._config.stats.hold_action?.action !== 'none',
+                    repeat: this._config.stats.hold_action?.repeat,
+                    repeatLimit: this._config.stats.hold_action?.repeat_limit,
+                })}>
+                        <div style="${styleMap(deflate(this._config.stats.styles.container))}">
+                            <ha-camera-stream style="${styleMap(deflate(this._config.stats.styles.camera))}" 
+                                .hass="${this.hass}" .stateObj="${this._config.camera}"></ha-camera-stream>
+                            ${this._config.stats.text}
+                        </div>
+                    </div>
+                `
+            }
+            else {
+                return html`
+                    <div data-container="stats"
+                        @action=${e => this._handleAction(e, this._config.stats)}
+                        .actionHandler=${actionHandler({
+                    hasDoubleClick: this._config.stats.double_tap_action?.action !== 'none',
+                    hasHold: this._config.stats.hold_action?.action !== 'none',
+                    repeat: this._config.stats.hold_action?.repeat,
+                    repeatLimit: this._config.stats.hold_action?.repeat_limit,
+                })}>
+    
+                        <div style="${styleMap(deflate(this._config.stats.styles.container))}">
+                            ${this._config.stats.text}
+                        </div>
+                    
+                    </div>
+                `
+            }
         }
         else {
-            return html`
-                <div style="${styleMap(this.statsStl)}">
-                ${this.statsConfig.text}
-                </div>
-            `
+            if (this._config.camera) {
+                return html`
+                    <div data-container="stats">
+                        <div style="${styleMap(deflate(this._config.stats.styles.container))}">
+                            <ha-camera-stream style="${styleMap(deflate(this._config.stats.styles.camera))}"
+                                .hass="${this.hass}" .stateObj="${this._config.camera}"></ha-camera-stream>
+                        </div>
+                    </div>
+                `
+            }
+            else {
+                return html`
+                    <div data-container="stats">
+                        <div style="${styleMap(deflate(this._config.stats.styles.container))}">
+                            ${this._config.stats.text}
+                        </div>
+                    </div>
+                `
+            }
         }
     }
 
     private labelElement(): TemplateResult {
-        if (!this.labelConfig.show) return html``
+        if (!this._config.label.show) return html``
 
-
-        if (this.labelConfig.tap_action || this.labelConfig.double_tap_action || this.labelConfig.hold_action) {
+        if (this._config.label.tap_action || this._config.label.double_tap_action || this._config.label.hold_action) {
             return html`
-                <div style="${styleMap(this.labelWrapperStl)}">
-                        <label style="${styleMap(this.labelStl)}"
-                            @action=${e => this._handleAction(e, this.labelConfig)}
+                <div style="${styleMap(deflate(this._config.label.styles.container))}">
+                        <label style="${styleMap(deflate(this._config.label.styles.label))}"
+                            @action=${e => this._handleAction(e, this._config.label)}
                             .actionHandler=${actionHandler({
-                hasDoubleClick: this.labelConfig.double_tap_action?.action !== 'none',
-                hasHold: this.labelConfig.hold_action?.action !== 'none',
+                hasDoubleClick: this._config.label.double_tap_action?.action !== 'none',
+                hasHold: this._config.label.hold_action?.action !== 'none',
+                repeat: this._config.label.hold_action?.repeat,
+                repeatLimit: this._config.label.hold_action?.repeat_limit,
             })}
-                        >${this.labelConfig.text}</label>
+                        >${this._config.label.text}</label>
+                        ${this._config.label.extra ? html`<p style="${styleMap(deflate(this._config.label.styles.extraText))}">${this._config.label.extra}</p>` : ''}
+                        
                 </div>
             `
         }
         else {
             return html`
-                <div style="${styleMap(this.labelWrapperStl)}">
-                    <label style="${styleMap(this.labelStl)}">${this.labelConfig.text}</label>
+                <div style="${styleMap(deflate(this._config.label.styles.container))}">
+                    <label style="${styleMap(deflate(this._config.label.styles.label))}">${this._config.label.text}</label>
+                    ${this._config.label.extra ? html`<p style="${styleMap(deflate(this._config.label.styles.extraText))}">${this._config.label.extra}</p>` : ''}
                 </div>
             `
         }
     }
 
     private sliderElement(): TemplateResult {
-        if (!this.sliderConfig.show) return html``
-
-        if (this.layout === 'horizontal') {
-            this.sliderConfig.vertical = this.sliderConfig.vertical !== undefined ? this.sliderConfig.vertical : true
-            this.sliderConfig.styles = this.sliderConfig.styles ? this.sliderConfig.styles : {}
-            this.sliderConfig.styles.card = this.sliderConfig.styles.card ? this.sliderConfig.styles.card : {}
-            this.sliderConfig.styles.card.width = this.sliderConfig.styles.card.width ? this.sliderConfig.styles.card.width : '35px'
-        }
+        if (!this._config.slider.show) return html``
 
         return html`
-            <my-slider-v2 .hass="${this.hass}" .config="${this.sliderConfig}"></my-slider-v2>
+            <my-slider-v2 .hass="${this.hass}" .config="${this._config.slider}"></my-slider-v2>
         `
     }
 
+    private buttonsElement(): TemplateResult {
+        if (!this._config.buttons.show) return html`` // Dont render if not wanted
+
+        let buttonsArray = Object.keys(this._config.buttons)
+            .filter(key => key.startsWith('button'))
+            .map(key => {
+                if (!this._config.buttons[key].show) return html``
+                if (this._config.buttons[key].tap_action || this._config.buttons[key].double_tap_action || this._config.buttons[key].hold_action) {
+                    return html`
+                    <div style="${styleMap(deflate(this._config.buttons[key].styles.container))}" data-container="button"
+                    @action=${e => this._handleAction(e, this._config.buttons[key])}
+                    .actionHandler=${actionHandler({
+                        hasDoubleClick: this._config.buttons[key].double_tap_action?.action !== 'none',
+                        hasHold: this._config.buttons[key].hold_action?.action !== 'none',
+                        repeat: this._config.buttons[key].hold_action?.repeat,
+                        repeatLimit: this._config.buttons[key].hold_action?.repeat_limit,
+                    })}>
+                        ${this._config.buttons[key].text ? html`<p style="${styleMap(deflate(this._config.buttons[key].styles.text))}">${this._config.buttons[key].text}</p>` : ''}
+                        ${this._config.buttons[key].icon ? html`<ha-icon style="${styleMap(deflate(this._config.buttons[key].styles.icon))}" icon="${this._config.buttons[key].icon}"></ha-icon>` : ''}
+                        </div>`
+                }
+                else {
+                    return html`
+                    <div style="${styleMap(deflate(this._config.buttons[key].styles.container))}" data-container="button">
+                    ${this._config.buttons[key].text ? html`<p style="${styleMap(deflate(this._config.buttons[key].styles.text))}">${this._config.buttons[key].text}</p>` : ''}
+                    ${this._config.buttons[key].icon ? html`<ha-icon style="${styleMap(deflate(this._config.buttons[key].styles.icon))}" icon="${this._config.buttons[key].icon}"></ha-icon>` : ''}
+                    </div>`
+
+                }
+            });
+
+        // return html``
+        return html`
+            <div style="${styleMap(deflate(this._config.buttons.styles.container))}" data-container="buttons">
+                ${buttonsArray}
+    
+            </div>
+        `
+    }
+
+    private seekbarElement(): TemplateResult {
+        if (!this._config.slider.show) return html``
+
+        return html`
+            <my-slider-v2 .hass="${this.hass}" .config="${this._config.seekbar}"></my-slider-v2>
+        `
+    }
     // ------------------- INITIALIZE CUSTOM CARD CONFIGURATION ------------------- //
     private initializeConfig(): any {
         this.entity = this.hass.states[`${this.config.entity}`]
@@ -285,7 +355,7 @@ export class MyButton extends LitElement {
         }
 
         try {
-            this._config = this._objectEvalTemplate(this.entity, this.config)
+            this._config = objectEvalTemplate(this, this.entity, this.config)
         } catch (e) {
             if (e instanceof Error) {
                 if (e.stack) console.error(e.stack)
@@ -303,165 +373,394 @@ export class MyButton extends LitElement {
             }
         }
         if (!this._config) return html`Error with this._config...`
-        const entityType = this._config.entity.split('.')[0]
-        // ---- Default Icon Config ---- //
+        const entityType = this._config.entity ? this._config.entity?.split('.')[0] : 'none'
+
+        const defaultCardConfig: any = {}
         const defaultIconAttr = {
             show: true,
-            icon: 'mdi:lightbulb-outline'
+            icon: 'mdi:power'
         }
-        if (entityType === 'cover') {
-            defaultIconAttr.icon = this.entity.attributes?.current_position >= 50 ? 'mdi:blinds-open' : 'mdi:blinds'
-        }
-        else if (entityType === 'switch') {
-            defaultIconAttr.icon = this.entity.state === 'on' ? 'mdi:power-plug' : 'mdi:power-plug-off'
-        }
-
-        // ---- Default Label Config ---- //
-        const defaultLabelAttr = {
+        const defaultLabelAttr: any = {
             show: true,
-            text: this.entity.attributes.friendly_name
+        }
+        const defaultStatsAttr: any = {
+            show: false,
+        }
+        const defaultButtonsAttr: any = {
+            show: false,
+            vertical: true,
+            styles: {}
         }
 
-        this.layout = this._config.layout ? this._config.layout : 'vertical'
-        if (this._config.entity.split('.')[0] === 'cover') {
-            this.layout = this._config.layout ? this._config.layout : 'horizontal'
-        }
-        // If icon is just a string, then save that under iconConfig. If it's an object, then combine default with custom configs. If nothing then just use default config
-        this.iconConfig = typeof this._config.icon === 'string' ? { ...defaultIconAttr, icon: this._config.icon } : typeof this._config.icon === 'object' ? deepMerge(defaultIconAttr, this._config.icon) : defaultIconAttr
-        this.labelConfig = typeof this._config.label === 'string' ? { ...defaultLabelAttr, text: this._config.label } : typeof this._config.label === 'object' ? deepMerge(defaultLabelAttr, this._config.label) : defaultLabelAttr
-
-        const defaultStatsAttr = {
-            show: this.entity.attributes.brightness ? true : false,
-            text: this.entity.attributes.brightness && Math.ceil(percentage(this.entity.attributes.brightness, 256))
-        }
-        this.statsConfig = typeof this._config.stats === 'string' ? { ...defaultStatsAttr, text: this._config.stats } : typeof this._config.stats === 'object' ? deepMerge(defaultStatsAttr, this._config.stats) : defaultStatsAttr
-
-
-
-        const defaultSliderConfig = {
+        // TODO: If slider is flipped, we need to position thumb correct
+        const defaultSliderConfig: any = {
             show: true,
-            entity: this.entity.entity_id,
-            styles: {
-                card: [{
-                    'border-radius': '0px',
-                    background: 'transparent',
-                    'box-shadow': 'none',
-                    cursor: 'default',
-                }],
-                container: [{
-                    'border-radius': '0px',
-                    // 'box-shadow': this.entity.state === 'on' ? '0 0 3px rgba(0,0,0,0.6)' : '0 0 3px rgba(0,0,0,0.3)'
-                }],
-                thumb: this.layout === 'vertical' ? [{
-                    'height': '20px',
-                    'width': '3px',
-                    'top': '6px',
-                    'right': '2px',
-                    'border-radius': '50px',
-                    // 'cursor': 'ew-resize'
-                }] : [{
-                    'width': '20px',
-                    'height': '3px',
-                    'bottom': '2px',
-                    'left': '7px',
-                    'border-radius': '50px',
-                    // 'cursor': 'ns-resize'
-                }],
-                track: [{
-                    background: 'transparent',
-                }],
-                progress: this.layout === 'vertical' ? [{
-                    'background': 'linear-gradient(to top, var(--paper-item-icon-active-color), transparent)',
-                }] : [{
-                    'background': 'linear-gradient(to left, var(--paper-item-icon-active-color), transparent)',
-                }]
-            },
+            vertical: false,
+            entity: this._config.entity,
+            allowTapping: false,
+            marginOfError: 10,
         }
-        if (entityType === 'switch') {
+        const defaultSeekbarConfig: any = {
+            show: false,
+            entity: this._config.entity
+        }
+
+        if (entityType !== 'none') {
+            const verticalSlider = entityType === 'cover' ? true : false
+            const flippedSlider = entityType === 'cover' ? true : false
+            const state: string = this.entity.state
+            defaultLabelAttr.text = this.entity.attributes.friendly_name
+            defaultStatsAttr.text = state.charAt(0).toUpperCase() + state.slice(1)
+
+
+            defaultSliderConfig.entity = this.entity.entity_id
+            defaultSliderConfig.vertical = verticalSlider
+            defaultSliderConfig.flipped = flippedSlider
+
+            if (entityType === 'light') {
+                defaultCardConfig.tap_action = {
+                    action: 'toggle'
+                }
+                defaultCardConfig.hold_action = {
+                    action: 'more-info'
+                }
+                if (this.entity.attributes.brightness) {
+                    defaultCardConfig.hold_action = {
+                        action: 'more-info'
+                    }
+                    defaultStatsAttr.text = Math.ceil(percentage(this.entity.attributes.brightness, 256)) + '%'
+                }
+                defaultStatsAttr.show = true
+                defaultSliderConfig.allowSliding = true
+                defaultSliderConfig.slideDistance = 15
+            }
+            else if (entityType === 'cover') {
+                defaultCardConfig.hold_action = {
+                    action: 'more-info'
+                }
+                defaultIconAttr.icon = this.entity.attributes?.current_position >= 50 ? 'mdi:blinds-open' : 'mdi:blinds'
+            }
+            else if (entityType === 'switch' || entityType === 'input_boolean') {
+                defaultCardConfig.tap_action = {
+                    action: 'toggle'
+                }
+                defaultCardConfig.hold_action = {
+                    action: 'more-info'
+                }
+                defaultStatsAttr.show = true
+                defaultSliderConfig.show = false
+                defaultIconAttr.icon = this.entity.state === 'on' ? 'mdi:power-plug' : 'mdi:power-plug-off'
+            }
+            else if (entityType === 'button') {
+                defaultCardConfig.tap_action = {
+                    action: 'call-service',
+                    service: 'button.press',
+                    service_data: {
+                        entity_id: this.entity.entity_id
+                    }
+                }
+                defaultCardConfig.hold_action = {
+                    action: 'more-info'
+                }
+
+                defaultSliderConfig.show = false
+            }
+            else if (entityType === 'lock') {
+                defaultCardConfig.hold_action = {
+                    action: 'more-info'
+                }
+                defaultSliderConfig.show = false
+                defaultStatsAttr.show = true
+
+                if (this._config.camera && typeof this._config.camera === 'string') {
+                    this._config.camera = this.hass.states[this._config.camera]
+                    defaultStatsAttr.entity = this._config.camera.entity_id
+                    defaultStatsAttr.tap_action = {
+                        action: 'more-info'
+                    }
+                }
+
+                if (this.entity.state === 'locked') {
+                    defaultIconAttr.icon = 'mdi:lock-outline'
+                    defaultCardConfig.tap_action = {
+                        action: 'call-service',
+                        service: 'lock.unlock',
+                        service_data: {
+                            entity_id: this.entity.entity_id
+                        }
+                    }
+                }
+                else if (this.entity.state === 'unlocked') {
+                    defaultIconAttr.icon = 'mdi:lock-open-variant-outline'
+                    defaultCardConfig.tap_action = {
+                        action: 'call-service',
+                        service: 'lock.lock',
+                        service_data: {
+                            entity_id: this.entity.entity_id
+                        }
+                    }
+                }
+
+            }
+            else if (entityType === 'media_player') {
+                defaultCardConfig.tap_action = {
+                    action: 'more-info'
+                }
+                if (this.entity.attributes.device_class === 'speaker') {
+                    defaultIconAttr.icon = stateActive(this.entity, this.entity.state) ? 'mdi:speaker' : 'mdi:speaker-off'
+                    if (this.entity.state === 'playing') {
+                        defaultIconAttr.icon = 'mdi:speaker-play'
+                    }
+                    else if (this.entity.state === 'paused') {
+                        defaultIconAttr.icon = 'mdi:speaker-pause'
+                    }
+                }
+                else if (this.entity.attributes.device_class === 'tv') {
+                    defaultIconAttr.icon = stateActive(this.entity, this.entity.state) ? 'mdi:television' : 'mdi:television-off'
+                    if (this.entity.state === 'playing') {
+                        defaultIconAttr.icon = 'mdi:television-play'
+                    }
+                    else if (this.entity.state === 'paused') {
+                        defaultIconAttr.icon = 'mdi:television-pause'
+                    }
+                }
+
+                defaultSliderConfig.show = this.entity.state === 'paused' ? false : stateActive(this.entity, this.entity.state)
+                defaultSliderConfig.vertical = true
+                defaultSliderConfig.sliderMin = 5
+                defaultSliderConfig.min = 1
+                defaultSliderConfig.allowTapping = false
+                defaultSliderConfig.marginOfError = 10
+
+                defaultSeekbarConfig.show = stateActive(this.entity, this.entity.state)
+                defaultSeekbarConfig.vertical = false
+                defaultSeekbarConfig.allowTapping = false
+                defaultSeekbarConfig.marginOfError = 5
+                defaultSeekbarConfig.mode = 'seekbar'
+
+                if (this.entity.attributes.media_title) {
+                    defaultLabelAttr.extra = this.entity.attributes.media_title + ' - ' + this.entity.attributes.media_artist
+                }
+
+                defaultButtonsAttr.vertical = false
+                defaultButtonsAttr.show = true
+                defaultButtonsAttr.button0 = {
+                    show: true,
+                    icon: this.entity.state === 'playing' ? 'mdi:pause' : 'mdi:play',
+                    styles: {
+                        container: {
+                            'position': 'absolute',
+                        }
+                    },
+                    tap_action: {
+                        action: 'call-service',
+                        service: this.entity.state === 'playing' ? 'media_player.media_pause' : 'media_player.media_play',
+                        service_data: {
+                            entity_id: this.entity.entity_id
+                        }
+                    }
+                }
+            }
+        }
+        else {
             defaultSliderConfig.show = false
         }
-        this.sliderConfig = this._config.slider ? deepMerge(defaultSliderConfig, this._config.slider) : defaultSliderConfig
 
-        let defaultCardStyle: any[] = []
-        if (entityType === 'light') {
-            if (this.entity.attributes.brightness) {
-                let divisor = 1 + (this.entity.attributes.brightness / 256);
-                const cardBg = `radial-gradient(circle at top left, rgba(230, 230, 230, 0.7), var(--card-background-color) ${Math.ceil(percentage(this.entity.attributes.brightness, 256)) / divisor + '%'})`
-                defaultCardStyle = [
-                    { 'background': cardBg },
-                ]
-            }
-            else {
-                defaultCardStyle = [
-                    { 'background': `radial-gradient(circle at top left, rgba(230, 230, 230, 0.5), var(--card-background-color) 40%)` },
-                ]
-            }
+
+        const merged = deepMerge(defaultCardConfig, this._config)
+        this._config = merged !== undefined ? merged : this._config
+
+        this._config.icon = typeof this._config.icon === 'string' ? { ...defaultIconAttr, icon: this._config.icon } : typeof this._config!.icon === 'object' ? deepMerge(defaultIconAttr, this._config.icon) : defaultIconAttr
+        this._config.label = typeof this._config!.label === 'string' ? { ...defaultLabelAttr, text: this._config!.label } : typeof this._config!.label === 'object' ? deepMerge(defaultLabelAttr, this._config!.label) : defaultLabelAttr
+        this._config.stats = typeof this._config!.stats === 'string' ? { ...defaultStatsAttr, text: this._config!.stats } : typeof this._config!.stats === 'object' ? deepMerge(defaultStatsAttr, this._config!.stats) : defaultStatsAttr
+        this._config.buttons = typeof this._config!.buttons === 'object' ? deepMerge(defaultButtonsAttr, this._config!.buttons) : defaultButtonsAttr
+        this._config.slider = this._config!.slider ? deepMerge(defaultSliderConfig, this._config!.slider) : defaultSliderConfig
+        this._config.seekbar = this._config!.seekbar ? deepMerge(defaultSeekbarConfig, this._config!.seekbar) : defaultSeekbarConfig
+        if (this._config.styles === undefined || this._config.styles === null) {
+            this._config.styles = {}
         }
-        else if (entityType === 'switch') {
-            const cardBg = this.entity.state === 'on' ?
-                `radial-gradient(circle at top left, rgba(230, 230, 230, 0.7), var(--card-background-color) 50%)` :
-                `radial-gradient(circle at top left, rgba(230, 230, 230, 0.5), var(--card-background-color) 40%)`
-            defaultCardStyle = [
-                { 'background': cardBg },
-            ]
-        }
-        const cardStyle = this._config.styles?.card ? { ...defaultCardStyle, ...this._config.styles.card } : defaultCardStyle;
-
-        const defaultIconStyle = [
-            { 'color': this.entity.state === 'on' ? 'var(--paper-item-icon-active-color)' : 'var(--paper-item-icon-color)' },
-            { 'filter': this.entity.state === 'on' ? 'drop-shadow(2px 2px 2px rgba(0,0,0,0.6)' : 'drop-shadow(3px 3px 2px rgba(0,0,0,0.3)' },
-        ]
-        const iconStyle = this._config.styles?.icon ? { ...defaultIconStyle, ...this._config.styles.icon } : defaultIconStyle;
-
-        // ---------- Styles ---------- // deflate the array of objects to a single object
-        this.cardStl = getStyle('card', deflate(cardStyle) ? deflate(cardStyle) : {})
-        this.containerStl = getStyle('container', deflate(this._config.styles?.container) ? deflate(this._config.styles?.container) : {})
-        this.containerColumnStl = getStyle('container-column', deflate(this._config.styles?.containerColumn) ? deflate(this._config.styles?.containerColumn) : {})
-        this.iconStl = getStyle('icon', deflate(iconStyle) ? deflate(iconStyle) : {})
-        this.statsStl = getStyle('stats', deflate(this._config.styles?.stats) ? deflate(this._config.styles?.stats) : {})
-        this.labelWrapperStl = getStyle('label-wrapper', deflate(this._config.styles?.labelWrapper) ? deflate(this._config.styles?.labelWrapper) : {})
-        this.labelStl = getStyle('label', deflate(this._config.styles?.label) ? deflate(this._config.styles?.label) : {})
-        this.row1Stl = getStyle('row1', deflate(this._config.styles?.row1) ? deflate(this._config.styles?.row1) : {})
-        this.row2Stl = getStyle('row2', deflate(this._config.styles?.row2) ? deflate(this._config.styles?.row2) : {})
-        this.row3Stl = getStyle('row3', deflate(this._config.styles?.row3) ? deflate(this._config.styles?.row3) : {})
-        this.column1Stl = getStyle('column1', deflate(this._config.styles?.column1) ? deflate(this._config.styles?.column1) : {})
-        this.column2Stl = getStyle('column2', deflate(this._config.styles?.column2) ? deflate(this._config.styles?.column2) : {})
+        
+        this.initializeStyles()
         return null // Success in this case
+    }
+
+    private initializeStyles(): any {
+        if (!this._config) return
+        const entityType = this._config.entity ? this._config.entity?.split('.')[0] : 'none'
+
+        const defaultCardStyle: any = {
+            background: `radial-gradient(circle at top left, rgba(230, 230, 230, 0.25), var(--card-background-color) 40%)`,
+        }
+        const defaultButtonsContainerStyle: any = {}
+        const defaultIconStyle: any = {
+            filter: 'drop-shadow(3px 3px 2px rgba(0,0,0,0.3)'
+        }
+
+        // Here we merge default styles with styles given in root styles object
+        const defaultSliderStyle: any = {
+            card: getStyle('sliderCard', deflate(this._config.styles?.sliderCard) ? deflate(this._config.styles?.sliderCard) : {}),
+            container: getStyle('sliderContainer', deflate(this._config.styles?.sliderContainer) ? deflate(this._config.styles?.sliderContainer) : {}),
+            track: getStyle('sliderTrack', deflate(this._config.styles?.sliderTrack) ? deflate(this._config.styles?.sliderTrack) : {}),
+            progress: this._config.slider.vertical ? getStyle('sliderProgressVer', deflate(this._config.styles?.sliderProgressVer) ? deflate(this._config.styles?.sliderProgressVer) : {}) :
+                getStyle('sliderProgressHor', deflate(this._config.styles?.sliderProgressHor) ? deflate(this._config.styles?.sliderProgressHor) : {}),
+            thumb: this._config.slider.vertical ?
+                getStyle('sliderThumbVer', deflate(this._config.styles?.sliderThumbVer) ? deflate(this._config.styles?.sliderThumbVer) : {}) :
+                getStyle('sliderThumbHor', deflate(this._config.styles?.sliderThumbHor) ? deflate(this._config.styles?.sliderThumbHor) : {}),
+        }
+        const defaultStatsStyle: any = {
+            container: getStyle('stats', deflate(this._config.styles?.stats) ? deflate(this._config.styles?.stats) : {}),
+            camera: getStyle('camera', deflate(this._config.styles?.camera) ? deflate(this._config.styles?.camera) : {}),
+        }
+        const defaultLabelStyle: any = {
+            container: getStyle('labelContainer', deflate(this._config.styles?.labelContainer) ? deflate(this._config.styles?.labelContainer) : {}),
+            label: getStyle('label', deflate(this._config.styles?.label) ? deflate(this._config.styles?.label) : {}),
+            extraText: getStyle('extraText', deflate(this._config.styles?.extraText) ? deflate(this._config.styles?.extraText) : {}),
+        }
+        const defaultButtonsStyle: any = {
+            container: getStyle('buttonsContainer', deflate(this._config.styles?.buttonsContainer) ? deflate(this._config.styles?.buttonsContainer) : {}),
+            button: getStyle('button', deflate(this._config.styles?.button) ? deflate(this._config.styles?.button) : {}),
+            text: getStyle('buttonText', deflate(this._config.styles?.buttonText) ? deflate(this._config.styles?.buttonText) : {}),
+            icon: getStyle('buttonIcon', deflate(this._config.styles?.buttonIcon) ? deflate(this._config.styles?.buttonIcon) : {})
+        }
+        const defaultSeekbarStyle: any = {
+            card: getStyle('seekbarCard', deflate(this._config.styles?.seekbarCard) ? deflate(this._config.styles?.seekbarCard) : {}),
+            container: getStyle('seekbarContainer', deflate(this._config.styles?.seekbarContainer) ? deflate(this._config.styles?.seekbarContainer) : {}),
+            track: getStyle('seekbarTrack', deflate(this._config.styles?.seekbarTrack) ? deflate(this._config.styles?.seekbarTrack) : {}),
+            progress: getStyle('seekbarProgress', deflate(this._config.styles?.seekbarProgress) ? deflate(this._config.styles?.seekbarProgress) : {}),
+            thumb: getStyle('seekbarThumb', deflate(this._config.styles?.seekbarThumb) ? deflate(this._config.styles?.seekbarThumb) : {}),
+        }
+
+        if (this._config.slider.vertical && this._config.slider.flipped) {
+            defaultSliderStyle.thumb['top'] = 'initial'
+            defaultSliderStyle.thumb['bottom'] = '2px'
+        }
+
+        if (this._config.buttons.vertical) {
+            defaultButtonsStyle.container['flex-direction'] = 'column'
+            defaultButtonsContainerStyle['padding'] = '10px 5px 10px 0px'
+        }
+
+
+        // Here we set the default styles for the card based on entity type and state
+        if (entityType !== 'none') {
+            if (stateActive(this.entity, this.entity.state)) {
+                defaultIconStyle.color = 'var(--paper-item-icon-active-color)'
+                defaultIconStyle.filter = 'drop-shadow(2px 2px 2px rgba(0,0,0,0.75)'
+                defaultCardStyle.background = `radial-gradient(circle at top left, rgba(230, 230, 230, 0.7), var(--card-background-color) 40%)`
+            }
+
+            if (entityType === 'light') {
+
+                if (this.entity.attributes.brightness) {
+                    let divisor = 1 + (this.entity.attributes.brightness / 256);
+                    defaultCardStyle['background'] = `radial-gradient(circle at top left, rgba(230, 230, 230, 0.7), var(--card-background-color) ${Math.ceil(percentage(this.entity.attributes.brightness, 256)) / divisor + '%'})`
+                }
+            }
+            else if (entityType === 'switch' || entityType === 'input_boolean') {
+                // if (this.entity.state === 'on') {
+                //     defaultCardStyle['background'] = `radial-gradient(circle at top left, rgba(230, 230, 230, 0.7), var(--card-background-color) 40%)`
+                // }
+
+            }
+            else if (entityType === 'lock') {
+                if (this.entity.state === 'locked') {
+                    // defaultIconStyle.color = 'green'
+                }
+                else if (this.entity.state === 'unlocked') {
+                    defaultIconStyle.color = 'var(--paper-item-icon-active-color)'
+                    defaultCardStyle['background'] = `radial-gradient(circle at top left, rgba(230, 230, 230, 0.7), var(--card-background-color) 40%)`
+                }
+            }
+            else if (entityType === 'media_player') {
+                // if (this.entity.state === 'paused') {
+                //     defaultIconStyle.color = 'var(--paper-item-icon-color)'
+                // }
+            }
+            else if (entityType === 'cover') {
+                if (this.entity.attributes.current_position <= 50) {
+                    defaultCardStyle.background = `radial-gradient(circle at top left, rgba(230, 230, 230, 0.25), var(--card-background-color) 40%)`
+                }
+                else {
+                    defaultIconStyle.color = 'var(--paper-item-icon-color)'
+                }
+            }
+
+        }
+
+
+        Object.keys(this._config.buttons)
+            .filter(key => key.startsWith('button'))
+            .map(key => {
+                if (this._config.buttons[key].styles) {
+                    if (this._config.buttons[key].styles.container) {
+                        this._config.buttons[key].styles.container = deepMerge(defaultButtonsStyle.button, this._config.buttons[key].styles.container ? deflate(this._config.buttons[key].styles.container) : {})
+                    }
+                    else {
+                        this._config.buttons[key].styles.container = deepMerge(defaultButtonsStyle.button, this._config.buttons.styles.button ? deflate(this._config.buttons.styles.button) : {})
+                    }
+                    if (this._config.buttons[key].styles.text) {
+                        this._config.buttons[key].styles.text = deepMerge(defaultButtonsStyle.text, this._config.buttons[key].styles.text ? deflate(this._config.buttons[key].styles.text) : {})
+                    }
+                    else {
+                        this._config.buttons[key].styles.text = deepMerge(defaultButtonsStyle.text, this._config.buttons.styles.text ? deflate(this._config.buttons.styles.text) : {})
+                    }
+                    if (this._config.buttons[key].styles.icon) {
+                        this._config.buttons[key].styles.icon = deepMerge(defaultButtonsStyle.text, this._config.buttons[key].styles.text ? deflate(this._config.buttons[key].styles.text) : {})
+                    }
+                    else {
+                        this._config.buttons[key].styles.icon = deepMerge(defaultButtonsStyle.icon, this._config.buttons.styles.icon ? deflate(this._config.buttons.styles.icon) : {})
+                    }
+                }
+                else {
+                    this._config.buttons[key].styles = {
+                        container: deepMerge(defaultButtonsStyle.button, this._config.buttons.styles.button ? deflate(this._config.buttons.styles.button) : {}),
+                        text: deepMerge(defaultButtonsStyle.text, this._config.buttons.styles.text ? deflate(this._config.buttons.styles.text) : {}),
+                        icon: deepMerge(defaultButtonsStyle.icon, this._config.buttons.styles.icon ? deflate(this._config.buttons.styles.icon) : {}),
+                    }
+                }
+                return null
+            })
+
+
+        // Merge default styles with the styles given in the specific element configs
+        const cardStyle = this._config.styles?.card ? { ...defaultCardStyle, ...deflate(this._config.styles.card) } : defaultCardStyle
+        const iconStyle = this._config.styles?.icon ? { ...defaultIconStyle, ...deflate(this._config.styles.icon) } : defaultIconStyle
+        this._config.styles.card = getStyle('card', deflate(cardStyle))
+        this._config.styles.icon = getStyle('icon', deflate(iconStyle))
+        this._config.styles.row1 = getStyle('row1', deflate(this._config.styles?.row1) ? deflate(this._config.styles?.row1) : {})
+        this._config.styles.row2 = getStyle('row2', deflate(this._config.styles?.row2) ? deflate(this._config.styles?.row2) : {})
+        this._config.styles.button = getStyle('button', deflate(this._config.styles?.button) ? deflate(this._config.styles?.button) : {})
+
+        this._config.slider.styles = this._config.slider?.styles ? deepMerge(defaultSliderStyle, this._config.slider.styles) : defaultSliderStyle
+        this._config.stats.styles = this._config.stats?.styles ? deepMerge(defaultStatsStyle, this._config.stats.styles) : defaultStatsStyle
+        this._config.label.styles = this._config.label?.styles ? deepMerge(defaultLabelStyle, this._config.label.styles) : defaultLabelStyle
+        this._config.buttons.styles = this._config.buttons?.styles ? deepMerge(defaultButtonsStyle, this._config.buttons.styles) : defaultButtonsStyle
+        this._config.seekbar.styles = this._config.seekbar?.styles ? deepMerge(defaultSeekbarStyle, this._config.seekbar.styles) : defaultSeekbarStyle
     }
 
     // ------------------- ACTION HANDLER FUNC ------------------- //
     private _handleAction(ev: any, actionConfig: any): void {
         ev.stopPropagation()
         ev.stopImmediatePropagation()
-
         const now = new Date().getTime()
-
-        // Check here if lastAction was performed longer than 100 ms
-        // If not then we want to return and break out of the function
-        if (now - this.lastAction < 100) {
-            return
-        }
-        // We will only get here if enough time has passed
-        // So safely set the new lastAction
+        if (now - this.lastAction < 25) { return } // Simple guard for multiple calls when one was triggered...
         this.lastAction = new Date().getTime()
 
+
         if (!actionConfig.entity) {
-            actionConfig.entity = this._config!.entity
+            actionConfig.entity = this._config.entity
         }
 
         if (ev.detail?.action) {
             switch (ev.detail.action) {
                 case 'tap':
-                    if (actionConfig.tap_action)
-                        this._handleTap(actionConfig);
-                    break;
                 case 'hold':
-                    if (actionConfig.hold_action)
-                        this._handleHold(actionConfig);
-                    break;
                 case 'double_tap':
-                    if (actionConfig.double_tap_action)
-                        this._handleDblTap(actionConfig);
+                    if (!actionConfig) return
+                    const action = ev.detail.action
+                    const localAction = evalActions(this, actionConfig, `${action}_action`)
+                    // @ts-ignore
+                    handleAction(this, this.hass!, localAction, action)
                     break;
                 default:
                     break;
@@ -469,98 +768,13 @@ export class MyButton extends LitElement {
         }
     }
 
-    private _handleTap(actionConfig: any): void {
-        if (actionConfig) { }
-        handleClick(this, this.hass!, this._evalActions(this._config!, 'tap_action'), false, false)
-    }
-
-    private _handleHold(actionConfig: any): void {
-        if (actionConfig) { }
-        handleClick(this, this.hass!, this._evalActions(this._config!, 'hold_action'), true, false)
-    }
-
-    private _handleDblTap(actionConfig: any): void {
-        if (actionConfig) { }
-        handleClick(this, this.hass!, this._evalActions(this._config!, 'double_tap_action'), false, true)
-    }
-
-    private _evalActions(config: MyButtonCardConfig, action: string): MyButtonCardConfig {
-        // const configDuplicate = copy(config);
-        const configDuplicate = JSON.parse(JSON.stringify(config));
-        /* eslint no-param-reassign: 0 */
-        const __evalObject = (configEval: any): any => {
-            if (!configEval) {
-                return configEval;
-            }
-            Object.keys(configEval).forEach((key) => {
-                if (typeof configEval[key] === 'object') {
-                    configEval[key] = __evalObject(configEval[key]);
-                } else {
-                    configEval[key] = this._getTemplateOrValue(this.entity, configEval[key]);
-                }
-            });
-            return configEval;
-        };
-        configDuplicate[action] = __evalObject(configDuplicate[action]);
-        if (!configDuplicate[action].confirmation && configDuplicate.confirmation) {
-            configDuplicate[action].confirmation = __evalObject(configDuplicate.confirmation);
-        }
-        return configDuplicate;
-    }
-
-
-    // ------------------- TEMPLATING FUNC ------------------- //
-    private _objectEvalTemplate(state: HassEntity | undefined, obj: any | undefined): any {
-        const objClone = JSON.parse(JSON.stringify(obj))
-        return this._getTemplateOrValue(state, objClone);
-    }
-
-    private _getTemplateOrValue(state: HassEntity | undefined, value: any | undefined): any | undefined {
-        if (['number', 'boolean'].includes(typeof value)) return value;
-        if (!value) return value;
-        if (typeof value === 'object') {
-            Object.keys(value).forEach((key) => {
-                value[key] = this._getTemplateOrValue(state, value[key]);
-            });
-            return value;
-        }
-        const trimmed = value.trim();
-        if (trimmed.substring(0, 3) === '[[[' && trimmed.slice(-3) === ']]]') {
-            const tmp = this._evalTemplate(state, trimmed.slice(3, -3))
-            return tmp
-        } else {
-            return value
-        }
-    }
-
-    private _evalTemplate(state: HassEntity | undefined, func: any): any {
-        /* eslint no-new-func: 0 */
-        try {
-            return new Function('states', 'entity', 'user', 'hass', 'html', `'use strict'; ${func}`).call(
-                this,
-                this.hass!.states,
-                state,
-                this.hass!.user,
-                this.hass,
-                html,
-            );
-        } catch (e) {
-
-            if (e instanceof Error) {
-                const funcTrimmed = func.length <= 100 ? func.trim() : `${func.trim().substring(0, 98)}...`;
-                e.message = `${e.name}: ${e.message} in '${funcTrimmed}'`;
-                e.name = 'MyCardJSTemplateError';
-                throw e;
-            }
-            else {
-                console.log('Unexpected error (_evalTemplate)', e);
-            }
-        }
-    }
-
     // https://lit-element.polymer-project.org/guide/styles
     static get styles(): CSSResult {
-
-        return css``;
+        return css`
+            @keyframes marquee {
+                0%   { text-indent: 100% }
+                100% { text-indent: -100% }
+            }
+        `;
     }
 }

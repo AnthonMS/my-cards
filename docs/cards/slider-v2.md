@@ -17,9 +17,8 @@ It is completely customizable now and fully templatable.
 
 ### Future features (Maybe)
 - Text inside slider (Should be easily done with this new slider)
-- Radius attribute to set how close to the thumb user has to be when allowTapping is set to false
 - If user is not actively changing the slider, then it should animate between states.
-- **If you would like a new feature, please feel free to create an issue asking for it.**
+- **If you would like something made or fixed, please feel free to create an issue asking about it.**
 
 
 ## Options
@@ -28,8 +27,9 @@ It is completely customizable now and fully templatable.
 | type | string | **Required** | `custom:my-slider-v2` |
 | entity | string | **Required** | `light.livingroom` |
 | step | string | "1" | Number of steps to take (For input number, if step is not specified, it will use step from attributes.) (For media_player, if step is not specified it will step by 0.01. (It will actually step by 1, but it will convert 27 to 0.27. So if you set a custom step, set it between 0 and 100.)) |
-| colorMode | string | brightness | Can be brightness, temperature, hue, saturation |
-| coverMode | string | position | Can be position or tilt |
+| colorMode (Deprecated: Use 'mode' instead) | string | brightness | Can be brightness, temperature, hue, saturation |
+| coverMode (Deprecated: Use 'mode' instead) | string | position | Can be position or tilt |
+| mode | string | cover:position, light:brightness | Can be position, tilt, brightness, temperature, hue, saturation, volume & seekbar |
 | vertical | boolean | false | This will set the slider to be vertical and handled from bottom to top. Default on covers |
 | flipped | boolean | false | This will just flip the slider to go from right to left or top to bottom. Default on covers |
 | inverse | boolean | false | Will inverse how far the slider has progressed compared to value. so if brightness is 75%, then it will only be 25% progressed. This is useful for cover, where it is Default. |
@@ -44,7 +44,8 @@ It is completely customizable now and fully templatable.
 | maxThreshold | number | 75 | Only used to determine how far users have to slide to activate toggle commands for switch and lock |
 | min | number | 0 | Minimum value you can set the entity state |
 | max | number | 100 | Maximum value you can set the entity state |
-| styles | object | [Default styles](#default-styles) | Style each component used in the card. |
+| sliderMin | number | 0 | The minimum percentage progress to show always |
+| styles | object | [Default styles](/src/cards/styles/my-slider.styles.ts) | Style each component used in the card. |
 
 
 ## Examples
@@ -110,34 +111,4 @@ It is completely customizable now and fully templatable.
       card: 
         - height: 200px
         - width: 50px
-```
-
-
-### Default Styles:
-```yaml
-styles:
-  card:
-    - height: '30px'
-  container:
-    - width: '100%'
-    - height: '100%'
-    - position: 'relative'
-    - overflow: 'hidden'
-    - border-radius: '5px'
-  track:
-    - width: '100%'
-    - height: '100%'
-    - position: 'relative'
-    - background: 'var(--card-background-color)'
-  progress:
-    - height: '100%'
-    - background: 'var(--paper-item-icon-active-color)'
-    - position: 'absolute'
-    - width: '0.00%' # This will be where the progress is before it finds the actual state on load. Otherwise it's handled by the slider obviously.
-  thumb:
-    - height: '100%'
-    - background: 'black'
-    - position: 'absolute'
-    - right: '-5px'
-    - width: '10px'
 ```

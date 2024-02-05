@@ -16,4 +16,3 @@ console.info(
 export { MySlider } from './old-cards/my-slider'
 export { MySliderV2 } from './cards/my-slider'
 export { MyButton } from './cards/my-button'
-// export { MyButtonCover } from './cards/my-button-cover'
