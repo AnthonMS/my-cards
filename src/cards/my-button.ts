@@ -506,9 +506,26 @@ export class MyButton extends LitElement {
                 defaultCardConfig.tap_action = {
                     action: 'more-info'
                 }
-                defaultIconAttr.icon = stateActive(this.entity, this.entity.state) ? 'mdi:speaker' : 'mdi:speaker-off'
+                if (this.entity.attributes.device_class === 'speaker') {
+                    defaultIconAttr.icon = stateActive(this.entity, this.entity.state) ? 'mdi:speaker' : 'mdi:speaker-off'
+                    if (this.entity.state === 'playing') {
+                        defaultIconAttr.icon = 'mdi:speaker-play'
+                    }
+                    else if (this.entity.state === 'paused') {
+                        defaultIconAttr.icon = 'mdi:speaker-pause'
+                    }
+                }
+                else if (this.entity.attributes.device_class === 'tv') {
+                    defaultIconAttr.icon = stateActive(this.entity, this.entity.state) ? 'mdi:television' : 'mdi:television-off'
+                    if (this.entity.state === 'playing') {
+                        defaultIconAttr.icon = 'mdi:television-play'
+                    }
+                    else if (this.entity.state === 'paused') {
+                        defaultIconAttr.icon = 'mdi:television-pause'
+                    }
+                }
 
-                defaultSliderConfig.show = stateActive(this.entity, this.entity.state)
+                defaultSliderConfig.show = this.entity.state === 'paused' ? false : stateActive(this.entity, this.entity.state)
                 defaultSliderConfig.vertical = true
                 defaultSliderConfig.sliderMin = 5
                 defaultSliderConfig.min = 1
@@ -562,6 +579,7 @@ export class MyButton extends LitElement {
         if (this._config.styles === undefined || this._config.styles === null) {
             this._config.styles = {}
         }
+        
         this.initializeStyles()
         return null // Success in this case
     }
@@ -570,7 +588,9 @@ export class MyButton extends LitElement {
         if (!this._config) return
         const entityType = this._config.entity ? this._config.entity?.split('.')[0] : 'none'
 
-        const defaultCardStyle: any = {}
+        const defaultCardStyle: any = {
+            background: `radial-gradient(circle at top left, rgba(230, 230, 230, 0.25), var(--card-background-color) 40%)`,
+        }
         const defaultButtonsContainerStyle: any = {}
         const defaultIconStyle: any = {
             filter: 'drop-shadow(3px 3px 2px rgba(0,0,0,0.3)'
@@ -626,24 +646,21 @@ export class MyButton extends LitElement {
             if (stateActive(this.entity, this.entity.state)) {
                 defaultIconStyle.color = 'var(--paper-item-icon-active-color)'
                 defaultIconStyle.filter = 'drop-shadow(2px 2px 2px rgba(0,0,0,0.75)'
+                defaultCardStyle.background = `radial-gradient(circle at top left, rgba(230, 230, 230, 0.7), var(--card-background-color) 40%)`
             }
 
             if (entityType === 'light') {
 
                 if (this.entity.attributes.brightness) {
                     let divisor = 1 + (this.entity.attributes.brightness / 256);
-                    const cardBg = `radial-gradient(circle at top left, rgba(230, 230, 230, 0.7), var(--card-background-color) ${Math.ceil(percentage(this.entity.attributes.brightness, 256)) / divisor + '%'})`
-                    defaultCardStyle['background'] = cardBg
-                }
-                else {
-                    defaultCardStyle['background'] = `radial-gradient(circle at top left, rgba(230, 230, 230, 0.5), var(--card-background-color) 40%)`
+                    defaultCardStyle['background'] = `radial-gradient(circle at top left, rgba(230, 230, 230, 0.7), var(--card-background-color) ${Math.ceil(percentage(this.entity.attributes.brightness, 256)) / divisor + '%'})`
                 }
             }
             else if (entityType === 'switch' || entityType === 'input_boolean') {
-                const cardBg = this.entity.state === 'on' ?
-                    `radial-gradient(circle at top left, rgba(230, 230, 230, 0.7), var(--card-background-color) 50%)` :
-                    `radial-gradient(circle at top left, rgba(230, 230, 230, 0.5), var(--card-background-color) 40%)`
-                defaultCardStyle['background'] = cardBg
+                // if (this.entity.state === 'on') {
+                //     defaultCardStyle['background'] = `radial-gradient(circle at top left, rgba(230, 230, 230, 0.7), var(--card-background-color) 40%)`
+                // }
+
             }
             else if (entityType === 'lock') {
                 if (this.entity.state === 'locked') {
@@ -651,10 +668,21 @@ export class MyButton extends LitElement {
                 }
                 else if (this.entity.state === 'unlocked') {
                     defaultIconStyle.color = 'var(--paper-item-icon-active-color)'
+                    defaultCardStyle['background'] = `radial-gradient(circle at top left, rgba(230, 230, 230, 0.7), var(--card-background-color) 40%)`
                 }
             }
             else if (entityType === 'media_player') {
-
+                // if (this.entity.state === 'paused') {
+                //     defaultIconStyle.color = 'var(--paper-item-icon-color)'
+                // }
+            }
+            else if (entityType === 'cover') {
+                if (this.entity.attributes.current_position <= 50) {
+                    defaultCardStyle.background = `radial-gradient(circle at top left, rgba(230, 230, 230, 0.25), var(--card-background-color) 40%)`
+                }
+                else {
+                    defaultIconStyle.color = 'var(--paper-item-icon-color)'
+                }
             }
 
         }
@@ -694,10 +722,9 @@ export class MyButton extends LitElement {
             })
 
 
-
         // Merge default styles with the styles given in the specific element configs
-        const cardStyle = this._config.styles?.card ? { ...defaultCardStyle, ...this._config.styles.card } : defaultCardStyle
-        const iconStyle = this._config.styles?.icon ? { ...defaultIconStyle, ...this._config.styles.icon } : defaultIconStyle
+        const cardStyle = this._config.styles?.card ? { ...defaultCardStyle, ...deflate(this._config.styles.card) } : defaultCardStyle
+        const iconStyle = this._config.styles?.icon ? { ...defaultIconStyle, ...deflate(this._config.styles.icon) } : defaultIconStyle
         this._config.styles.card = getStyle('card', deflate(cardStyle))
         this._config.styles.icon = getStyle('icon', deflate(iconStyle))
         this._config.styles.row1 = getStyle('row1', deflate(this._config.styles?.row1) ? deflate(this._config.styles?.row1) : {})

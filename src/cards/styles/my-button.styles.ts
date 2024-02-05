@@ -1,6 +1,9 @@
+import { deepMerge } from "../../scripts/helpers"
+
 export const getStyle = (e: string, styleToMerge: any = {}) => {
     const style = styles[e]
     if (style) {
+        return deepMerge(style, styleToMerge)
         return {
             ...style,
             ...styleToMerge
