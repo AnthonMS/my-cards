@@ -57,14 +57,13 @@ export class MySliderV2 extends LitElement {
     private sliderVal: number = 0
     private sliderValPercent: number = 0.00
     private initialTransition: string = ''
-    private setSliderValues(val, valPercent): void {
-        if (this._config.inverse) {
-            this.sliderVal = this._config.max - val
-            this.sliderValPercent = 100 - valPercent
-        }
-        else {
-            this.sliderVal = val
-            this.sliderValPercent = valPercent
+    private setSliderValues(val, valPercent, alreadyInversed = false): void {
+        if (this._config.inverse && !alreadyInversed) {
+            this.sliderVal = this._config.max - val;
+            this.sliderValPercent = 100 - valPercent;
+        } else {
+            this.sliderVal = val;
+            this.sliderValPercent = valPercent;
         }
     }
 
@@ -393,6 +392,7 @@ export class MySliderV2 extends LitElement {
         let tmpVal = 0
         let sliderVal1 = 0
         let sliderVal2 = 0
+        let alreadyInversed = false
         switch (entityType) {
 
             case 'light': /* ------------ LIGHT ------------ */
@@ -528,6 +528,13 @@ export class MySliderV2 extends LitElement {
                     defaultConfig.max = defaultConfig.max - defaultConfig.min
                     tmpVal = tmpVal - defaultConfig.min
                 }
+                
+                // Calculate tmpVal based on the inverse logic
+                if (defaultConfig.inverse) {
+                    // Inverted logic
+                    tmpVal = defaultConfig.max - tmpVal; // Invert for the slider
+                    alreadyInversed = true
+                }
 
                 tmpVal = (tmpVal * (100 - defaultConfig.sliderMin) / 100) + defaultConfig.sliderMin
                 tmpVal = tmpVal < defaultConfig.sliderMin ? defaultConfig.sliderMin : tmpVal
@@ -587,7 +594,7 @@ export class MySliderV2 extends LitElement {
         }
 
         this._config = deepMerge(defaultConfig, this._config)
-        this.setSliderValues(sliderVal1, sliderVal2)
+        this.setSliderValues(sliderVal1, sliderVal2, alreadyInversed)
         
         if (defaultConfig.mode === 'seekbar' && this.entity.state === 'playing') {
             this.updateSeekbar()
