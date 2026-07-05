@@ -40,6 +40,17 @@ const mountSlider = async (config: Record<string, any>) => {
     return el
 }
 
+// The card grabs its container reference (sliderEl) inside a requestAnimationFrame
+// callback after first render. Input handlers that run before that frame can see it
+// undefined, so tests that dispatch events must wait for it — otherwise this suite is
+// timing-dependent (it flaked on Windows while passing in CI-like environments).
+const waitForSliderEl = async (el: any) => {
+    for (let i = 0; i < 50 && !el.sliderEl; i++) {
+        await new Promise<void>(r => requestAnimationFrame(() => r()))
+    }
+    expect(el.sliderEl, 'sliderEl set after first frame').toBeTruthy()
+}
+
 const optionsFor = (type: string) => {
     const entries = captured.filter(c => c.type === type)
     expect(entries.length, `${type} listener registered`).toBeGreaterThan(0)
@@ -74,6 +85,7 @@ describe('handlers still fire through the object-listener binding', () => {
 
     it('touchstart still reaches startInput (sets touchInput flag)', async () => {
         const el = await mountSlider({ entity: 'light.a' })
+        await waitForSliderEl(el)
         const container = el.shadowRoot.querySelector('.my-slider-custom-container')
         expect(el.touchInput).toBe(false)
         container.dispatchEvent(touchEvent('touchstart'))
@@ -82,6 +94,7 @@ describe('handlers still fire through the object-listener binding', () => {
 
     it('touchmove still reaches the handler without throwing', async () => {
         const el = await mountSlider({ entity: 'light.a' })
+        await waitForSliderEl(el)
         const container = el.shadowRoot.querySelector('.my-slider-custom-container')
         container.dispatchEvent(touchEvent('touchstart'))
         expect(() => container.dispatchEvent(touchEvent('touchmove'))).not.toThrow()
@@ -89,6 +102,7 @@ describe('handlers still fire through the object-listener binding', () => {
 
     it('mouse path is untouched: mousedown sets actionTaken (allowTapping default)', async () => {
         const el = await mountSlider({ entity: 'light.a' })
+        await waitForSliderEl(el)
         const container = el.shadowRoot.querySelector('.my-slider-custom-container')
         const e = new MouseEvent('mousedown', { bubbles: true, clientX: 5, clientY: 5 })
         container.dispatchEvent(e)
