@@ -401,6 +401,7 @@ export class MySliderV2 extends LitElement {
                     if (this.entity.state === 'on') {
                         tmpVal = Math.ceil(percentage(this.entity.attributes.brightness, 256))
                         if (!defaultConfig.showMin && defaultConfig.min) { // Subtracting savedMin to make slider 0 be far left
+                            defaultConfig.max = defaultConfig.max - defaultConfig.min
                             tmpVal = tmpVal - defaultConfig.min
                         }
                     }

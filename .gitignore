@@ -2,3 +2,6 @@ node_modules/
 
 package-lock.json
 yarn.lock
+
+FABLE_*.md
+docs/handoff/

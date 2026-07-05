@@ -34,6 +34,7 @@
     "eslint-config-prettier": "^6.15.0",
     "eslint-plugin-import": "^2.22.1",
     "eslint-plugin-prettier": "^3.1.4",
+    "jsdom": "^26.1.0",
     "prettier": "^1.19.1",
     "rollup": "^1.32.1",
     "rollup-plugin-babel": "^4.4.0",
@@ -43,7 +44,8 @@
     "rollup-plugin-terser": "^5.3.1",
     "rollup-plugin-typescript2": "^0.24.3",
     "rollup-plugin-uglify": "^6.0.4",
-    "typescript": "^3.9.7"
+    "typescript": "^3.9.7",
+    "vitest": "^3.2.4"
   },
   "scripts": {
     "start": "npm run dev",
@@ -53,8 +55,13 @@
     "build:button": "rollup -c ./other/ops/rollup.config.my-button.js",
     "build:slider": "rollup -c ./other/ops/rollup.config.my-slider.js",
     "build:slider-v2": "rollup -c ./other/ops/rollup.config.my-slider-v2.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "OLD:build:lint": "npm run lint && npm run OLD:rollup",
     "OLD:lint": "eslint src/*.ts",
     "OLD:rollup": "rollup -c"
+  },
+  "overrides": {
+    "vite": "^6.3.5"
   }
 }
