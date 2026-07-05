@@ -23,7 +23,7 @@ import { localize } from '../localize/localize'
 import { getStyle } from './styles/my-slider.styles'
 // import './scripts/deflate.js'
 import { deflate } from '../scripts/deflate'
-import { percentage, roundPercentage, getClickPosRelToTarget, stateActive, deepMerge } from '../scripts/helpers'
+import { percentage, roundPercentage, getClickPosRelToTarget, stateActive, deepMerge, miredsToKelvin, kelvinToMireds } from '../scripts/helpers'
 import { objectEvalTemplate } from '../scripts/templating'
 
 /* eslint no-console: 0 */
@@ -410,10 +410,21 @@ export class MySliderV2 extends LitElement {
                 }
                 else if (defaultConfig.mode === 'temperature') {
                     if (this.entity.state !== 'on') break
-                    defaultConfig.min = this._config!.min ? this._config!.min : this.entity.attributes.min_mireds
-                    defaultConfig.max = this._config!.max ? this._config!.max : this.entity.attributes.max_mireds
-                    tmpVal = parseFloat(this.entity.attributes.color_temp)
-                    this.oldVal = parseFloat(this.entity.attributes.color_temp)
+                    // Modern HA (2022.11+) exposes kelvin attributes and newer versions no longer
+                    // provide the deprecated mireds attributes. The slider keeps operating in
+                    // mireds internally and derives them from kelvin when needed. Kelvin and
+                    // mireds scales are inverted, hence min<->max swapping. (#73)
+                    const attrs = this.entity.attributes
+                    const minMireds = attrs.min_mireds !== undefined ? attrs.min_mireds :
+                        attrs.max_color_temp_kelvin !== undefined ? kelvinToMireds(attrs.max_color_temp_kelvin) : undefined
+                    const maxMireds = attrs.max_mireds !== undefined ? attrs.max_mireds :
+                        attrs.min_color_temp_kelvin !== undefined ? kelvinToMireds(attrs.min_color_temp_kelvin) : undefined
+                    const currentMireds = attrs.color_temp !== undefined && attrs.color_temp !== null ? attrs.color_temp :
+                        attrs.color_temp_kelvin !== undefined && attrs.color_temp_kelvin !== null ? kelvinToMireds(attrs.color_temp_kelvin) : undefined
+                    defaultConfig.min = this._config!.min ? this._config!.min : minMireds
+                    defaultConfig.max = this._config!.max ? this._config!.max : maxMireds
+                    tmpVal = parseFloat(currentMireds as any)
+                    this.oldVal = parseFloat(currentMireds as any)
                     if (!defaultConfig.showMin) { // Subtracting savedMin to make slider 0 be far left
                         defaultConfig.max = defaultConfig.max - defaultConfig.min
                         tmpVal = tmpVal - defaultConfig.min
@@ -750,10 +761,25 @@ export class MySliderV2 extends LitElement {
         this.oldVal = value
     }
     private _setColorTemp(entity, value): void {
-        this.hass.callService("light", "turn_on", {
-            entity_id: entity.entity_id,
-            color_temp: value
-        })
+        // Modern HA removed the deprecated 'color_temp' (mireds) parameter from
+        // light.turn_on ("extra keys not allowed"). Send kelvin when the light
+        // exposes kelvin attributes; keep legacy mireds for older installs. (#73)
+        const attrs = entity.attributes ? entity.attributes : {}
+        const supportsKelvin = attrs.color_temp_kelvin !== undefined ||
+            attrs.min_color_temp_kelvin !== undefined ||
+            attrs.max_color_temp_kelvin !== undefined
+        if (supportsKelvin) {
+            this.hass.callService("light", "turn_on", {
+                entity_id: entity.entity_id,
+                color_temp_kelvin: miredsToKelvin(value)
+            })
+        }
+        else {
+            this.hass.callService("light", "turn_on", {
+                entity_id: entity.entity_id,
+                color_temp: value
+            })
+        }
         this.oldVal = value
 
     }

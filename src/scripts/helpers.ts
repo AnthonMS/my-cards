@@ -431,3 +431,22 @@ export const deepEqual = (a: any, b: any): boolean => {
     // eslint-disable-next-line no-self-compare
     return a !== a && b !== b;
 };
+
+
+/**
+ * Converts mireds to Kelvin (rounded). The two scales are reciprocal:
+ * K = 1,000,000 / mireds.
+ *
+ * @param {number} mireds - Color temperature in mireds
+ * @returns {number} Color temperature in Kelvin
+ */
+export const miredsToKelvin = (mireds: number): number => Math.round(1000000 / mireds)
+
+/**
+ * Converts Kelvin to mireds (rounded): mireds = 1,000,000 / K.
+ * Note the scales are inverted: MIN kelvin corresponds to MAX mireds and vice versa.
+ *
+ * @param {number} kelvin - Color temperature in Kelvin
+ * @returns {number} Color temperature in mireds
+ */
+export const kelvinToMireds = (kelvin: number): number => Math.round(1000000 / kelvin)
