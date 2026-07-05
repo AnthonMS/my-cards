@@ -699,7 +699,18 @@ export class MySliderV2 extends LitElement {
         val = val < this._config.min ? this._config.min : val
         // valPercent = percentage(valPercent - this._config.sliderMin, 100 - this._config.sliderMin)
         if (this._config.inverse) {
-            val = this._config.max - val;
+            // Mirror the value within the entity's REAL range. When showMin is false,
+            // min was just added back to val and max was shrunk by min, so the real range
+            // is [min, max + min]; with showMin true it is [min, max]. For min = 0 (the
+            // common case: brightness, volume, cover position) both formulas reduce to the
+            // previous `max - val`, so those domains are unchanged. Previously, domains
+            // with min > 0 (e.g. temperature in mireds) produced out-of-range values. (#63)
+            if (!this._config.showMin) {
+                val = 2 * this._config.min + this._config.max - val;
+            }
+            else {
+                val = this._config.min + this._config.max - val;
+            }
         }
 
         switch (this._config!.entity.split('.')[0]) {
