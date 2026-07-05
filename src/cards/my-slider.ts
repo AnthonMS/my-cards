@@ -322,10 +322,10 @@ export class MySliderV2 extends LitElement {
                     @mousedown="${sliderHandler}"
                     @mouseup="${sliderHandler}"
                     @mousemove="${sliderHandler}"
-                    @touchstart="${sliderHandler}"
+                    @touchstart="${{ handleEvent: sliderHandler, passive: true }}"
                     @touchend="${sliderHandler}"
                     @touchcancel="${sliderHandler}" 
-                    @touchmove="${sliderHandler}"
+                    @touchmove="${{ handleEvent: sliderHandler, passive: !this._config.disableScroll }}"
                 >
                     <div class="my-slider-custom-track" style="${styleMap(trackStl)}">
                         <div class="my-slider-custom-progress" style="${styleMap(progressStl)}">
