@@ -18,4 +18,6 @@ jobs:
             - name: Build
               run: npm run build
             - name: Test
-              run: npm test
+              # --if-present: main doesn't have the test harness until the next
+              # release merge; runs the suite wherever the script exists
+              run: npm run test --if-present
