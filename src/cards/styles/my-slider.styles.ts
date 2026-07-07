@@ -43,5 +43,26 @@ const styles = {
             right: '-5px',
             width: '10px',
             //'pointer-events': 'none',
+    },
+    // #23: floating value bubble shown while dragging when showValue is enabled.
+    // It sits ABOVE the card at the thumb position and follows the thumb (the card
+    // drives `left`/`top` and toggles `display`); everything else can be overridden
+    // through styles.value. Setting your own left (horizontal) / top (vertical)
+    // disables the tracking.
+    value: {
+            position: 'absolute',
+            bottom: 'calc(100% + 8px)',
+            left: '0%',
+            transform: 'translate(-50%, 0)',
+            padding: '2px 8px',
+            'border-radius': '4px',
+            background: 'rgba(0, 0, 0, 0.6)',
+            color: 'white',
+            'font-size': '12px',
+            'line-height': 'normal',
+            'white-space': 'nowrap',
+            'pointer-events': 'none',
+            display: 'none',
+            'z-index': '10',
     }
 }

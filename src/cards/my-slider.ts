@@ -147,12 +147,14 @@ export class MySliderV2 extends LitElement {
         const deflatedProgressStl = deflate(progressStyle)
         // const deflatedProgressStl = deflate(this._config!.styles?.progress) ? deflate(this._config!.styles?.progress) : {}
         const deflatedThumbStl = deflate(this._config!.styles?.thumb) ? deflate(this._config!.styles?.thumb) : {}
+        const deflatedValueStl = deflate(this._config!.styles?.value) ? deflate(this._config!.styles?.value) : {}
         // ---------- Styles ---------- //
         const cardStl = getStyle('card', deflatedCardStl)
         const containerStl = getStyle('container', deflatedContainerStl)
         const trackStl = getStyle('track', deflatedTrackStl)
         const progressStl = getStyle('progress', deflatedProgressStl)
         const thumbStl = getStyle('thumb', deflatedThumbStl)
+        const valueStl = getStyle('value', deflatedValueStl)
 
         if (this._config.vertical) {
             progressStl.height = this.sliderValPercent.toString() + '%'
@@ -183,6 +185,20 @@ export class MySliderV2 extends LitElement {
                 progressStl.right = deflatedProgressStl.right ? deflatedProgressStl.right : '0'
                 thumbStl.right = deflatedThumbStl.right ? deflatedThumbStl.right : 'auto'
                 thumbStl.left = deflatedThumbStl.left ? deflatedThumbStl.left : '-5px'
+            }
+        }
+
+        if (this._config.showValue) {
+            // The value bubble is absolutely positioned against the card (it lives OUTSIDE
+            // the overflow:hidden container so it can float above the thumb) and never
+            // affects surrounding layout. Make sure the card is a positioning context.
+            if (!deflatedCardStl.position) cardStl.position = 'relative'
+            if (this._config.vertical) {
+                // vertical default: bubble to the RIGHT of the slider, tracking the thumb vertically
+                valueStl.left = deflatedValueStl.left ? deflatedValueStl.left : 'calc(100% + 8px)'
+                valueStl.bottom = deflatedValueStl.bottom ? deflatedValueStl.bottom : 'auto'
+                valueStl.top = deflatedValueStl.top ? deflatedValueStl.top : '0%'
+                valueStl.transform = deflatedValueStl.transform ? deflatedValueStl.transform : 'translate(0, -50%)'
             }
         }
 
@@ -272,6 +288,12 @@ export class MySliderV2 extends LitElement {
                 progressEl!.style.transition = this.initialTransition
             }
 
+            // #23: hide the floating value label when the interaction ends
+            if (this._config.showValue && this.shadowRoot) {
+                const valueEl: HTMLElement | null = this.shadowRoot.querySelector('.my-slider-custom-value')
+                if (valueEl) valueEl.style.display = 'none'
+            }
+
             if (this._config.allowTapping) {
                 this.calcProgress(event)
             }
@@ -345,6 +367,7 @@ export class MySliderV2 extends LitElement {
                         </div>
                     </div>
                 </div>
+                ${this._config.showValue ? html`<div class="my-slider-custom-value" style="${styleMap(valueStl)}"></div>` : ''}
             </ha-card>
         `
     }
@@ -382,6 +405,7 @@ export class MySliderV2 extends LitElement {
             marginOfError: this._config!.marginOfError !== undefined ? this._config!.marginOfError : 10,
             slideDistance: this._config!.slideDistance !== undefined ? this._config!.slideDistance : 10,
             showMin: this._config!.showMin !== undefined ? this._config!.showMin : false,
+            showValue: this._config!.showValue !== undefined ? this._config!.showValue : false,
             minThreshold: 0,
             maxThreshold: 100,
             sliderMin: this._config!.sliderMin ? this._config!.sliderMin : 0,
@@ -680,6 +704,34 @@ export class MySliderV2 extends LitElement {
         let valuePercentage = roundPercentage(percentage(val, this._config.max))
         valuePercentage = valuePercentage < this._config.sliderMin ? this._config.sliderMin : valuePercentage
 
+        // #23: update the floating value label while dragging (opt-in via showValue).
+        // Only shown for user press/move actions; end actions and programmatic calls
+        // (setSwitch/setLock/updateSeekbar) never show it, stopInput hides it.
+        if (this._config.showValue && this.actionTaken &&
+            (action === 'mousedown' || action === 'touchstart' || action === 'mousemove' || action === 'touchmove')) {
+            const valueEl: HTMLElement | null = this.shadowRoot ? this.shadowRoot.querySelector('.my-slider-custom-value') : null
+            if (valueEl) {
+                valueEl.textContent = `${parseFloat(val.toFixed(2))}`
+                // Follow the thumb (like the native HA slider bubble). Only the coordinate
+                // along the slider axis is managed here; a user-supplied styles.value
+                // `left` (horizontal) / `top` (vertical) disables tracking so fully custom
+                // static positioning keeps working.
+                const userValueStl = deflate(this._config.styles?.value) ? deflate(this._config.styles?.value) : {}
+                if (!this._config.vertical) {
+                    if (userValueStl.left === undefined) {
+                        valueEl.style.left = (this._config.flipped ? 100 - valuePercentage : valuePercentage) + '%'
+                    }
+                }
+                else {
+                    if (userValueStl.top === undefined) {
+                        valueEl.style.top = (this._config.flipped ? valuePercentage : 100 - valuePercentage) + '%'
+                    }
+                }
+                valueEl.style.display = 'block'
+            }
+        }
+
+
         if (this._config.vertical) {
             progressEl.style.height = valuePercentage.toString() + '%'
         }
@@ -961,6 +1013,7 @@ intermediate: false
 disableScroll: true (Disable scrolling on touch devices when starting the touchmove from within the slider)
 allowTapping: true (Tap anywhere on the slider to set that value. If false you can only drag from thumb.)
 showMin: false
+showValue: false (Show a floating label with the current value while dragging. Style via styles.value. See docs/cards/slider-v2.md)
 minThreshold: 15 (Only used for determining how much progress should be shown on a switch or lock)
 maxThreshold: 75 (Only used to determine how far users have to slide to activate toggle commands for switch and lock)
 styles:
@@ -972,6 +1025,8 @@ styles:
     - background: blue
   thumb:
     - background: yellow
+  value:
+    - font-size: 16px
 */
 
 /*
