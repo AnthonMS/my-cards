@@ -3,7 +3,8 @@ import { directive, PropertyPart } from 'lit-html';
 import { ActionHandlerDetail, ActionHandlerOptions } from 'custom-card-helpers/dist/types';
 import { fireEvent } from 'custom-card-helpers';
 
-const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0 || navigator.msMaxTouchPoints > 0;
+// msMaxTouchPoints is an IE/legacy-Edge property no longer in TS's Navigator type; behavior kept identical.
+const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0 || (navigator as any).msMaxTouchPoints > 0;
 
 interface ActionHandler extends HTMLElement {
   holdTime: number;

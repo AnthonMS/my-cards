@@ -1,31 +1,29 @@
-import resolve from "rollup-plugin-node-resolve";
-import typescript from "rollup-plugin-typescript2";
-import babel from "rollup-plugin-babel";
-import serve from "rollup-plugin-serve";
-import { terser } from "rollup-plugin-terser";
+import typescript from '@rollup/plugin-typescript';
+import commonjs from '@rollup/plugin-commonjs';
+import nodeResolve from '@rollup/plugin-node-resolve';
+import terser from '@rollup/plugin-terser';
+import serve from 'rollup-plugin-serve';
 import json from '@rollup/plugin-json';
 
 export default {
-  input: ["src/my-cards.ts"],
+  input: ['src/my-cards.ts'],
   output: {
-    dir: "./dist/dev",
-    format: "es",
+    dir: './dist/dev',
+    format: 'es',
   },
   plugins: [
-    resolve(),
-    typescript(),
+    nodeResolve({}),
+    commonjs(),
+    typescript({ tsconfig: './other/ops/tsconfig.build.json', noEmit: false, outputToFilesystem: false }),
     json(),
-    babel({
-      exclude: "node_modules/**",
-    }),
     terser(),
     serve({
-      contentBase: "./dist/dev",
-      host: "0.0.0.0",
+      contentBase: './dist/dev',
+      host: '0.0.0.0',
       port: 5000,
       allowCrossOrigin: true,
       headers: {
-        "Access-Control-Allow-Origin": "*",
+        'Access-Control-Allow-Origin': '*',
       },
     }),
   ],
