@@ -6,7 +6,6 @@ import {
     camelToKebab,
     myStyleMap,
     deepMerge,
-    mergeDeep,
     isObject,
     arrayToObject,
     objectToArray,
@@ -172,11 +171,9 @@ describe('stateActive', () => {
 })
 
 // ============================================================================
-// deepMerge vs mergeDeep — two different implementations live in helpers.ts.
-// my-slider-v2 and my-button use deepMerge. mergeDeep has no call sites in src/
-// (see docs/FABLE_FINDINGS.md F-3) but is a public export. These tests document
-// the difference so a future unification doesn't silently change behavior.
-// ============================================================================
+// deepMerge — the second, unused deep-merge implementation was removed in the
+// Phase 2 cleanup (it had zero call sites; these tests had documented the
+// behavioral differences between the two).
 
 describe('deepMerge (used by my-slider-v2: deepMerge(defaultConfig, userConfig))', () => {
     it('source (2nd arg) wins over target on scalar conflicts', () => {
@@ -216,16 +213,3 @@ describe('deepMerge (used by my-slider-v2: deepMerge(defaultConfig, userConfig))
     })
 })
 
-describe('mergeDeep (exported but currently unused in src/)', () => {
-    it('later objects win on scalar conflicts', () => {
-        expect(mergeDeep({ a: 1, b: 1 }, { b: 2 })).toEqual({ a: 1, b: 2 })
-    })
-
-    it('CONCATENATES arrays (different from deepMerge!)', () => {
-        expect(mergeDeep({ arr: [1, 2] }, { arr: [3] })).toEqual({ arr: [1, 2, 3] })
-    })
-
-    it('supports more than two objects', () => {
-        expect(mergeDeep({ a: 1 }, { b: 2 }, { c: 3 })).toEqual({ a: 1, b: 2, c: 3 })
-    })
-})
