@@ -22,6 +22,7 @@ export interface MyCardConfig extends LovelaceCardConfig {
 }
 
 export interface MySliderConfig extends MyCardConfig {
+  attribute?: string;
   step?: number;
   colorMode?: string;
   coverMode?: string;
