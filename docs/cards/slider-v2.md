@@ -40,7 +40,7 @@ It is completely customizable now and fully templatable.
 | allowSliding | boolean | false | Allow sliding on slider track to activate. This works well in conjuction with allowTapping false. It will only trigger when sliding in direction of slider or if sliding from thumb. |
 | slideDistance | number | 10 | Distance input has to travel in slider direction for allowSliding to take effect |
 | showMin | boolean | false | Show the minimum on the slider. If false, the min will be far left (if not flipped or vertical) |
-| showValue | boolean | false | Show a floating label with the value the slider points at WHILE dragging/tapping (hidden otherwise). The label shows the value on the slider's scale (what `data-value` would become), after `step` rounding, without a unit. Position/look can be fully overridden with `styles: value:` (default: small dark bubble centered in the slider). |
+| showValue | boolean | false | Show a floating bubble with the value the slider points at WHILE dragging/tapping (hidden otherwise), like the native HA slider: it sits just above the card and follows the thumb (vertical sliders: to the right of the card, following vertically). It is `position: absolute`, so it overlaps neighbours instead of shifting layout. The value is on the slider's scale (what `data-value` would become), after `step` rounding, without a unit. Look/offsets can be overridden with `styles: value:`; setting your own `left` (horizontal) or `top` (vertical) disables the thumb-tracking for fully static placement. Note: an ancestor with `overflow: hidden` outside the card (theme/layout) can clip the bubble. |
 | minThreshold | number | 15 | Only used for determining how much progress should be shown on a switch or lock |
 | maxThreshold | number | 75 | Only used to determine how far users have to slide to activate toggle commands for switch and lock |
 | min | number | 0 | Minimum value you can set the entity state |
@@ -113,7 +113,7 @@ It is completely customizable now and fully templatable.
         - height: 200px
         - width: 50px
 
-  # Show the value in a floating label while dragging (#23)
+  # Show the value in a floating bubble above the thumb while dragging (#23)
   - type: custom:my-slider-v2
     entity: light.bar_spots
     showValue: true
@@ -124,4 +124,16 @@ It is completely customizable now and fully templatable.
         - font-size: 16px
         - background: 'rgba(255, 255, 255, 0.8)'
         - color: black
+
+  # showValue with a STATIC label centered in the slider instead of following the thumb
+  # (setting left yourself turns tracking off)
+  - type: custom:my-slider-v2
+    entity: light.bar_spots
+    showValue: true
+    styles:
+      value:
+        - left: 50%
+        - bottom: auto
+        - top: 50%
+        - transform: translate(-50%, -50%)
 ```

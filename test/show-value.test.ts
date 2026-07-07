@@ -45,12 +45,17 @@ describe('showValue rendering (#23)', () => {
         expect(valueElOf(el)).toBeNull()
     })
 
-    it('showValue: true renders the label inside the container, hidden by default', async () => {
+    it('showValue: true renders the bubble as a card child OUTSIDE the overflow:hidden container, hidden by default', async () => {
         const el = await mountSlider({ entity: 'light.a', showValue: true })
         const valueEl = valueElOf(el)
         expect(valueEl).toBeTruthy()
-        expect(valueEl!.parentElement!.classList.contains('my-slider-custom-container')).toBe(true)
+        expect(valueEl!.parentElement!.classList.contains('my-slider-custom-card')).toBe(true)
         expect(valueEl!.style.display).toBe('none')
+        // floats above the card without affecting layout
+        expect(valueEl!.style.position).toBe('absolute')
+        expect(valueEl!.style.bottom).toBe('calc(100% + 8px)')
+        // the card becomes the positioning context when showValue is on
+        expect((el.shadowRoot.querySelector('.my-slider-custom-card') as HTMLElement).style.position).toBe('relative')
     })
 
     it('user styles.value overrides the defaults', async () => {
@@ -74,9 +79,11 @@ describe('showValue behavior while dragging (#23)', () => {
         el.setProgress(el.sliderEl, 42, 'mousemove')
         expect(valueEl.style.display).toBe('block')
         expect(valueEl.textContent).toBe('42')
+        expect(valueEl.style.left, 'bubble follows the thumb').toBe('42%')
 
         el.setProgress(el.sliderEl, 57, 'touchmove')
         expect(valueEl.textContent).toBe('57')
+        expect(valueEl.style.left).toBe('57%')
 
         // ending the interaction hides the label (stopInput path)
         const container = el.shadowRoot.querySelector('.my-slider-custom-container')
@@ -96,6 +103,36 @@ describe('showValue behavior while dragging (#23)', () => {
         // even a drag-type action without actionTaken (pure hover movement) stays hidden
         el.setProgress(el.sliderEl, 33, 'mousemove')
         expect(valueEl.style.display).toBe('none')
+    })
+
+    it('flipped horizontal slider mirrors the tracked position', async () => {
+        const el = await mountSlider({ entity: 'light.a', showValue: true, flipped: true })
+        await waitForSliderEl(el)
+        el.actionTaken = true
+        el.setProgress(el.sliderEl, 30, 'mousemove')
+        expect(valueElOf(el)!.style.left).toBe('70%')
+    })
+
+    it('vertical slider tracks via top and defaults the bubble to the right side', async () => {
+        const el = await mountSlider({ entity: 'light.a', showValue: true, vertical: true })
+        await waitForSliderEl(el)
+        const valueEl = valueElOf(el)!
+        expect(valueEl.style.left).toBe('calc(100% + 8px)')
+        el.actionTaken = true
+        el.setProgress(el.sliderEl, 30, 'mousemove')
+        expect(valueEl.style.top).toBe('70%') // 30% progress from the bottom
+    })
+
+    it('a user-supplied styles.value left disables horizontal tracking (static positioning wins)', async () => {
+        const el = await mountSlider({
+            entity: 'light.a', showValue: true,
+            styles: { value: [{ left: '50%' }] },
+        })
+        await waitForSliderEl(el)
+        el.actionTaken = true
+        el.setProgress(el.sliderEl, 42, 'mousemove')
+        expect(valueElOf(el)!.style.left).toBe('50%')
+        expect(valueElOf(el)!.textContent).toBe('42')
     })
 
     it('label value respects step rounding and avoids float noise', async () => {

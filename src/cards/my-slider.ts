@@ -186,6 +186,20 @@ export class MySliderV2 extends LitElement {
             }
         }
 
+        if (this._config.showValue) {
+            // The value bubble is absolutely positioned against the card (it lives OUTSIDE
+            // the overflow:hidden container so it can float above the thumb) and never
+            // affects surrounding layout. Make sure the card is a positioning context.
+            if (!deflatedCardStl.position) cardStl.position = 'relative'
+            if (this._config.vertical) {
+                // vertical default: bubble to the RIGHT of the slider, tracking the thumb vertically
+                valueStl.left = deflatedValueStl.left ? deflatedValueStl.left : 'calc(100% + 8px)'
+                valueStl.bottom = deflatedValueStl.bottom ? deflatedValueStl.bottom : 'auto'
+                valueStl.top = deflatedValueStl.top ? deflatedValueStl.top : '0%'
+                valueStl.transform = deflatedValueStl.transform ? deflatedValueStl.transform : 'translate(0, -50%)'
+            }
+        }
+
         const sliderHandler = (event) => {
             switch (event.type) {
                 case 'mousedown':
@@ -268,8 +282,8 @@ export class MySliderV2 extends LitElement {
             progressEl!.style.transition = this.initialTransition
 
             // #23: hide the floating value label when the interaction ends
-            if (this._config.showValue && this.sliderEl) {
-                const valueEl: HTMLElement | null = this.sliderEl.querySelector('.my-slider-custom-value')
+            if (this._config.showValue && this.shadowRoot) {
+                const valueEl: HTMLElement | null = this.shadowRoot.querySelector('.my-slider-custom-value')
                 if (valueEl) valueEl.style.display = 'none'
             }
 
@@ -340,8 +354,8 @@ export class MySliderV2 extends LitElement {
                             <div class="my-slider-custom-thumb" style="${styleMap(thumbStl)}"></div>
                         </div>
                     </div>
-                    ${this._config.showValue ? html`<div class="my-slider-custom-value" style="${styleMap(valueStl)}"></div>` : ''}
                 </div>
+                ${this._config.showValue ? html`<div class="my-slider-custom-value" style="${styleMap(valueStl)}"></div>` : ''}
             </ha-card>
         `
     }
@@ -675,20 +689,36 @@ export class MySliderV2 extends LitElement {
         // Round val to nearest step
         val = Math.round(val / this._config.step) * this._config.step
 
+        let valuePercentage = roundPercentage(percentage(val, this._config.max))
+        valuePercentage = valuePercentage < this._config.sliderMin ? this._config.sliderMin : valuePercentage
+
         // #23: update the floating value label while dragging (opt-in via showValue).
         // Only shown for user press/move actions; end actions and programmatic calls
         // (setSwitch/setLock/updateSeekbar) never show it, stopInput hides it.
         if (this._config.showValue && this.actionTaken &&
             (action === 'mousedown' || action === 'touchstart' || action === 'mousemove' || action === 'touchmove')) {
-            const valueEl: HTMLElement | null = slider.querySelector('.my-slider-custom-value')
+            const valueEl: HTMLElement | null = this.shadowRoot ? this.shadowRoot.querySelector('.my-slider-custom-value') : null
             if (valueEl) {
                 valueEl.textContent = `${parseFloat(val.toFixed(2))}`
+                // Follow the thumb (like the native HA slider bubble). Only the coordinate
+                // along the slider axis is managed here; a user-supplied styles.value
+                // `left` (horizontal) / `top` (vertical) disables tracking so fully custom
+                // static positioning keeps working.
+                const userValueStl = deflate(this._config.styles?.value) ? deflate(this._config.styles?.value) : {}
+                if (!this._config.vertical) {
+                    if (userValueStl.left === undefined) {
+                        valueEl.style.left = (this._config.flipped ? 100 - valuePercentage : valuePercentage) + '%'
+                    }
+                }
+                else {
+                    if (userValueStl.top === undefined) {
+                        valueEl.style.top = (this._config.flipped ? valuePercentage : 100 - valuePercentage) + '%'
+                    }
+                }
                 valueEl.style.display = 'block'
             }
         }
 
-        let valuePercentage = roundPercentage(percentage(val, this._config.max))
-        valuePercentage = valuePercentage < this._config.sliderMin ? this._config.sliderMin : valuePercentage
 
         if (this._config.vertical) {
             progressEl.style.height = valuePercentage.toString() + '%'
