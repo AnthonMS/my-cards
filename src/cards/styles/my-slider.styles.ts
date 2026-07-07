@@ -43,5 +43,23 @@ const styles = {
             right: '-5px',
             width: '10px',
             //'pointer-events': 'none',
+    },
+    // #23: floating value label shown while dragging when showValue is enabled.
+    // display is toggled by the card (none <-> block); everything else can be
+    // overridden through styles.value.
+    value: {
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            padding: '2px 8px',
+            'border-radius': '4px',
+            background: 'rgba(0, 0, 0, 0.6)',
+            color: 'white',
+            'font-size': '12px',
+            'line-height': 'normal',
+            'white-space': 'nowrap',
+            'pointer-events': 'none',
+            display: 'none',
     }
 }

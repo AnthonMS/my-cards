@@ -147,12 +147,14 @@ export class MySliderV2 extends LitElement {
         const deflatedProgressStl = deflate(progressStyle)
         // const deflatedProgressStl = deflate(this._config!.styles?.progress) ? deflate(this._config!.styles?.progress) : {}
         const deflatedThumbStl = deflate(this._config!.styles?.thumb) ? deflate(this._config!.styles?.thumb) : {}
+        const deflatedValueStl = deflate(this._config!.styles?.value) ? deflate(this._config!.styles?.value) : {}
         // ---------- Styles ---------- //
         const cardStl = getStyle('card', deflatedCardStl)
         const containerStl = getStyle('container', deflatedContainerStl)
         const trackStl = getStyle('track', deflatedTrackStl)
         const progressStl = getStyle('progress', deflatedProgressStl)
         const thumbStl = getStyle('thumb', deflatedThumbStl)
+        const valueStl = getStyle('value', deflatedValueStl)
 
         if (this._config.vertical) {
             progressStl.height = this.sliderValPercent.toString() + '%'
@@ -265,6 +267,12 @@ export class MySliderV2 extends LitElement {
             const progressEl: HTMLElement | null = this.sliderEl!.querySelector('.my-slider-custom-progress')
             progressEl!.style.transition = this.initialTransition
 
+            // #23: hide the floating value label when the interaction ends
+            if (this._config.showValue && this.sliderEl) {
+                const valueEl: HTMLElement | null = this.sliderEl.querySelector('.my-slider-custom-value')
+                if (valueEl) valueEl.style.display = 'none'
+            }
+
             if (this._config.allowTapping) {
                 this.calcProgress(event)
             }
@@ -332,6 +340,7 @@ export class MySliderV2 extends LitElement {
                             <div class="my-slider-custom-thumb" style="${styleMap(thumbStl)}"></div>
                         </div>
                     </div>
+                    ${this._config.showValue ? html`<div class="my-slider-custom-value" style="${styleMap(valueStl)}"></div>` : ''}
                 </div>
             </ha-card>
         `
@@ -370,6 +379,7 @@ export class MySliderV2 extends LitElement {
             marginOfError: this._config!.marginOfError !== undefined ? this._config!.marginOfError : 10,
             slideDistance: this._config!.slideDistance !== undefined ? this._config!.slideDistance : 10,
             showMin: this._config!.showMin !== undefined ? this._config!.showMin : false,
+            showValue: this._config!.showValue !== undefined ? this._config!.showValue : false,
             minThreshold: 0,
             maxThreshold: 100,
             sliderMin: this._config!.sliderMin ? this._config!.sliderMin : 0,
@@ -665,6 +675,18 @@ export class MySliderV2 extends LitElement {
         // Round val to nearest step
         val = Math.round(val / this._config.step) * this._config.step
 
+        // #23: update the floating value label while dragging (opt-in via showValue).
+        // Only shown for user press/move actions; end actions and programmatic calls
+        // (setSwitch/setLock/updateSeekbar) never show it, stopInput hides it.
+        if (this._config.showValue && this.actionTaken &&
+            (action === 'mousedown' || action === 'touchstart' || action === 'mousemove' || action === 'touchmove')) {
+            const valueEl: HTMLElement | null = slider.querySelector('.my-slider-custom-value')
+            if (valueEl) {
+                valueEl.textContent = `${parseFloat(val.toFixed(2))}`
+                valueEl.style.display = 'block'
+            }
+        }
+
         let valuePercentage = roundPercentage(percentage(val, this._config.max))
         valuePercentage = valuePercentage < this._config.sliderMin ? this._config.sliderMin : valuePercentage
 
@@ -949,6 +971,7 @@ intermediate: false
 disableScroll: true (Disable scrolling on touch devices when starting the touchmove from within the slider)
 allowTapping: true (Tap anywhere on the slider to set that value. If false you can only drag from thumb.)
 showMin: false
+showValue: false (Show a floating label with the current value while dragging. Style via styles.value. See docs/cards/slider-v2.md)
 minThreshold: 15 (Only used for determining how much progress should be shown on a switch or lock)
 maxThreshold: 75 (Only used to determine how far users have to slide to activate toggle commands for switch and lock)
 styles:
@@ -960,6 +983,8 @@ styles:
     - background: blue
   thumb:
     - background: yellow
+  value:
+    - font-size: 16px
 */
 
 /*
