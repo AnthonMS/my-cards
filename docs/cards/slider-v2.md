@@ -3,12 +3,12 @@
 
 ## Description
 
-My Slider V2 is a customizable card for light, input_number, covers, fans, switches, locks & media_player volume_level entity sliders, for the Home Assistant Lovelace frontend.
+My Slider V2 is a customizable card for light, input_number, number, covers, fans, switches, input_boolean, locks & media_player volume_level entity sliders, for the Home Assistant Lovelace frontend.
 
 It is completely customizable now and fully templatable.
 
 ### Features
-- Fully customizable slider card for lights, input_numbers, media_players, covers, fans, switches, and locks
+- Fully customizable slider card for lights, input_numbers/numbers, media_players, covers, fans, switches, input_booleans and locks
 - Templating
 - Styles can be fully customized easily within the card itself
 - Vertical
@@ -35,7 +35,7 @@ It is completely customizable now and fully templatable.
 | flipped | boolean | false | This will just flip the slider to go from right to left or top to bottom. Default on covers |
 | inverse | boolean | false | Will inverse how far the slider has progressed compared to value. so if brightness is 75%, then it will only be 25% progressed. This is useful for cover, where it is Default. |
 | intermediate | boolean | false | If set to `true` the slider sends immediate updates while sliding. Not recommended by default, since it may generate too many updates. |
-| disableScroll | boolean | true | Disable scrolling on touch devices when starting the touchmove from within the slider. Default true on covers. |
+| disableScroll | boolean | true | Disable scrolling on touch devices when starting the touchmove from within the slider (default true for ALL entity types). Set to `false` if you want the page to keep scrolling over the slider. |
 | allowTapping | boolean | true | Allow tapping on slider track to activate. If false only dragging by thumb will activate it. |
 | marginOfError | number | 10 | Pixel distance the input can be from the thumb if allowTapping is set to false |
 | allowSliding | boolean | false | Allow sliding on slider track to activate. This works well in conjuction with allowTapping false. It will only trigger when sliding in direction of slider or if sliding from thumb. |
@@ -47,7 +47,8 @@ It is completely customizable now and fully templatable.
 | min | number | 0 | Minimum value you can set the entity state |
 | max | number | 100 | Maximum value you can set the entity state |
 | sliderMin | number | 0 | The minimum percentage progress to show always |
-| styles | object | [Default styles](/src/cards/styles/my-slider.styles.ts) | Style each component used in the card. |
+| sliderId | string | `slider-<entity>-<mode>` | The `id` of the slider's container element, for targeting a specific slider from CSS/JS. Note the default is built from the RAW config, so without an explicit `mode:` it ends in `-undefined` (e.g. `slider-light-bedroom-undefined`) — set `sliderId` yourself if you rely on it. The container also always carries `data-value` and `data-progress-percent` attributes with the current slider value/progress. |
+| styles | object | [Default styles](/src/cards/styles/my-slider.styles.ts) | Style each component used in the card. Available components: `card`, `container`, `track`, `progress`, `thumb`. Each takes a list of CSS declarations (see Examples); every value is templatable. |
 
 
 ## Attribute sliders
