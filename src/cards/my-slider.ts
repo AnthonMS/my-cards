@@ -261,9 +261,14 @@ export class MySliderV2 extends LitElement {
 
         const stopInput = (event) => {
             if (!this.actionTaken) return
-            
-            const progressEl: HTMLElement | null = this.sliderEl!.querySelector('.my-slider-custom-progress')
-            progressEl!.style.transition = this.initialTransition
+
+            // Same pre-first-frame exposure as moveInput: skip the transition reset when
+            // sliderEl is not set yet (there is nothing rendered to reset), but still fall
+            // through so the input flags below are cleared. (F-10)
+            if (this.sliderEl !== undefined && this.sliderEl !== null) {
+                const progressEl: HTMLElement | null = this.sliderEl.querySelector('.my-slider-custom-progress')
+                progressEl!.style.transition = this.initialTransition
+            }
 
             if (this._config.allowTapping) {
                 this.calcProgress(event)
@@ -284,7 +289,12 @@ export class MySliderV2 extends LitElement {
 
         const moveInput = event => {
             if (this.actionTaken) {
-                const progressEl: HTMLElement | null = this.sliderEl!.querySelector('.my-slider-custom-progress')
+                // sliderEl is grabbed in a requestAnimationFrame after first render (updated()).
+                // A drag that begins before that frame reaches here with sliderEl undefined and
+                // used to throw an uncaught TypeError. Ignore the move instead — calcProgress
+                // already guards the same way. (F-10)
+                if (this.sliderEl === undefined || this.sliderEl === null) return
+                const progressEl: HTMLElement | null = this.sliderEl.querySelector('.my-slider-custom-progress')
                 progressEl!.style.transition = ''
 
 
