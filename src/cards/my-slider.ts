@@ -162,7 +162,9 @@ export class MySliderV2 extends LitElement {
             cardStl.width = deflatedCardStl.width ? deflatedCardStl.width : '30px'
             progressStl.width = deflatedProgressStl.width ? deflatedProgressStl.width : '100%'
             progressStl.right = deflatedProgressStl.right ? deflatedProgressStl.right : 'auto'
-            thumbStl.right = deflatedThumbStl.right ? deflatedThumbStl : 'auto'
+            // F-2 fix: assigned the whole deflated style object instead of its .right value,
+            // silently dropping a user styles.thumb 'right' on vertical sliders.
+            thumbStl.right = deflatedThumbStl.right ? deflatedThumbStl.right : 'auto'
             thumbStl.width = deflatedThumbStl.width ? deflatedThumbStl.width : '100%'
             thumbStl.height = deflatedThumbStl.height ? deflatedThumbStl.height : '10px'
 
