@@ -21,7 +21,6 @@ import type { MySliderConfig } from '../types/types'
 import { SLIDER_VERSION } from './extras/const'
 import { localize } from '../localize/localize'
 import { getStyle } from './styles/my-slider.styles'
-// import './scripts/deflate.js'
 import { deflate } from '../scripts/deflate'
 import { percentage, roundPercentage, getClickPosRelToTarget, stateActive, deepMerge, miredsToKelvin, kelvinToMireds } from '../scripts/helpers'
 import { objectEvalTemplate } from '../scripts/templating'
@@ -45,19 +44,19 @@ console.info(
 export class MySliderV2 extends LitElement {
     @property() private _config?: MySliderConfig
     private entity: HassEntity | undefined
-    private sliderEl: HTMLBodyElement | undefined
-    private touchInput: Boolean = false
-    private thumbTapped: Boolean = false
-    private isSliding: Boolean = false
+    private sliderEl: HTMLElement | undefined
+    private touchInput: boolean = false
+    private thumbTapped: boolean = false
+    private isSliding: boolean = false
     private clientXLast: number = 0
     private clientYLast: number = 0
-    private actionTaken: Boolean = false
-    private zero: number = 0
+    private actionTaken: boolean = false
+    private readonly zero: number = 0
     private oldVal: number = 0
     private sliderVal: number = 0
     private sliderValPercent: number = 0.00
     private initialTransition: string = ''
-    private setSliderValues(val, valPercent, alreadyInversed = false): void {
+    private setSliderValues(val: number, valPercent: number, alreadyInversed = false): void {
         if (this._config.inverse && !alreadyInversed) {
             this.sliderVal = this._config.max - val;
             this.sliderValPercent = 100 - valPercent;
@@ -148,7 +147,6 @@ export class MySliderV2 extends LitElement {
         const deflatedContainerStl = deflate(this._config!.styles?.container) ? deflate(this._config!.styles?.container) : {}
         const deflatedTrackStl = deflate(this._config!.styles?.track) ? deflate(this._config!.styles?.track) : {}
         const deflatedProgressStl = deflate(progressStyle)
-        // const deflatedProgressStl = deflate(this._config!.styles?.progress) ? deflate(this._config!.styles?.progress) : {}
         const deflatedThumbStl = deflate(this._config!.styles?.thumb) ? deflate(this._config!.styles?.thumb) : {}
         const deflatedValueStl = deflate(this._config!.styles?.value) ? deflate(this._config!.styles?.value) : {}
         // ---------- Styles ---------- //
@@ -375,6 +373,9 @@ export class MySliderV2 extends LitElement {
         `
     }
 
+    // Returns null on success, or a renderable error (TemplateResult / hui-error-card
+    // HTMLElement). Kept as `any` because typing it forces a wider render() signature
+    // than lit-element 2 declares; revisit with the lit 3 migration.
     private initializeConfig(): any {
         if (this.actionTaken) return null
         this.entity = this.hass.states[`${this.config.entity}`]
@@ -635,7 +636,6 @@ export class MySliderV2 extends LitElement {
 
                 sliderVal1 = tmpVal
                 sliderVal2 = roundPercentage(percentage(tmpVal, defaultConfig.max))
-                // this.setSliderValues(tmpVal, roundPercentage(percentage(tmpVal, defaultConfig.max)))
                 break
             case 'switch':
                 defaultConfig.minThreshold = this._config!.minThreshold ? this._config!.minThreshold : 15
@@ -1073,20 +1073,3 @@ styles:
     - font-size: 16px
 */
 
-/*
-TODO:
-- Create colorMode config key. It should accept: (https://developers.home-assistant.io/docs/core/entity/light/)
-    'brightness', 'temperature', 'hue' 'saturation', 'red', 'green', 'blue', 'white', 'x_color', 'y_color' and 'toggle'
-    Future maybe: 'hs', 'rgb', 'rgbw', 'xy_color'. This will be where there will automatically be multiple sliders with same config in the same card
-    - brightness: Adjust brightness of light (IMPLEMENTED)
-    - temperature: Adjust temperature/warmth of light (IMPLEMENTED)
-    - hue: Adjust Hue value in hs_color (0-360)
-    - saturation: Adjust Saturation in hs_color (0-100)
-
-
-    - hs: Adjust Hue & Saturation of light
-    - rgb: Adjust Red, Green & Blue colors on light
-    - rgbw: Adjust Red, Green, Blue & white colors on light
-    - xy_color: Adjust lights colors by adjust xy_color attribute
-TODONE:
-*/
