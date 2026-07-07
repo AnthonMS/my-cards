@@ -16,7 +16,6 @@
   "license": "MIT",
   "dependencies": {
     "body-scroll-lock": "^4.0.0-beta.0",
-    "card-tools": "github:thomasloven/lovelace-card-tools",
     "custom-card-helpers": "^1.6.6",
     "home-assistant-js-websocket": "^4.5.0",
     "lit-element": "^2.4.0",
@@ -27,15 +26,7 @@
     "@babel/plugin-proposal-class-properties": "^7.12.1",
     "@babel/plugin-proposal-decorators": "^7.12.1",
     "@rollup/plugin-json": "^4.1.0",
-    "@typescript-eslint/eslint-plugin": "^2.34.0",
-    "@typescript-eslint/parser": "^2.34.0",
-    "eslint": "^6.8.0",
-    "eslint-config-airbnb-base": "^14.2.1",
-    "eslint-config-prettier": "^6.15.0",
-    "eslint-plugin-import": "^2.22.1",
-    "eslint-plugin-prettier": "^3.1.4",
     "jsdom": "^26.1.0",
-    "prettier": "^1.19.1",
     "rollup": "^1.32.1",
     "rollup-plugin-babel": "^4.4.0",
     "rollup-plugin-commonjs": "^10.1.0",
@@ -43,7 +34,6 @@
     "rollup-plugin-serve": "^1.1.0",
     "rollup-plugin-terser": "^5.3.1",
     "rollup-plugin-typescript2": "^0.24.3",
-    "rollup-plugin-uglify": "^6.0.4",
     "typescript": "^3.9.7",
     "vitest": "^3.2.4"
   },
@@ -56,10 +46,7 @@
     "build:slider": "rollup -c ./other/ops/rollup.config.my-slider.js",
     "build:slider-v2": "rollup -c ./other/ops/rollup.config.my-slider-v2.js",
     "test": "vitest run",
-    "test:watch": "vitest",
-    "OLD:build:lint": "npm run lint && npm run OLD:rollup",
-    "OLD:lint": "eslint src/*.ts",
-    "OLD:rollup": "rollup -c"
+    "test:watch": "vitest"
   },
   "overrides": {
     "vite": "^6.3.5"
