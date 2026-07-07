@@ -26,6 +26,7 @@ It is completely customizable now and fully templatable.
 | ---- | ---- | ------- | ----------- |
 | type | string | **Required** | `custom:my-slider-v2` |
 | entity | string | **Required** | `light.livingroom` |
+| attribute | string | none | Read/write an entity ATTRIBUTE instead of its state, e.g. `attribute: humidity` on a humidifier. See [Attribute sliders](#attribute-sliders) below. |
 | step | string | "1" | Number of steps to take (For input number, if step is not specified, it will use step from attributes.) (For media_player, if step is not specified it will step by 0.01. (It will actually step by 1, but it will convert 27 to 0.27. So if you set a custom step, set it between 0 and 100.)) |
 | colorMode (Deprecated: Use 'mode' instead) | string | brightness | Can be brightness, temperature, hue, saturation |
 | coverMode (Deprecated: Use 'mode' instead) | string | position | Can be position or tilt |
@@ -48,6 +49,51 @@ It is completely customizable now and fully templatable.
 | sliderMin | number | 0 | The minimum percentage progress to show always |
 | styles | object | [Default styles](/src/cards/styles/my-slider.styles.ts) | Style each component used in the card. |
 
+
+## Attribute sliders
+
+Setting `attribute:` makes the slider read **and** write an entity attribute instead of the
+entity's state. This also allows entity domains the card does not otherwise support (for
+example `humidifier`).
+
+```yaml
+type: custom:my-slider-v2
+entity: humidifier.bedroom
+attribute: humidity
+```
+
+How it works:
+
+- **Reading:** the slider value comes from the entity's attribute (here
+  `entity.attributes.humidity`). If the attribute is missing or not a number, the slider
+  rests at 0.
+- **Range:** many entities expose their allowed range as attributes named
+  `min_<attribute>` / `max_<attribute>` — a humidifier exposes `min_humidity` and
+  `max_humidity`. When present, the card automatically uses those as the slider range.
+  **These are attributes ON THE ENTITY (check Developer Tools → States), not card config
+  keys** — you cannot set `min_humidity:` in the card config. To override the range, use
+  the card's normal `min:` and `max:` options, which always win:
+
+  ```yaml
+  type: custom:my-slider-v2
+  entity: humidifier.bedroom
+  attribute: humidity
+  min: 25   # overrides the entity's min_humidity
+  max: 60   # overrides the entity's max_humidity
+  ```
+
+  Without `min_<attribute>`/`max_<attribute>` on the entity and without `min:`/`max:` in
+  the config, the range defaults to 0–100.
+- **Writing:** on release the card calls the domain's `set_<attribute>` service with the
+  attribute as the data key — `attribute: humidity` on a humidifier calls
+  `humidifier.set_humidity` with `{ humidity: <value> }`. This means the feature works for
+  attributes that have a matching `set_<attribute>` service (verify under Developer
+  Tools → Actions). It will NOT work for attributes whose service is named differently
+  (e.g. cover position uses `set_cover_position` — use the card's normal cover support
+  for that).
+- **Precedence:** when `attribute:` is set it takes precedence over `mode:` and the
+  per-domain behavior. All other options (`step`, `sliderMin`, `showMin`, `vertical`,
+  templating, `styles`, ...) work as usual.
 
 ## Examples
 ![Examples](/docs/images/my-slider-v2/examples.png)
