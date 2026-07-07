@@ -59,7 +59,7 @@ class ActionHandler extends HTMLElement implements ActionHandler {
 
   private dblClickTimeout?: number;
 
-  private repeatTimeout: NodeJS.Timeout | undefined;
+  private repeatTimeout: ReturnType<typeof setTimeout> | undefined; // was NodeJS.Timeout; browser-correct + no NodeJS namespace needed
 
   private isRepeating = false;
 
