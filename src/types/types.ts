@@ -36,6 +36,7 @@ export interface MySliderConfig extends MyCardConfig {
   allowSliding?: boolean;
   slideDistance?: number;
   showMin?: boolean;
+  showValue?: boolean;
   minThreshold?: number;
   maxThreshold?: number;
   min?: number;
@@ -128,6 +129,7 @@ export interface MySliderStylesConfig {
   track?: CssStyleConfig;
   progress?: CssStyleConfig;
   thumb?: CssStyleConfig;
+  value?: CssStyleConfig;
 }
 export interface MyButtonStylesConfig {
   card?: CssStyleConfig;
