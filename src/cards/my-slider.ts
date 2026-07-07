@@ -21,9 +21,9 @@ import type { MySliderConfig } from '../types/types'
 import { SLIDER_VERSION } from './extras/const'
 import { localize } from '../localize/localize'
 import { getStyle } from './styles/my-slider.styles'
-// import './scripts/deflate.js'
 import { deflate } from '../scripts/deflate'
 import { percentage, roundPercentage, getClickPosRelToTarget, stateActive, deepMerge, miredsToKelvin, kelvinToMireds } from '../scripts/helpers'
+import { applySliderMin, shiftForHiddenMin } from '../scripts/slider-math'
 import { objectEvalTemplate } from '../scripts/templating'
 
 /* eslint no-console: 0 */
@@ -45,19 +45,20 @@ console.info(
 export class MySliderV2 extends LitElement {
     @property() private _config?: MySliderConfig
     private entity: HassEntity | undefined
-    private sliderEl: HTMLBodyElement | undefined
-    private touchInput: Boolean = false
-    private thumbTapped: Boolean = false
-    private isSliding: Boolean = false
+    private sliderEl: HTMLElement | undefined
+    private touchInput: boolean = false
+    private thumbTapped: boolean = false
+    private isSliding: boolean = false
     private clientXLast: number = 0
     private clientYLast: number = 0
-    private actionTaken: Boolean = false
-    private zero: number = 0
+    private actionTaken: boolean = false
+    private readonly zero: number = 0
     private oldVal: number = 0
     private sliderVal: number = 0
     private sliderValPercent: number = 0.00
     private initialTransition: string = ''
-    private setSliderValues(val, valPercent, alreadyInversed = false): void {
+    private deflatedValueStl: Record<string, any> = {}
+    private setSliderValues(val: number, valPercent: number, alreadyInversed = false): void {
         if (this._config.inverse && !alreadyInversed) {
             this.sliderVal = this._config.max - val;
             this.sliderValPercent = 100 - valPercent;
@@ -135,6 +136,180 @@ export class MySliderV2 extends LitElement {
         })
     }
 
+    // ------------------------------------------------------------------
+    // Input handlers. These were closures recreated inside every render(),
+    // and createAndCleanupEventListeners() re-registered them on document each
+    // time WITHOUT being able to remove the previous render's closures (a
+    // removeEventListener with a brand-new function is a no-op) — so document
+    // listeners accumulated for the element's whole lifetime and every one of
+    // them ran on every mouse move. They are now stable instance fields,
+    // registered once in connectedCallback and removed in disconnectedCallback
+    // (which also fixes the element being kept alive after removal).
+    // Bodies are verbatim moves; only the shared document/lit wiring changed.
+    // ------------------------------------------------------------------
+    private sliderHandler = (event) => {
+        switch (event.type) {
+            case 'mousedown':
+                if (this.touchInput) return
+                this.startInput(event)
+                break
+            case 'touchstart':
+                this.touchInput = true
+                this.startInput(event)
+                break
+            case 'mousemove':
+                if (this.touchInput) return
+                this.moveInput(event)
+                break
+            case 'touchmove':
+                if (this._config.disableScroll)
+                    event.preventDefault()
+                this.moveInput(event)
+                break
+            case 'mouseup':
+            case 'touchend':
+            case 'touchcancel':
+                this.stopInput(event)
+                break
+        }
+    }
+
+    private startInput = (event) => {
+        if (this.actionTaken) return
+
+        const clickX = event.clientX || event.touches[0].clientX
+        const clickY = event.clientY || event.touches[0].clientY
+        if (this.clientXLast === 0) {
+            this.clientXLast = clickX
+        }
+        if (this.clientYLast === 0) {
+            this.clientYLast = clickY
+        }
+
+        if (this._config.allowTapping) {
+            this.actionTaken = true
+            this.calcProgress(event)
+            return
+        }
+        else {
+            const actualTarget = event.composedPath()[0]
+            const thumbElement = this.shadowRoot?.querySelector('.my-slider-custom-thumb')
+            if (actualTarget.classList.contains('my-slider-custom-thumb')) {
+                this.thumbTapped = true
+                this.actionTaken = true
+                this.calcProgress(event)
+                return
+            }
+            else if (thumbElement) {
+                const thumbRect = thumbElement.getBoundingClientRect()
+
+                if (clickX >= thumbRect.left - this._config.marginOfError &&
+                    clickX <= thumbRect.right + this._config.marginOfError &&
+                    clickY >= thumbRect.top - this._config.marginOfError &&
+                    clickY <= thumbRect.bottom + this._config.marginOfError) {
+                    this.thumbTapped = true
+                    this.actionTaken = true
+                    this.calcProgress(event)
+                    return
+                }
+            }
+        }
+        if (this._config.allowSliding) {
+            this.actionTaken = true
+        }
+
+        this.clientYLast = clickY
+        this.clientXLast = clickX
+    }
+
+    private stopInput = (event) => {
+        if (!this.actionTaken) return
+
+        // Same pre-first-frame exposure as moveInput: skip the transition reset when
+        // sliderEl is not set yet (there is nothing rendered to reset), but still fall
+        // through so the input flags below are cleared. (F-10)
+        if (this.sliderEl !== undefined && this.sliderEl !== null) {
+            const progressEl: HTMLElement | null = this.sliderEl.querySelector('.my-slider-custom-progress')
+            progressEl!.style.transition = this.initialTransition
+        }
+
+        // #23: hide the floating value label when the interaction ends
+        if (this._config.showValue && this.shadowRoot) {
+            const valueEl: HTMLElement | null = this.shadowRoot.querySelector('.my-slider-custom-value')
+            if (valueEl) valueEl.style.display = 'none'
+        }
+
+        if (this._config.allowTapping) {
+            this.calcProgress(event)
+        }
+        else if (this.thumbTapped) {
+            this.calcProgress(event)
+        }
+        else if (this.isSliding) {
+            this.calcProgress(event)
+        }
+        this.thumbTapped = false
+        this.touchInput = false
+        this.isSliding = false
+        setTimeout(() => {
+            this.actionTaken = false
+        }, 50);
+    }
+
+    private moveInput = (event) => {
+        if (this.actionTaken) {
+            // sliderEl is grabbed in a requestAnimationFrame after first render (updated()).
+            // A drag that begins before that frame reaches here with sliderEl undefined and
+            // used to throw an uncaught TypeError. Ignore the move instead — calcProgress
+            // already guards the same way. (F-10)
+            if (this.sliderEl === undefined || this.sliderEl === null) return
+            const progressEl: HTMLElement | null = this.sliderEl.querySelector('.my-slider-custom-progress')
+            progressEl!.style.transition = ''
+
+
+            const clickX = event.clientX || event.touches[0].clientX
+            const clickY = event.clientY || event.touches[0].clientY
+            if (this._config.allowTapping || this.isSliding ||
+                (!this._config.allowTapping && this.thumbTapped)) {
+                this.calcProgress(event)
+                this.clientXLast = clickX
+                this.clientYLast = clickY
+            }
+            else if (this._config.allowSliding) {
+                if (!this._config.vertical) {
+                    if (Math.abs(clickX - this.clientXLast) >= this._config.slideDistance) {
+                        this.isSliding = true
+                        this.clientXLast = clickX
+                        this.clientYLast = clickY
+                    }
+                }
+                else {
+                    if (Math.abs(clickY - this.clientYLast) >= this._config.slideDistance) {
+                        this.isSliding = true
+                        this.clientXLast = clickX
+                        this.clientYLast = clickY
+                    }
+                }
+            }
+        }
+    }
+
+    connectedCallback(): void {
+        super.connectedCallback()
+        document.addEventListener('mouseup', this.sliderHandler)
+        document.addEventListener('touchend', this.sliderHandler)
+        document.addEventListener('touchcancel', this.sliderHandler)
+        document.addEventListener('mousemove', this.sliderHandler)
+    }
+
+    disconnectedCallback(): void {
+        document.removeEventListener('mouseup', this.sliderHandler)
+        document.removeEventListener('touchend', this.sliderHandler)
+        document.removeEventListener('touchcancel', this.sliderHandler)
+        document.removeEventListener('mousemove', this.sliderHandler)
+        super.disconnectedCallback()
+    }
+
     protected render(): TemplateResult | void {
         const initFailed = this.initializeConfig()
         if (initFailed !== null) return initFailed
@@ -144,13 +319,13 @@ export class MySliderV2 extends LitElement {
         ]
         const progressStyle = this._config!.styles?.progress ? { ...defaultProgressStyle, ...this._config!.styles.progress } : defaultProgressStyle
 
-        const deflatedCardStl = deflate(this._config!.styles?.card) ? deflate(this._config!.styles?.card) : {}
-        const deflatedContainerStl = deflate(this._config!.styles?.container) ? deflate(this._config!.styles?.container) : {}
-        const deflatedTrackStl = deflate(this._config!.styles?.track) ? deflate(this._config!.styles?.track) : {}
+        const deflatedCardStl = deflate(this._config!.styles?.card) || {}
+        const deflatedContainerStl = deflate(this._config!.styles?.container) || {}
+        const deflatedTrackStl = deflate(this._config!.styles?.track) || {}
         const deflatedProgressStl = deflate(progressStyle)
-        // const deflatedProgressStl = deflate(this._config!.styles?.progress) ? deflate(this._config!.styles?.progress) : {}
-        const deflatedThumbStl = deflate(this._config!.styles?.thumb) ? deflate(this._config!.styles?.thumb) : {}
-        const deflatedValueStl = deflate(this._config!.styles?.value) ? deflate(this._config!.styles?.value) : {}
+        const deflatedThumbStl = deflate(this._config!.styles?.thumb) || {}
+        const deflatedValueStl = deflate(this._config!.styles?.value) || {}
+        this.deflatedValueStl = deflatedValueStl // cached for setProgress (per-mousemove path)
         // ---------- Styles ---------- //
         const cardStl = getStyle('card', deflatedCardStl)
         const containerStl = getStyle('container', deflatedContainerStl)
@@ -205,164 +380,16 @@ export class MySliderV2 extends LitElement {
             }
         }
 
-        const sliderHandler = (event) => {
-            switch (event.type) {
-                case 'mousedown':
-                    if (this.touchInput) return
-                    startInput(event)
-                    break
-                case 'touchstart':
-                    this.touchInput = true
-                    startInput(event)
-                    break
-                case 'mousemove':
-                    if (this.touchInput) return
-                    moveInput(event)
-                    break
-                case 'touchmove':
-                    if (this._config.disableScroll)
-                        event.preventDefault()
-                    moveInput(event)
-                    break
-                case 'mouseup':
-                case 'touchend':
-                case 'touchcancel':
-                    stopInput(event)
-                    break
-            }
-        }
-
-        const startInput = (event) => {
-            if (this.actionTaken) return
-
-            const clickX = event.clientX || event.touches[0].clientX
-            const clickY = event.clientY || event.touches[0].clientY
-            if (this.clientXLast === 0) {
-                this.clientXLast = clickX
-            }
-            if (this.clientYLast === 0) {
-                this.clientYLast = clickY
-            }
-
-            if (this._config.allowTapping) {
-                this.actionTaken = true
-                this.calcProgress(event)
-                return
-            }
-            else {
-                const actualTarget = event.composedPath()[0]
-                const thumbElement = this.shadowRoot?.querySelector('.my-slider-custom-thumb')
-                if (actualTarget.classList.contains('my-slider-custom-thumb')) {
-                    this.thumbTapped = true
-                    this.actionTaken = true
-                    this.calcProgress(event)
-                    return
-                }
-                else if (thumbElement) {
-                    const thumbRect = thumbElement.getBoundingClientRect()
-
-                    if (clickX >= thumbRect.left - this._config.marginOfError &&
-                        clickX <= thumbRect.right + this._config.marginOfError &&
-                        clickY >= thumbRect.top - this._config.marginOfError &&
-                        clickY <= thumbRect.bottom + this._config.marginOfError) {
-                        this.thumbTapped = true
-                        this.actionTaken = true
-                        this.calcProgress(event)
-                        return
-                    }
-                }
-            }
-            if (this._config.allowSliding) {
-                this.actionTaken = true
-            }
-
-            this.clientYLast = clickY
-            this.clientXLast = clickX
-        }
-
-        const stopInput = (event) => {
-            if (!this.actionTaken) return
-
-            // Same pre-first-frame exposure as moveInput: skip the transition reset when
-            // sliderEl is not set yet (there is nothing rendered to reset), but still fall
-            // through so the input flags below are cleared. (F-10)
-            if (this.sliderEl !== undefined && this.sliderEl !== null) {
-                const progressEl: HTMLElement | null = this.sliderEl.querySelector('.my-slider-custom-progress')
-                progressEl!.style.transition = this.initialTransition
-            }
-
-            // #23: hide the floating value label when the interaction ends
-            if (this._config.showValue && this.shadowRoot) {
-                const valueEl: HTMLElement | null = this.shadowRoot.querySelector('.my-slider-custom-value')
-                if (valueEl) valueEl.style.display = 'none'
-            }
-
-            if (this._config.allowTapping) {
-                this.calcProgress(event)
-            }
-            else if (this.thumbTapped) {
-                this.calcProgress(event)
-            }
-            else if (this.isSliding) {
-                this.calcProgress(event)
-            }
-            this.thumbTapped = false
-            this.touchInput = false
-            this.isSliding = false
-            setTimeout(() => {
-                this.actionTaken = false
-            }, 50);
-        }
-
-        const moveInput = event => {
-            if (this.actionTaken) {
-                // sliderEl is grabbed in a requestAnimationFrame after first render (updated()).
-                // A drag that begins before that frame reaches here with sliderEl undefined and
-                // used to throw an uncaught TypeError. Ignore the move instead — calcProgress
-                // already guards the same way. (F-10)
-                if (this.sliderEl === undefined || this.sliderEl === null) return
-                const progressEl: HTMLElement | null = this.sliderEl.querySelector('.my-slider-custom-progress')
-                progressEl!.style.transition = ''
-
-
-                const clickX = event.clientX || event.touches[0].clientX
-                const clickY = event.clientY || event.touches[0].clientY
-                if (this._config.allowTapping || this.isSliding ||
-                    (!this._config.allowTapping && this.thumbTapped)) {
-                    this.calcProgress(event)
-                    this.clientXLast = clickX
-                    this.clientYLast = clickY
-                }
-                else if (this._config.allowSliding) {
-                    if (!this._config.vertical) {
-                        if (Math.abs(clickX - this.clientXLast) >= this._config.slideDistance) {
-                            this.isSliding = true
-                            this.clientXLast = clickX
-                            this.clientYLast = clickY
-                        }
-                    }
-                    else {
-                        if (Math.abs(clickY - this.clientYLast) >= this._config.slideDistance) {
-                            this.isSliding = true
-                            this.clientXLast = clickX
-                            this.clientYLast = clickY
-                        }
-                    }
-                }
-            }
-        }
-
-        this.createAndCleanupEventListeners(sliderHandler)
         return html`
             <ha-card class="my-slider-custom-card" style="${styleMap(cardStl)}">
                 <div class="my-slider-custom-container" id="${this._config.sliderId}" style="${styleMap(containerStl)}" data-value="${this.sliderVal}" data-progress-percent="${this.sliderValPercent}"
-                    @mousedown="${sliderHandler}"
-                    @mouseup="${sliderHandler}"
-                    @mousemove="${sliderHandler}"
-                    @touchstart="${{ handleEvent: sliderHandler, passive: true }}"
-                    @touchend="${sliderHandler}"
-                    @touchcancel="${sliderHandler}" 
-                    @touchmove="${{ handleEvent: sliderHandler, passive: !this._config.disableScroll }}"
+                    @mousedown="${this.sliderHandler}"
+                    @mouseup="${this.sliderHandler}"
+                    @mousemove="${this.sliderHandler}"
+                    @touchstart="${{ handleEvent: this.sliderHandler, passive: true }}"
+                    @touchend="${this.sliderHandler}"
+                    @touchcancel="${this.sliderHandler}" 
+                    @touchmove="${{ handleEvent: this.sliderHandler, passive: !this._config.disableScroll }}"
                 >
                     <div class="my-slider-custom-track" style="${styleMap(trackStl)}">
                         <div class="my-slider-custom-progress" style="${styleMap(progressStl)}">
@@ -375,6 +402,9 @@ export class MySliderV2 extends LitElement {
         `
     }
 
+    // Returns null on success, or a renderable error (TemplateResult / hui-error-card
+    // HTMLElement). Kept as `any` because typing it forces a wider render() signature
+    // than lit-element 2 declares; revisit with the lit 3 migration.
     private initializeConfig(): any {
         if (this.actionTaken) return null
         this.entity = this.hass.states[`${this.config.entity}`]
@@ -446,11 +476,9 @@ export class MySliderV2 extends LitElement {
             tmpVal = isNaN(attrVal) ? 0 : attrVal
             this.oldVal = tmpVal
             if (!defaultConfig.showMin && defaultConfig.min) { // Subtracting savedMin to make slider 0 be far left
-                defaultConfig.max = defaultConfig.max - defaultConfig.min
-                tmpVal = tmpVal - defaultConfig.min
+                ({ max: defaultConfig.max, val: tmpVal } = shiftForHiddenMin(defaultConfig.min, defaultConfig.max, tmpVal))
             }
-            tmpVal = (tmpVal * (100 - defaultConfig.sliderMin) / 100) + defaultConfig.sliderMin
-            tmpVal = tmpVal < defaultConfig.sliderMin ? defaultConfig.sliderMin : tmpVal
+            tmpVal = applySliderMin(tmpVal, defaultConfig.sliderMin)
 
             sliderVal1 = tmpVal
             sliderVal2 = roundPercentage(percentage(tmpVal, defaultConfig.max))
@@ -463,12 +491,10 @@ export class MySliderV2 extends LitElement {
                     if (this.entity.state === 'on') {
                         tmpVal = Math.ceil(percentage(this.entity.attributes.brightness, 256))
                         if (!defaultConfig.showMin && defaultConfig.min) { // Subtracting savedMin to make slider 0 be far left
-                            defaultConfig.max = defaultConfig.max - defaultConfig.min
-                            tmpVal = tmpVal - defaultConfig.min
+                            ({ max: defaultConfig.max, val: tmpVal } = shiftForHiddenMin(defaultConfig.min, defaultConfig.max, tmpVal))
                         }
                     }
-                    tmpVal = (tmpVal * (100 - defaultConfig.sliderMin) / 100) + defaultConfig.sliderMin
-                    tmpVal = tmpVal < defaultConfig.sliderMin ? defaultConfig.sliderMin : tmpVal
+                    tmpVal = applySliderMin(tmpVal, defaultConfig.sliderMin)
                 }
                 else if (defaultConfig.mode === 'temperature') {
                     if (this.entity.state !== 'on') break
@@ -488,12 +514,10 @@ export class MySliderV2 extends LitElement {
                     tmpVal = parseFloat(currentMireds as any)
                     this.oldVal = parseFloat(currentMireds as any)
                     if (!defaultConfig.showMin) { // Subtracting savedMin to make slider 0 be far left
-                        defaultConfig.max = defaultConfig.max - defaultConfig.min
-                        tmpVal = tmpVal - defaultConfig.min
+                        ({ max: defaultConfig.max, val: tmpVal } = shiftForHiddenMin(defaultConfig.min, defaultConfig.max, tmpVal))
                     }
 
-                    tmpVal = (tmpVal * (100 - defaultConfig.sliderMin) / 100) + defaultConfig.sliderMin
-                    tmpVal = tmpVal < defaultConfig.sliderMin ? defaultConfig.sliderMin : tmpVal
+                    tmpVal = applySliderMin(tmpVal, defaultConfig.sliderMin)
 
                 }
                 else if (defaultConfig.mode === 'hue' && this.entity.attributes.color_mode === 'hs') {
@@ -505,11 +529,9 @@ export class MySliderV2 extends LitElement {
 
                     tmpVal = parseFloat(this.entity.attributes.hs_color[0])
                     if (!defaultConfig.showMin) { // Subtracting savedMin to make slider 0 be far left
-                        defaultConfig.max = defaultConfig.max - defaultConfig.min
-                        tmpVal = tmpVal - defaultConfig.min
+                        ({ max: defaultConfig.max, val: tmpVal } = shiftForHiddenMin(defaultConfig.min, defaultConfig.max, tmpVal))
                     }
-                    tmpVal = (tmpVal * (100 - defaultConfig.sliderMin) / 100) + defaultConfig.sliderMin
-                    tmpVal = tmpVal < defaultConfig.sliderMin ? defaultConfig.sliderMin : tmpVal
+                    tmpVal = applySliderMin(tmpVal, defaultConfig.sliderMin)
                 }
                 else if (defaultConfig.mode === 'saturation' && this.entity.attributes.color_mode === 'hs') {
                     if (this.entity.state !== 'on') break
@@ -520,11 +542,9 @@ export class MySliderV2 extends LitElement {
 
                     tmpVal = parseFloat(this.entity.attributes.hs_color[1])
                     if (!defaultConfig.showMin) { // Subtracting savedMin to make slider 0 be far left
-                        defaultConfig.max = defaultConfig.max - defaultConfig.min
-                        tmpVal = tmpVal - defaultConfig.min
+                        ({ max: defaultConfig.max, val: tmpVal } = shiftForHiddenMin(defaultConfig.min, defaultConfig.max, tmpVal))
                     }
-                    tmpVal = (tmpVal * (100 - defaultConfig.sliderMin) / 100) + defaultConfig.sliderMin
-                    tmpVal = tmpVal < defaultConfig.sliderMin ? defaultConfig.sliderMin : tmpVal
+                    tmpVal = applySliderMin(tmpVal, defaultConfig.sliderMin)
                 }
                 sliderVal1 = tmpVal
                 sliderVal2 = roundPercentage(percentage(tmpVal, defaultConfig.max))
@@ -539,11 +559,9 @@ export class MySliderV2 extends LitElement {
                 this.oldVal = parseFloat(this.entity.state)
                 tmpVal = parseFloat(this.entity.state)
                 if (!defaultConfig.showMin && defaultConfig.min) { // Subtracting savedMin to make slider 0 be far left
-                    defaultConfig.max = defaultConfig.max - defaultConfig.min
-                    tmpVal = tmpVal - defaultConfig.min
+                    ({ max: defaultConfig.max, val: tmpVal } = shiftForHiddenMin(defaultConfig.min, defaultConfig.max, tmpVal))
                 }
-                tmpVal = (tmpVal * (100 - defaultConfig.sliderMin) / 100) + defaultConfig.sliderMin
-                tmpVal = tmpVal < defaultConfig.sliderMin ? defaultConfig.sliderMin : tmpVal
+                tmpVal = applySliderMin(tmpVal, defaultConfig.sliderMin)
 
                 sliderVal1 = tmpVal
                 sliderVal2 = roundPercentage(percentage(tmpVal, defaultConfig.max))
@@ -575,8 +593,7 @@ export class MySliderV2 extends LitElement {
                     tmpVal = currentPosition
                 }
 
-                tmpVal = (tmpVal * (100 - defaultConfig.sliderMin) / 100) + defaultConfig.sliderMin
-                tmpVal = tmpVal < defaultConfig.sliderMin ? defaultConfig.sliderMin : tmpVal
+                tmpVal = applySliderMin(tmpVal, defaultConfig.sliderMin)
                 this.oldVal = tmpVal
                 
                 sliderVal1 = tmpVal
@@ -599,8 +616,7 @@ export class MySliderV2 extends LitElement {
                 }
 
                 if (!defaultConfig.showMin && defaultConfig.min) { // Subtracting savedMin to make slider 0 be far left
-                    defaultConfig.max = defaultConfig.max - defaultConfig.min
-                    tmpVal = tmpVal - defaultConfig.min
+                    ({ max: defaultConfig.max, val: tmpVal } = shiftForHiddenMin(defaultConfig.min, defaultConfig.max, tmpVal))
                 }
                 
                 // Calculate tmpVal based on the inverse logic
@@ -610,8 +626,7 @@ export class MySliderV2 extends LitElement {
                     alreadyInversed = true
                 }
 
-                tmpVal = (tmpVal * (100 - defaultConfig.sliderMin) / 100) + defaultConfig.sliderMin
-                tmpVal = tmpVal < defaultConfig.sliderMin ? defaultConfig.sliderMin : tmpVal
+                tmpVal = applySliderMin(tmpVal, defaultConfig.sliderMin)
                 this.oldVal = tmpVal
 
                 sliderVal1 = tmpVal
@@ -626,24 +641,20 @@ export class MySliderV2 extends LitElement {
                 this.oldVal = tmpVal
 
                 if (!defaultConfig.showMin && defaultConfig.min) { // Subtracting savedMin to make slider 0 be far left (sometimes needed, sometimes not. I dont have a fan to test this. Sorry)
-                    defaultConfig.max = defaultConfig.max - defaultConfig.min
-                    tmpVal = tmpVal - defaultConfig.min
+                    ({ max: defaultConfig.max, val: tmpVal } = shiftForHiddenMin(defaultConfig.min, defaultConfig.max, tmpVal))
                 }
 
-                tmpVal = (tmpVal * (100 - defaultConfig.sliderMin) / 100) + defaultConfig.sliderMin
-                tmpVal = tmpVal < defaultConfig.sliderMin ? defaultConfig.sliderMin : tmpVal
+                tmpVal = applySliderMin(tmpVal, defaultConfig.sliderMin)
 
                 sliderVal1 = tmpVal
                 sliderVal2 = roundPercentage(percentage(tmpVal, defaultConfig.max))
-                // this.setSliderValues(tmpVal, roundPercentage(percentage(tmpVal, defaultConfig.max)))
                 break
             case 'switch':
                 defaultConfig.minThreshold = this._config!.minThreshold ? this._config!.minThreshold : 15
                 defaultConfig.maxThreshold = this._config!.maxThreshold ? this._config!.maxThreshold : 75
                 tmpVal = Number(Math.max(this.zero, defaultConfig.minThreshold))
 
-                tmpVal = (tmpVal * (100 - defaultConfig.sliderMin) / 100) + defaultConfig.sliderMin
-                tmpVal = tmpVal < defaultConfig.sliderMin ? defaultConfig.sliderMin : tmpVal
+                tmpVal = applySliderMin(tmpVal, defaultConfig.sliderMin)
 
                 sliderVal1 = tmpVal
                 sliderVal2 = tmpVal
@@ -655,8 +666,7 @@ export class MySliderV2 extends LitElement {
                 defaultConfig.maxThreshold = this._config!.maxThreshold ? this._config!.maxThreshold : 95
                 tmpVal = Number(Math.max(this.zero, defaultConfig.minThreshold))// Set slider to larger of 2 minimums
 
-                tmpVal = (tmpVal * (100 - defaultConfig.sliderMin) / 100) + defaultConfig.sliderMin
-                tmpVal = tmpVal < defaultConfig.sliderMin ? defaultConfig.sliderMin : tmpVal
+                tmpVal = applySliderMin(tmpVal, defaultConfig.sliderMin)
                 this.oldVal = tmpVal
                 sliderVal1 = tmpVal
                 sliderVal2 = tmpVal
@@ -742,7 +752,7 @@ export class MySliderV2 extends LitElement {
                 // along the slider axis is managed here; a user-supplied styles.value
                 // `left` (horizontal) / `top` (vertical) disables tracking so fully custom
                 // static positioning keeps working.
-                const userValueStl = deflate(this._config.styles?.value) ? deflate(this._config.styles?.value) : {}
+                const userValueStl = this.deflatedValueStl || {}
                 if (!this._config.vertical) {
                     if (userValueStl.left === undefined) {
                         valueEl.style.left = (this._config.flipped ? 100 - valuePercentage : valuePercentage) + '%'
@@ -1022,15 +1032,6 @@ export class MySliderV2 extends LitElement {
         }, 200)
     }
 
-    private createAndCleanupEventListeners(func): void {
-        document.removeEventListener("mouseup", func)
-        document.removeEventListener("touchend", func)
-        document.removeEventListener("touchcancel", func)
-        document.addEventListener("mouseup", func)
-        document.addEventListener("touchend", func)
-        document.addEventListener("touchcancel", func)
-        document.addEventListener("mousemove", func)
-    }
 
     // https://lit-element.polymer-project.org/guide/styles
     static get styles(): CSSResult {
@@ -1073,20 +1074,3 @@ styles:
     - font-size: 16px
 */
 
-/*
-TODO:
-- Create colorMode config key. It should accept: (https://developers.home-assistant.io/docs/core/entity/light/)
-    'brightness', 'temperature', 'hue' 'saturation', 'red', 'green', 'blue', 'white', 'x_color', 'y_color' and 'toggle'
-    Future maybe: 'hs', 'rgb', 'rgbw', 'xy_color'. This will be where there will automatically be multiple sliders with same config in the same card
-    - brightness: Adjust brightness of light (IMPLEMENTED)
-    - temperature: Adjust temperature/warmth of light (IMPLEMENTED)
-    - hue: Adjust Hue value in hs_color (0-360)
-    - saturation: Adjust Saturation in hs_color (0-100)
-
-
-    - hs: Adjust Hue & Saturation of light
-    - rgb: Adjust Red, Green & Blue colors on light
-    - rgbw: Adjust Red, Green, Blue & white colors on light
-    - xy_color: Adjust lights colors by adjust xy_color attribute
-TODONE:
-*/
