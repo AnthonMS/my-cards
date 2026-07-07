@@ -98,7 +98,10 @@ export class MySliderV2 extends LitElement {
             throw new Error("You need to define entity")
         }
 
-        if (!allowedEntities.includes(config.entity.split('.')[0])) {
+        // #48: with an explicit `attribute:` the card reads/writes that attribute
+        // generically, so any domain is allowed (e.g. humidifier). The whitelist
+        // still applies to state-based configs.
+        if (!allowedEntities.includes(config.entity.split('.')[0]) && !config.attribute) {
             throw new Error(`Entity has to be one of the following: ${allowedEntities.map(e => ' ' + e)}`)
         }
 
@@ -429,7 +432,30 @@ export class MySliderV2 extends LitElement {
         let sliderVal1 = 0
         let sliderVal2 = 0
         let alreadyInversed = false
-        switch (entityType) {
+        if (this._config.attribute !== undefined) { /* ------------ ATTRIBUTE (#48) ------------ */
+            // Read the value from an entity attribute instead of the state. Takes
+            // precedence over the per-domain branches below. min/max default from the
+            // HA convention min_<attribute>/max_<attribute> when those exist (e.g.
+            // humidifier: humidity + min_humidity/max_humidity).
+            defaultConfig.min = this._config!.min ? this._config!.min :
+                this.entity.attributes['min_' + this._config.attribute] !== undefined ? this.entity.attributes['min_' + this._config.attribute] : 0
+            defaultConfig.max = this._config!.max ? this._config!.max :
+                this.entity.attributes['max_' + this._config.attribute] !== undefined ? this.entity.attributes['max_' + this._config.attribute] : 100
+
+            const attrVal = parseFloat(this.entity.attributes[this._config.attribute])
+            tmpVal = isNaN(attrVal) ? 0 : attrVal
+            this.oldVal = tmpVal
+            if (!defaultConfig.showMin && defaultConfig.min) { // Subtracting savedMin to make slider 0 be far left
+                defaultConfig.max = defaultConfig.max - defaultConfig.min
+                tmpVal = tmpVal - defaultConfig.min
+            }
+            tmpVal = (tmpVal * (100 - defaultConfig.sliderMin) / 100) + defaultConfig.sliderMin
+            tmpVal = tmpVal < defaultConfig.sliderMin ? defaultConfig.sliderMin : tmpVal
+
+            sliderVal1 = tmpVal
+            sliderVal2 = roundPercentage(percentage(tmpVal, defaultConfig.max))
+        }
+        else switch (entityType) {
 
             case 'light': /* ------------ LIGHT ------------ */
                 if (defaultConfig.mode === 'brightness') {
@@ -777,6 +803,13 @@ export class MySliderV2 extends LitElement {
             }
         }
 
+        if (this._config.attribute !== undefined) {
+            // #48: attribute configs write through the domain's set_<attribute> service
+            this._setAttribute(this.entity, val)
+            this.actionTaken = false
+            return
+        }
+
         switch (this._config!.entity.split('.')[0]) {
             case 'light':
                 if (this._config.mode === 'brightness') {
@@ -881,6 +914,16 @@ export class MySliderV2 extends LitElement {
         this.oldVal = value
     }
 
+    private _setAttribute(entity, value): void {
+        // #48: write convention: <domain>.set_<attribute> with the attribute name as
+        // the service-data key, e.g. humidifier.set_humidity { humidity: 55 }.
+        const serviceData: any = { entity_id: entity.entity_id }
+        // the internal sliderMin/min rescaling can leave float noise (e.g. 55.00000000000001);
+        // trim it so services with integer/decimal schemas get a clean number
+        serviceData[this._config.attribute] = parseFloat(parseFloat(value).toFixed(4))
+        this.hass.callService(entity.entity_id.split('.')[0], `set_${this._config.attribute}`, serviceData)
+        this.oldVal = value
+    }
     private _setInputNumber(entity, value): void {
         this.hass.callService(entity.entity_id.split('.')[0], "set_value", { // either "input_number" or "number"
             entity_id: entity.entity_id,
@@ -1000,6 +1043,7 @@ export class MySliderV2 extends LitElement {
 /*
 type: custom:my-slider-v2
 entity: light.sofa_spots
+attribute: none (Read/write this entity ATTRIBUTE instead of its state, e.g. 'humidity' on a humidifier. Range defaults from the entity's own min_<attribute>/max_<attribute> attributes; min/max config overrides. Writes via <domain>.set_<attribute>. See docs/cards/slider-v2.md)
 colorMode: 'brightness' (Can be 'brightness', 'temperature', 'hue', 'saturation')
 coverMode: 'position' (Accept: 'position', 'tilt')
 mode: combined colorMode, coverMode and other future modes.
