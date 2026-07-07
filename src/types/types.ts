@@ -1,10 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { LovelaceCardConfig, LovelaceCard, LovelaceCardEditor } from './lovelace';
 
-import { 
+import {
   HassEntity,
-    // @ts-ignore
-    HassServiceTarget 
+  HassServiceTarget // exported properly since home-assistant-js-websocket 5.x; ts-ignore no longer needed
 } from 'home-assistant-js-websocket';
 
 // import { LovelaceCard, LovelaceCardConfig, LovelaceCardEditor } from 'custom-card-helpers';
