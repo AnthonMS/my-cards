@@ -23,6 +23,7 @@ import { localize } from '../localize/localize'
 import { getStyle } from './styles/my-slider.styles'
 import { deflate } from '../scripts/deflate'
 import { percentage, roundPercentage, getClickPosRelToTarget, stateActive, deepMerge, miredsToKelvin, kelvinToMireds } from '../scripts/helpers'
+import { applySliderMin, shiftForHiddenMin } from '../scripts/slider-math'
 import { objectEvalTemplate } from '../scripts/templating'
 
 /* eslint no-console: 0 */
@@ -447,11 +448,9 @@ export class MySliderV2 extends LitElement {
             tmpVal = isNaN(attrVal) ? 0 : attrVal
             this.oldVal = tmpVal
             if (!defaultConfig.showMin && defaultConfig.min) { // Subtracting savedMin to make slider 0 be far left
-                defaultConfig.max = defaultConfig.max - defaultConfig.min
-                tmpVal = tmpVal - defaultConfig.min
+                ({ max: defaultConfig.max, val: tmpVal } = shiftForHiddenMin(defaultConfig.min, defaultConfig.max, tmpVal))
             }
-            tmpVal = (tmpVal * (100 - defaultConfig.sliderMin) / 100) + defaultConfig.sliderMin
-            tmpVal = tmpVal < defaultConfig.sliderMin ? defaultConfig.sliderMin : tmpVal
+            tmpVal = applySliderMin(tmpVal, defaultConfig.sliderMin)
 
             sliderVal1 = tmpVal
             sliderVal2 = roundPercentage(percentage(tmpVal, defaultConfig.max))
@@ -464,12 +463,10 @@ export class MySliderV2 extends LitElement {
                     if (this.entity.state === 'on') {
                         tmpVal = Math.ceil(percentage(this.entity.attributes.brightness, 256))
                         if (!defaultConfig.showMin && defaultConfig.min) { // Subtracting savedMin to make slider 0 be far left
-                            defaultConfig.max = defaultConfig.max - defaultConfig.min
-                            tmpVal = tmpVal - defaultConfig.min
+                            ({ max: defaultConfig.max, val: tmpVal } = shiftForHiddenMin(defaultConfig.min, defaultConfig.max, tmpVal))
                         }
                     }
-                    tmpVal = (tmpVal * (100 - defaultConfig.sliderMin) / 100) + defaultConfig.sliderMin
-                    tmpVal = tmpVal < defaultConfig.sliderMin ? defaultConfig.sliderMin : tmpVal
+                    tmpVal = applySliderMin(tmpVal, defaultConfig.sliderMin)
                 }
                 else if (defaultConfig.mode === 'temperature') {
                     if (this.entity.state !== 'on') break
@@ -489,12 +486,10 @@ export class MySliderV2 extends LitElement {
                     tmpVal = parseFloat(currentMireds as any)
                     this.oldVal = parseFloat(currentMireds as any)
                     if (!defaultConfig.showMin) { // Subtracting savedMin to make slider 0 be far left
-                        defaultConfig.max = defaultConfig.max - defaultConfig.min
-                        tmpVal = tmpVal - defaultConfig.min
+                        ({ max: defaultConfig.max, val: tmpVal } = shiftForHiddenMin(defaultConfig.min, defaultConfig.max, tmpVal))
                     }
 
-                    tmpVal = (tmpVal * (100 - defaultConfig.sliderMin) / 100) + defaultConfig.sliderMin
-                    tmpVal = tmpVal < defaultConfig.sliderMin ? defaultConfig.sliderMin : tmpVal
+                    tmpVal = applySliderMin(tmpVal, defaultConfig.sliderMin)
 
                 }
                 else if (defaultConfig.mode === 'hue' && this.entity.attributes.color_mode === 'hs') {
@@ -506,11 +501,9 @@ export class MySliderV2 extends LitElement {
 
                     tmpVal = parseFloat(this.entity.attributes.hs_color[0])
                     if (!defaultConfig.showMin) { // Subtracting savedMin to make slider 0 be far left
-                        defaultConfig.max = defaultConfig.max - defaultConfig.min
-                        tmpVal = tmpVal - defaultConfig.min
+                        ({ max: defaultConfig.max, val: tmpVal } = shiftForHiddenMin(defaultConfig.min, defaultConfig.max, tmpVal))
                     }
-                    tmpVal = (tmpVal * (100 - defaultConfig.sliderMin) / 100) + defaultConfig.sliderMin
-                    tmpVal = tmpVal < defaultConfig.sliderMin ? defaultConfig.sliderMin : tmpVal
+                    tmpVal = applySliderMin(tmpVal, defaultConfig.sliderMin)
                 }
                 else if (defaultConfig.mode === 'saturation' && this.entity.attributes.color_mode === 'hs') {
                     if (this.entity.state !== 'on') break
@@ -521,11 +514,9 @@ export class MySliderV2 extends LitElement {
 
                     tmpVal = parseFloat(this.entity.attributes.hs_color[1])
                     if (!defaultConfig.showMin) { // Subtracting savedMin to make slider 0 be far left
-                        defaultConfig.max = defaultConfig.max - defaultConfig.min
-                        tmpVal = tmpVal - defaultConfig.min
+                        ({ max: defaultConfig.max, val: tmpVal } = shiftForHiddenMin(defaultConfig.min, defaultConfig.max, tmpVal))
                     }
-                    tmpVal = (tmpVal * (100 - defaultConfig.sliderMin) / 100) + defaultConfig.sliderMin
-                    tmpVal = tmpVal < defaultConfig.sliderMin ? defaultConfig.sliderMin : tmpVal
+                    tmpVal = applySliderMin(tmpVal, defaultConfig.sliderMin)
                 }
                 sliderVal1 = tmpVal
                 sliderVal2 = roundPercentage(percentage(tmpVal, defaultConfig.max))
@@ -540,11 +531,9 @@ export class MySliderV2 extends LitElement {
                 this.oldVal = parseFloat(this.entity.state)
                 tmpVal = parseFloat(this.entity.state)
                 if (!defaultConfig.showMin && defaultConfig.min) { // Subtracting savedMin to make slider 0 be far left
-                    defaultConfig.max = defaultConfig.max - defaultConfig.min
-                    tmpVal = tmpVal - defaultConfig.min
+                    ({ max: defaultConfig.max, val: tmpVal } = shiftForHiddenMin(defaultConfig.min, defaultConfig.max, tmpVal))
                 }
-                tmpVal = (tmpVal * (100 - defaultConfig.sliderMin) / 100) + defaultConfig.sliderMin
-                tmpVal = tmpVal < defaultConfig.sliderMin ? defaultConfig.sliderMin : tmpVal
+                tmpVal = applySliderMin(tmpVal, defaultConfig.sliderMin)
 
                 sliderVal1 = tmpVal
                 sliderVal2 = roundPercentage(percentage(tmpVal, defaultConfig.max))
@@ -576,8 +565,7 @@ export class MySliderV2 extends LitElement {
                     tmpVal = currentPosition
                 }
 
-                tmpVal = (tmpVal * (100 - defaultConfig.sliderMin) / 100) + defaultConfig.sliderMin
-                tmpVal = tmpVal < defaultConfig.sliderMin ? defaultConfig.sliderMin : tmpVal
+                tmpVal = applySliderMin(tmpVal, defaultConfig.sliderMin)
                 this.oldVal = tmpVal
                 
                 sliderVal1 = tmpVal
@@ -600,8 +588,7 @@ export class MySliderV2 extends LitElement {
                 }
 
                 if (!defaultConfig.showMin && defaultConfig.min) { // Subtracting savedMin to make slider 0 be far left
-                    defaultConfig.max = defaultConfig.max - defaultConfig.min
-                    tmpVal = tmpVal - defaultConfig.min
+                    ({ max: defaultConfig.max, val: tmpVal } = shiftForHiddenMin(defaultConfig.min, defaultConfig.max, tmpVal))
                 }
                 
                 // Calculate tmpVal based on the inverse logic
@@ -611,8 +598,7 @@ export class MySliderV2 extends LitElement {
                     alreadyInversed = true
                 }
 
-                tmpVal = (tmpVal * (100 - defaultConfig.sliderMin) / 100) + defaultConfig.sliderMin
-                tmpVal = tmpVal < defaultConfig.sliderMin ? defaultConfig.sliderMin : tmpVal
+                tmpVal = applySliderMin(tmpVal, defaultConfig.sliderMin)
                 this.oldVal = tmpVal
 
                 sliderVal1 = tmpVal
@@ -627,12 +613,10 @@ export class MySliderV2 extends LitElement {
                 this.oldVal = tmpVal
 
                 if (!defaultConfig.showMin && defaultConfig.min) { // Subtracting savedMin to make slider 0 be far left (sometimes needed, sometimes not. I dont have a fan to test this. Sorry)
-                    defaultConfig.max = defaultConfig.max - defaultConfig.min
-                    tmpVal = tmpVal - defaultConfig.min
+                    ({ max: defaultConfig.max, val: tmpVal } = shiftForHiddenMin(defaultConfig.min, defaultConfig.max, tmpVal))
                 }
 
-                tmpVal = (tmpVal * (100 - defaultConfig.sliderMin) / 100) + defaultConfig.sliderMin
-                tmpVal = tmpVal < defaultConfig.sliderMin ? defaultConfig.sliderMin : tmpVal
+                tmpVal = applySliderMin(tmpVal, defaultConfig.sliderMin)
 
                 sliderVal1 = tmpVal
                 sliderVal2 = roundPercentage(percentage(tmpVal, defaultConfig.max))
@@ -642,8 +626,7 @@ export class MySliderV2 extends LitElement {
                 defaultConfig.maxThreshold = this._config!.maxThreshold ? this._config!.maxThreshold : 75
                 tmpVal = Number(Math.max(this.zero, defaultConfig.minThreshold))
 
-                tmpVal = (tmpVal * (100 - defaultConfig.sliderMin) / 100) + defaultConfig.sliderMin
-                tmpVal = tmpVal < defaultConfig.sliderMin ? defaultConfig.sliderMin : tmpVal
+                tmpVal = applySliderMin(tmpVal, defaultConfig.sliderMin)
 
                 sliderVal1 = tmpVal
                 sliderVal2 = tmpVal
@@ -655,8 +638,7 @@ export class MySliderV2 extends LitElement {
                 defaultConfig.maxThreshold = this._config!.maxThreshold ? this._config!.maxThreshold : 95
                 tmpVal = Number(Math.max(this.zero, defaultConfig.minThreshold))// Set slider to larger of 2 minimums
 
-                tmpVal = (tmpVal * (100 - defaultConfig.sliderMin) / 100) + defaultConfig.sliderMin
-                tmpVal = tmpVal < defaultConfig.sliderMin ? defaultConfig.sliderMin : tmpVal
+                tmpVal = applySliderMin(tmpVal, defaultConfig.sliderMin)
                 this.oldVal = tmpVal
                 sliderVal1 = tmpVal
                 sliderVal2 = tmpVal
