@@ -34,7 +34,8 @@ It is completely customizable now and fully templatable.
 | vertical | boolean | false | This will set the slider to be vertical and handled from bottom to top. Default on covers |
 | flipped | boolean | false | This will just flip the slider to go from right to left or top to bottom. Default on covers |
 | inverse | boolean | false | Will inverse how far the slider has progressed compared to value. so if brightness is 75%, then it will only be 25% progressed. This is useful for cover, where it is Default. |
-| intermediate | boolean | false | If set to `true` the slider sends immediate updates while sliding. Not recommended by default, since it may generate too many updates. |
+| intermediate | boolean | false | If set to `true` the slider updates the entity continuously while dragging. Service calls are throttled (see `intermediateInterval`) so a fast drag doesn't flood Home Assistant. Best for responsive local entities (`input_number`, lights); use with care on slow devices such as covers. |
+| intermediateInterval | number | 100 | Only used when `intermediate: true`. Minimum time in milliseconds between updates sent while dragging. Lower = more responsive but more service calls; higher = fewer calls. |
 | disableScroll | boolean | true | Disable scrolling on touch devices when starting the touchmove from within the slider (default true for ALL entity types). Set to `false` if you want the page to keep scrolling over the slider. |
 | allowTapping | boolean | true | Allow tapping on slider track to activate. If false only dragging by thumb will activate it. |
 | marginOfError | number | 10 | Pixel distance the input can be from the thumb if allowTapping is set to false |
