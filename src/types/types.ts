@@ -30,6 +30,7 @@ export interface MySliderConfig extends MyCardConfig {
   flipped?: boolean;
   inverse?: boolean;
   intermediate?: boolean;
+  intermediateInterval?: number;
   disableScroll?: boolean;
   allowTapping?: boolean;
   marginOfError?: number;

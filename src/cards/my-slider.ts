@@ -58,6 +58,11 @@ export class MySliderV2 extends LitElement {
     private sliderValPercent: number = 0.00
     private initialTransition: string = ''
     private deflatedValueStl: Record<string, any> = {}
+    private lastIntermediateTs: number = 0
+    private pendingIntermediate: { val: number; valPercent: number } | null = null
+    private intermediateTimer: ReturnType<typeof setTimeout> | undefined = undefined
+    private valueVisible: boolean = false
+    private valueAxisPercent: number = 0
     private setSliderValues(val: number, valPercent: number, alreadyInversed = false): void {
         if (this._config.inverse && !alreadyInversed) {
             this.sliderVal = this._config.max - val;
@@ -238,6 +243,7 @@ export class MySliderV2 extends LitElement {
             const valueEl: HTMLElement | null = this.shadowRoot.querySelector('.my-slider-custom-value')
             if (valueEl) valueEl.style.display = 'none'
         }
+        this.valueVisible = false
 
         if (this._config.allowTapping) {
             this.calcProgress(event)
@@ -248,6 +254,11 @@ export class MySliderV2 extends LitElement {
         else if (this.isSliding) {
             this.calcProgress(event)
         }
+        // Commit the release value even if it landed inside a throttle gap. Runs
+        // while actionTaken is still true (it's cleared in the setTimeout below),
+        // so setValue's `if (!this.actionTaken) return` guard still passes.
+        this.flushIntermediate()
+        this.lastIntermediateTs = 0
         this.thumbTapped = false
         this.touchInput = false
         this.isSliding = false
@@ -378,6 +389,17 @@ export class MySliderV2 extends LitElement {
                 valueStl.top = deflatedValueStl.top ? deflatedValueStl.top : '0%'
                 valueStl.transform = deflatedValueStl.transform ? deflatedValueStl.transform : 'translate(0, -50%)'
             }
+            // Intermediate:true now re-renders mid-drag; styleMap re-applies valueStl
+            // every render. Drive display + tracked position from the live drag state so
+            // the bubble doesn't blink off (display) or snap to 0% (left) between frames.
+            valueStl.display = this.valueVisible ? 'block' : 'none'
+            if (this.valueVisible) {
+                if (!this._config.vertical) {
+                    if (deflatedValueStl.left === undefined) valueStl.left = this.valueAxisPercent + '%'
+                } else {
+                    if (deflatedValueStl.top === undefined) valueStl.top = this.valueAxisPercent + '%'
+                }
+            }
         }
 
         return html`
@@ -446,6 +468,7 @@ export class MySliderV2 extends LitElement {
             flipped: this._config!.flipped !== undefined ? this._config!.flipped : false,
             inverse: this._config!.inverse !== undefined ? this._config!.inverse : false,
             intermediate: this._config!.intermediate !== undefined ? this._config!.intermediate : false,
+            intermediateInterval: this._config!.intermediateInterval !== undefined ? this._config!.intermediateInterval : 100,
             min: this._config!.min ? this._config!.min : 0,
             max: this._config!.max ? this._config!.max : 100,
             step: this._config!.step ? this._config!.step : 1,
@@ -764,6 +787,10 @@ export class MySliderV2 extends LitElement {
                     }
                 }
                 valueEl.style.display = 'block'
+                this.valueVisible = true
+                this.valueAxisPercent = !this._config.vertical
+                    ? (this._config.flipped ? 100 - valuePercentage : valuePercentage)
+                    : (this._config.flipped ? valuePercentage : 100 - valuePercentage)
             }
         }
 
@@ -780,10 +807,47 @@ export class MySliderV2 extends LitElement {
             // Check if we should update entity on mousemove or mouseup
             if ((this._config!.intermediate && (action === 'mousemove' || action === 'mousedown' || action === 'touchmove' || action === 'touchstart')) ||
                 (!this._config!.intermediate && (action === 'mouseup' || action === 'touchend' || action === 'touchcancel'))) {
-                this.setValue(val, valuePercentage)
+                if (this._config!.intermediate) {
+                    this.setValueIntermediate(val, valuePercentage)
+                } else {
+                    this.setValue(val, valuePercentage)
+                }
             }
         }
     }
+
+    // Intermediate throttling: remember the latest value and dispatch at most once
+    // per intermediateInterval ms (leading + trailing edge), so a fast drag sends a
+    // bounded number of service calls instead of one per pointermove.
+    private setValueIntermediate(val: number, valPercent: number): void {
+        this.pendingIntermediate = { val, valPercent }
+        const interval = this._config!.intermediateInterval !== undefined ? this._config!.intermediateInterval : 100
+        const elapsed = Date.now() - this.lastIntermediateTs
+        if (elapsed >= interval) {
+            this.flushIntermediate()
+        } else if (this.intermediateTimer === undefined) {
+            this.intermediateTimer = setTimeout(() => {
+                this.intermediateTimer = undefined
+                this.flushIntermediate()
+            }, interval - elapsed)
+        }
+    }
+
+    // Sends whatever value is pending right now and resets the throttle window.
+    // Called on each throttle tick and once from stopInput, so the value the user
+    // released on always lands even if it fell inside a throttle gap.
+    private flushIntermediate(): void {
+        if (this.intermediateTimer !== undefined) {
+            clearTimeout(this.intermediateTimer)
+            this.intermediateTimer = undefined
+        }
+        if (this.pendingIntermediate === null) return
+        this.lastIntermediateTs = Date.now()
+        const { val, valPercent } = this.pendingIntermediate
+        this.pendingIntermediate = null
+        this.setValue(val, valPercent)
+    }
+
 
     private setValue(val, valPercent) {
         if (!this.entity) return
@@ -816,7 +880,7 @@ export class MySliderV2 extends LitElement {
         if (this._config.attribute !== undefined) {
             // #48: attribute configs write through the domain's set_<attribute> service
             this._setAttribute(this.entity, val)
-            this.actionTaken = false
+            if (!this._config.intermediate) this.actionTaken = false
             return
         }
 
@@ -868,7 +932,7 @@ export class MySliderV2 extends LitElement {
                 console.log('Default')
                 break
         }
-        this.actionTaken = false
+        if (!this._config.intermediate) this.actionTaken = false
     }
 
     private _setBrightness(entity, value): void {
