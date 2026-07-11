@@ -639,8 +639,8 @@ export class MySliderV2 extends LitElement {
         const sliderHeight = this.sliderEl.offsetHeight
         // Calculate what the percentage is of the clickPos.x between 0 and sliderWidth / clickPos.y between 0 and sliderHeight
         const clickPercent = this._config.vertical ? roundPercentage(clickPos.y / sliderHeight * 100) : roundPercentage(clickPos.x / sliderWidth * 100)
-        const newValue = clickPercent / 100 * (this._config.max - 0)
-        const flippedValue = this._config.max - newValue
+        const newValue = clickPercent / 100 * (this._config.max - this._config.min)
+        const flippedValue = (this._config.max - this._config.min) - newValue
         let val = this._config.flipped ? flippedValue : newValue
         // Set val to be either min, max, zero or value
         val = val < this._config.min && this._config.showMin ? this._config.min : val > this._config.max ? this._config.max : val < this.zero ? this.zero : val
@@ -653,7 +653,7 @@ export class MySliderV2 extends LitElement {
         // Round val to nearest step
         val = Math.round(val / this._config.step) * this._config.step
 
-        let valuePercentage = roundPercentage(percentage(val, this._config.max))
+        let valuePercentage = roundPercentage(percentage(val, this._config.max - this._config.min))
         valuePercentage = valuePercentage < this._config.sliderMin ? this._config.sliderMin : valuePercentage
 
         if (this._config.vertical) {
