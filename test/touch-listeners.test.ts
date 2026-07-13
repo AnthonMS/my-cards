@@ -109,3 +109,44 @@ describe('handlers still fire through the object-listener binding', () => {
         expect(el.actionTaken).toBe(true)
     })
 })
+
+
+// ============================================================================
+// intermediate:true touch drag regression. intermediate now re-renders mid-drag
+// (setValue on the first touchmove updates the entity). When touchmove lived on
+// the lit @touchmove binding, its { handleEvent } value was a new object each
+// render, so lit removed + re-added the listener on every one of those mid-drag
+// renders. On touch that churn dropped the gesture: the slider snapped to the
+// tap position and stopped following the finger (mouse was fine — mousemove is on
+// document). touchmove is now bound once on the container in firstUpdated, so it
+// must survive re-renders untouched.
+// ============================================================================
+describe('intermediate touch drag survives mid-drag re-renders', () => {
+    const touchAt = (type: string, x: number) => {
+        const e = new Event(type, { bubbles: true, cancelable: true })
+        ;(e as any).touches = [{ clientX: x, clientY: 5 }]
+        ;(e as any).clientX = x
+        ;(e as any).clientY = 5
+        return e
+    }
+
+    it('touchmove is registered once on the container and never churned across renders', async () => {
+        const el = await mountSlider({ entity: 'light.a', intermediate: true, allowTapping: true })
+        await waitForSliderEl(el)
+        const container = el.shadowRoot.querySelector('.my-slider-custom-container')
+
+        const added: string[] = []
+        const removed: string[] = []
+        const origAddEl = container.addEventListener.bind(container)
+        const origRemEl = container.removeEventListener.bind(container)
+        container.addEventListener = (t: any, ...rest: any[]) => { if (t === 'touchmove') added.push(t); return origAddEl(t, ...rest) }
+        container.removeEventListener = (t: any, ...rest: any[]) => { if (t === 'touchmove') removed.push(t); return origRemEl(t, ...rest) }
+
+        // Force the kind of re-renders an intermediate drag produces.
+        for (let i = 0; i < 3; i++) { el.requestUpdate(); await el.updateComplete }
+
+        // The stable listener must not be removed/re-added by rendering.
+        expect(removed, 'touchmove listener must not be removed on re-render').toHaveLength(0)
+        expect(added, 'touchmove listener must not be re-added on re-render').toHaveLength(0)
+    })
+})

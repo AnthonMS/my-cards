@@ -129,6 +129,23 @@ export class MySliderV2 extends LitElement {
         }
         return hasConfigOrEntityChanged(this, changedProps, false)
     }
+    // Register touchmove ONCE, directly on the container, instead of through the lit
+    // @touchmove binding. That binding's value is a fresh { handleEvent, passive } object
+    // every render, so lit removes and re-adds the listener on each render. intermediate:true
+    // now re-renders mid-drag (on the first touchmove, when the entity updates), and that
+    // listener churn dropped touchmove for the rest of the gesture on touch devices — the
+    // slider froze at the tap position and stopped following the finger (the exact pre-fix
+    // symptom, but only on touch; mouse was unaffected because mousemove lives on document).
+    // A once-registered listener on the persistent container node is immune to render churn
+    // and keeps the implicit touch capture flowing. passive mirrors the old binding so #64's
+    // scroll-blocking violation stays fixed (non-passive only when disableScroll is on).
+    firstUpdated(changedProperties: PropertyValues) {
+        super.firstUpdated(changedProperties)
+        const container = this.shadowRoot?.querySelector('.my-slider-custom-container')
+        if (container) {
+            container.addEventListener('touchmove', this.sliderHandler, { passive: !this._config.disableScroll })
+        }
+    }
     // After your component has been rendered
     updated(changedProperties: PropertyValues) {
         super.updated(changedProperties);
@@ -410,8 +427,7 @@ export class MySliderV2 extends LitElement {
                     @mousemove="${this.sliderHandler}"
                     @touchstart="${{ handleEvent: this.sliderHandler, passive: true }}"
                     @touchend="${this.sliderHandler}"
-                    @touchcancel="${this.sliderHandler}" 
-                    @touchmove="${{ handleEvent: this.sliderHandler, passive: !this._config.disableScroll }}"
+                    @touchcancel="${this.sliderHandler}"
                 >
                     <div class="my-slider-custom-track" style="${styleMap(trackStl)}">
                         <div class="my-slider-custom-progress" style="${styleMap(progressStl)}">
