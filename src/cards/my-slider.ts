@@ -63,6 +63,9 @@ export class MySliderV2 extends LitElement {
     private intermediateTimer: ReturnType<typeof setTimeout> | undefined = undefined
     private valueVisible: boolean = false
     private valueAxisPercent: number = 0
+    // #13: fan presetMode — warn at most once per instance for a misconfiguration.
+    private _presetWarnedInvalid: boolean = false
+    private _presetWarnedNonFan: boolean = false
     private setSliderValues(val: number, valPercent: number, alreadyInversed = false): void {
         if (this._config.inverse && !alreadyInversed) {
             this.sliderVal = this._config.max - val;
@@ -588,6 +591,12 @@ export class MySliderV2 extends LitElement {
             sliderVal1 = tmpVal
             sliderVal2 = roundPercentage(percentage(tmpVal, defaultConfig.max))
         }
+        // #13: presetMode only applies to fan entities. Warn once if it's set elsewhere.
+        if (this._config.presetMode !== undefined && entityType !== 'fan' && !this._presetWarnedNonFan) {
+            console.warn(`my-slider-v2: 'presetMode' only applies to fan entities; ignoring it for ${this._config.entity}`)
+            this._presetWarnedNonFan = true
+        }
+
         else switch (entityType) {
 
             case 'light': /* ------------ LIGHT ------------ */
@@ -1126,6 +1135,41 @@ export class MySliderV2 extends LitElement {
     }
 
     private _setFan(entity, value): void {
+        // #13: opt-in preset switching. Some fans (e.g. Xiaomi purifiers) only accept a
+        // stepless percentage in a specific preset ("Favorite"); set_percentage in another
+        // preset ("Fan") is stepped or ignored. When presetMode is configured, switch the
+        // fan into it BEFORE writing the percentage. Without the key this is byte-identical
+        // to the previous behavior (percentage only).
+        const preset = this._config.presetMode
+        if (preset !== undefined) {
+            const modes = entity.attributes.preset_modes
+            const listKnown = Array.isArray(modes)
+            if (listKnown && !modes.includes(preset)) {
+                // The fan advertises its presets and this one isn't among them: don't fire a
+                // doomed service call, just set the percentage (previous behavior). Warn once.
+                if (!this._presetWarnedInvalid) {
+                    console.warn(`my-slider-v2: preset_mode '${preset}' is not one of this fan's preset_modes (${modes.join(', ')}); setting percentage only`)
+                    this._presetWarnedInvalid = true
+                }
+            }
+            else if (entity.attributes.preset_mode !== preset) {
+                // Switch preset first, then set the percentage on the RESOLVED promise, so
+                // integrations that reset percentage when the preset changes don't clobber
+                // the value we're about to write. (Order is load-bearing; see the tests.)
+                this.hass.callService("fan", "set_preset_mode", {
+                    entity_id: entity.entity_id,
+                    preset_mode: preset
+                }).then(() => {
+                    this.hass.callService("fan", "set_percentage", {
+                        entity_id: entity.entity_id,
+                        percentage: value
+                    })
+                })
+                this.oldVal = value
+                return
+            }
+            // else: already in the requested preset — fall through to percentage only.
+        }
         this.hass.callService("fan", "set_percentage", {
             entity_id: entity.entity_id,
             percentage: value
