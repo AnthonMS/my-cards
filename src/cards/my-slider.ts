@@ -23,7 +23,7 @@ import { localize } from '../localize/localize'
 import { getStyle } from './styles/my-slider.styles'
 import { deflate } from '../scripts/deflate'
 import { percentage, roundPercentage, getClickPosRelToTarget, stateActive, deepMerge, miredsToKelvin, kelvinToMireds } from '../scripts/helpers'
-import { applySliderMin, shiftForHiddenMin } from '../scripts/slider-math'
+import { applySliderMin, shiftForHiddenMin, sliderValueToEntity } from '../scripts/slider-math'
 import { objectEvalTemplate } from '../scripts/templating'
 
 /* eslint no-console: 0 */
@@ -795,7 +795,12 @@ export class MySliderV2 extends LitElement {
             (action === 'mousedown' || action === 'touchstart' || action === 'mousemove' || action === 'touchmove')) {
             const valueEl: HTMLElement | null = this.shadowRoot ? this.shadowRoot.querySelector('.my-slider-custom-value') : null
             if (valueEl) {
-                valueEl.textContent = `${parseFloat(val.toFixed(2))}`
+                // F-11: show the REAL entity value, not the internal slider-space one.
+                // With showMin false the working value has had min subtracted, so the
+                // label used to read low by exactly min (an input_number at 65 with
+                // min 50 displayed 15). Same conversion setValue applies before writing.
+                const shownVal = sliderValueToEntity(val, this._config)
+                valueEl.textContent = `${parseFloat(shownVal.toFixed(2))}`
                 // Follow the thumb (like the native HA slider bubble). Only the coordinate
                 // along the slider axis is managed here; a user-supplied styles.value
                 // `left` (horizontal) / `top` (vertical) disables tracking so fully custom
@@ -878,29 +883,16 @@ export class MySliderV2 extends LitElement {
         if (!this.entity) return
         this.setSliderValues(val, valPercent)
 
-        if (!this._config.showMin) {
-            val = val + this._config.min  // Adding min to make up for minimum not being 0
-        }
-        if (!this.actionTaken) return // We do not want to set any values based on pure movement of slider. Only set it on user action.
+        // We do not want to set any values based on pure movement of slider. Only set it
+        // on user action. (Moved above the conversion in F-11: setSliderValues above uses
+        // the untransformed val, and everything below this point is discarded when the
+        // guard fires, so the early return is behavior-identical.)
+        if (!this.actionTaken) return
 
-        // Adjust val and valPercent to take into account sliderMin
-        val = percentage(val - this._config.sliderMin, 100 - this._config.sliderMin)
-        val = val < this._config.min ? this._config.min : val
-        // valPercent = percentage(valPercent - this._config.sliderMin, 100 - this._config.sliderMin)
-        if (this._config.inverse) {
-            // Mirror the value within the entity's REAL range. When showMin is false,
-            // min was just added back to val and max was shrunk by min, so the real range
-            // is [min, max + min]; with showMin true it is [min, max]. For min = 0 (the
-            // common case: brightness, volume, cover position) both formulas reduce to the
-            // previous `max - val`, so those domains are unchanged. Previously, domains
-            // with min > 0 (e.g. temperature in mireds) produced out-of-range values. (#63)
-            if (!this._config.showMin) {
-                val = 2 * this._config.min + this._config.max - val;
-            }
-            else {
-                val = this._config.min + this._config.max - val;
-            }
-        }
+        // F-11: slider-space -> real entity value. Same function the showValue label
+        // uses, so the number shown while dragging can never disagree with the number
+        // written. Order of operations is pinned inside sliderValueToEntity.
+        val = sliderValueToEntity(val, this._config)
 
         if (this._config.attribute !== undefined) {
             // #48: attribute configs write through the domain's set_<attribute> service
