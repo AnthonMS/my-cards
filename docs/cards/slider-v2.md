@@ -49,6 +49,7 @@ It is completely customizable now and fully templatable.
 | min | number | 0 | Minimum value you can set the entity state |
 | max | number | 100 | Maximum value you can set the entity state |
 | sliderMin | number | 0 | The minimum percentage progress to show always |
+| label | boolean or string | none | Show a text label INSIDE the slider. `true` uses the entity's `friendly_name` (falling back to the entity id). A string is shown verbatim, and templates work: `label: '[[[ return entity.state + " %" ]]]'` puts the live value on the slider. Absent/`false` renders nothing. Style it with `styles: label:`. See [Label](#label). |
 | sliderId | string | `slider-<entity>-<mode>` | The `id` of the slider's container element, for targeting a specific slider from CSS/JS. Note the default is built from the RAW config, so without an explicit `mode:` it ends in `-undefined` (e.g. `slider-light-bedroom-undefined`) — set `sliderId` yourself if you rely on it. The container also always carries `data-value` and `data-progress-percent` attributes with the current slider value/progress. |
 | markers | list | none | Draw static reference line(s) on the track, e.g. a visible midpoint on an EQ slider. Each entry is `- value: <n>` on the ENTITY scale (the same scale as `min`/`max`). Positioned exactly where the thumb would sit for that value, so `min`/`showMin`/`sliderMin`/`inverse` are all accounted for. Style every marker with `styles: marker:`; supplying your own `left`/`right` (horizontal) or `top`/`bottom` (vertical) disables the automatic positioning. Absent by default — no element is rendered. See [Markers](#markers). |
 | styles | object | [Default styles](/src/cards/styles/my-slider.styles.ts) | Style each component used in the card. Available components: `card`, `container`, `track`, `progress`, `thumb`. Each takes a list of CSS declarations (see Examples); every value is templatable. |
@@ -220,6 +221,44 @@ Notes:
 - `presetMode` only applies to `fan` entities; setting it on anything else logs a warning
   and is ignored.
 - No fan variables/parameters are passed — just the preset name and the percentage.
+
+## Label
+
+Render text inside the slider with the opt-in `label:` key. Three forms:
+
+```yaml
+# 1. the entity's friendly_name
+label: true
+
+# 2. a fixed string
+label: Front Door Spots
+
+# 3. a template — this is how you put the live VALUE on the slider
+label: '[[[ return entity.state + " %" ]]]'
+```
+
+The template form re-evaluates on every state update, so a value label stays live. `label: true`
+falls back to the entity id (the part after the dot) when the entity has no `friendly_name`, and
+never prints the literal word "undefined".
+
+The label sits inside the slider (unlike the `showValue` bubble, which floats above it), is
+left-aligned and vertically centred by default, and is `pointer-events: none` so it never blocks
+dragging. Long text is ellipsised. Restyle or reposition it with `styles: label:`:
+
+```yaml
+type: custom:my-slider-v2
+entity: input_number.temperature
+label: '[[[ return entity.state + "°" ]]]'
+styles:
+  label:
+    - color: white
+    - font-size: 18px
+    - left: 14px
+```
+
+`label` and `showValue` are independent — you can use both. Over a coloured progress fill you may
+need to set the label `color` for contrast. On a short or vertical slider the thumb can overlap the
+text; nudge `left`/`top` via `styles: label:` if needed.
 
 ## Examples
 ![Examples](/docs/images/my-slider-v2/examples.png)
