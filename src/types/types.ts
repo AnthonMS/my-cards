@@ -51,6 +51,7 @@ export interface MySliderConfig extends MyCardConfig {
   sliderId?: string;
   presetMode?: string;
   label?: boolean | string;
+  colorFromEntity?: boolean;
   markers?: MarkerConfig[];
 
   styles?: MySliderStylesConfig;
