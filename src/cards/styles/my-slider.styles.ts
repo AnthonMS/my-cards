@@ -44,6 +44,17 @@ const styles = {
             width: '10px',
             //'pointer-events': 'none',
     },
+    // #56: static marker line(s) on the track, one per `markers:` entry. Positioned
+    // by the card along the slider axis; everything else can be overridden through
+    // styles.marker. Sits above the progress bar but below the thumb.
+    marker: {
+            position: 'absolute',
+            width: '2px',
+            height: '100%',
+            background: 'rgba(0, 0, 0, 0.35)',
+            'pointer-events': 'none',
+            'z-index': '2',
+    },
     // #23: floating value bubble shown while dragging when showValue is enabled.
     // It sits ABOVE the card at the thumb position and follows the thumb (the card
     // drives `left`/`top` and toggles `display`); everything else can be overridden

@@ -20,6 +20,11 @@ export interface MyCardConfig extends LovelaceCardConfig {
   entity?: string;
 }
 
+/** #56: one marker line on the track, positioned at an ENTITY-scale value. */
+export interface MarkerConfig {
+  value: number | string;
+}
+
 export interface MySliderConfig extends MyCardConfig {
   attribute?: string;
   step?: number;
@@ -44,6 +49,7 @@ export interface MySliderConfig extends MyCardConfig {
   max?: number;
   sliderMin?: number;
   sliderId?: string;
+  markers?: MarkerConfig[];
 
   styles?: MySliderStylesConfig;
 }
@@ -126,6 +132,7 @@ export interface StatsStylesConfig {
 
 export interface MySliderStylesConfig {
   card?: CssStyleConfig;
+  marker?: CssStyleConfig;
   container?: CssStyleConfig;
   track?: CssStyleConfig;
   progress?: CssStyleConfig;

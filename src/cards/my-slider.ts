@@ -23,7 +23,7 @@ import { localize } from '../localize/localize'
 import { getStyle } from './styles/my-slider.styles'
 import { deflate } from '../scripts/deflate'
 import { percentage, roundPercentage, getClickPosRelToTarget, stateActive, deepMerge, miredsToKelvin, kelvinToMireds } from '../scripts/helpers'
-import { applySliderMin, shiftForHiddenMin, sliderValueToEntity } from '../scripts/slider-math'
+import { applySliderMin, shiftForHiddenMin, sliderValueToEntity, valueToPercent } from '../scripts/slider-math'
 import { objectEvalTemplate } from '../scripts/templating'
 
 /* eslint no-console: 0 */
@@ -424,6 +424,10 @@ export class MySliderV2 extends LitElement {
             }
         }
 
+        // #56: one static marker line per `markers:` entry, positioned at that
+        // ENTITY-scale value using the same math that places the thumb.
+        const markerStyles = this._buildMarkerStyles(deflate(this._config!.styles?.marker) || {})
+
         return html`
             <ha-card class="my-slider-custom-card" style="${styleMap(cardStl)}">
                 <div class="my-slider-custom-container" id="${this._config.sliderId}" style="${styleMap(containerStl)}" data-value="${this.sliderVal}" data-progress-percent="${this.sliderValPercent}"
@@ -435,6 +439,7 @@ export class MySliderV2 extends LitElement {
                     @touchcancel="${this.sliderHandler}"
                 >
                     <div class="my-slider-custom-track" style="${styleMap(trackStl)}">
+                        ${markerStyles.map(m => html`<div class="my-slider-custom-marker" style="${styleMap(m)}"></div>`)}
                         <div class="my-slider-custom-progress" style="${styleMap(progressStl)}">
                             <div class="my-slider-custom-thumb" style="${styleMap(thumbStl)}"></div>
                         </div>
@@ -443,6 +448,61 @@ export class MySliderV2 extends LitElement {
                 ${this._config.showValue ? html`<div class="my-slider-custom-value" style="${styleMap(valueStl)}"></div>` : ''}
             </ha-card>
         `
+    }
+
+    /**
+     * #56: turn `markers:` into positioned style objects. Returns [] when the key is
+     * absent, so the DOM contract is unchanged for every existing config.
+     *
+     * Values are on the ENTITY scale (same as min/max). Out-of-range values are clamped
+     * to the ends rather than throwing, and unparseable ones are skipped with a warning —
+     * a bad marker should never take the card down.
+     */
+    private _buildMarkerStyles(deflatedMarkerStl: any): any[] {
+        const markers = this._config!.markers
+        if (!markers || !Array.isArray(markers)) return []
+
+        const out: any[] = []
+        for (const marker of markers) {
+            // Accept both `- value: 50` and a bare `- 50`, and tolerate templated values
+            // arriving as strings (objectEvalTemplate evaluates the whole config).
+            const raw: any = marker && typeof marker === 'object' ? (marker as any).value : marker
+            const value = typeof raw === 'number' ? raw : parseFloat(String(raw))
+            if (isNaN(value)) {
+                console.warn(`my-slider-v2: ignoring marker with a non-numeric value:`, raw)
+                continue
+            }
+            const min = this._config.min || 0
+            // The stored max is already shrunk by min when showMin is false, so compare
+            // against the entity-scale range the user actually wrote.
+            const entityMax = this._config.showMin ? this._config.max : this._config.max + min
+            if (value < min || value > entityMax) {
+                console.warn(`my-slider-v2: marker value ${value} is outside the slider range ${min}..${entityMax}; clamping`)
+            }
+
+            const pct = valueToPercent(value, this._config)
+            const stl = getStyle('marker', deflatedMarkerStl)
+            if (!stl) continue
+
+            if (this._config.vertical) {
+                // vertical default: a horizontal line across the track
+                if (deflatedMarkerStl.width === undefined) stl.width = '100%'
+                if (deflatedMarkerStl.height === undefined) stl.height = '2px'
+                if (this._config.flipped) {
+                    if (deflatedMarkerStl.top === undefined) stl.top = pct + '%'
+                } else {
+                    if (deflatedMarkerStl.bottom === undefined) stl.bottom = pct + '%'
+                }
+            } else {
+                if (this._config.flipped) {
+                    if (deflatedMarkerStl.right === undefined) stl.right = pct + '%'
+                } else {
+                    if (deflatedMarkerStl.left === undefined) stl.left = pct + '%'
+                }
+            }
+            out.push(stl)
+        }
+        return out
     }
 
     // Returns null on success, or a renderable error (TemplateResult / hui-error-card
