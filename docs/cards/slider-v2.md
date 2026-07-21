@@ -50,6 +50,7 @@ It is completely customizable now and fully templatable.
 | max | number | 100 | Maximum value you can set the entity state |
 | sliderMin | number | 0 | The minimum percentage progress to show always |
 | label | boolean or string | none | Show a text label INSIDE the slider. `true` uses the entity's `friendly_name` (falling back to the entity id). A string is shown verbatim, and templates work: `label: '[[[ return entity.state + " %" ]]]'` puts the live value on the slider. Absent/`false` renders nothing. Style it with `styles: label:`. See [Label](#label). |
+| colorFromEntity | boolean | false | **Light only.** Set the progress fill to the light's *current* colour each render — `rgb_color` if present, otherwise an approximation from `color_temp_kelvin`. Only while the light is on (an off light keeps the default fill). A `background` you set in `styles: progress:` always wins. See [Colour from the entity](#colour-from-the-entity). |
 | sliderId | string | `slider-<entity>-<mode>` | The `id` of the slider's container element, for targeting a specific slider from CSS/JS. Note the default is built from the RAW config, so without an explicit `mode:` it ends in `-undefined` (e.g. `slider-light-bedroom-undefined`) — set `sliderId` yourself if you rely on it. The container also always carries `data-value` and `data-progress-percent` attributes with the current slider value/progress. |
 | markers | list | none | Draw static reference line(s) on the track, e.g. a visible midpoint on an EQ slider. Each entry is `- value: <n>` on the ENTITY scale (the same scale as `min`/`max`). Positioned exactly where the thumb would sit for that value, so `min`/`showMin`/`sliderMin`/`inverse` are all accounted for. Style every marker with `styles: marker:`; supplying your own `left`/`right` (horizontal) or `top`/`bottom` (vertical) disables the automatic positioning. Absent by default — no element is rendered. See [Markers](#markers). |
 | styles | object | [Default styles](/src/cards/styles/my-slider.styles.ts) | Style each component used in the card. Available components: `card`, `container`, `track`, `progress`, `thumb`. Each takes a list of CSS declarations (see Examples); every value is templatable. |
@@ -259,6 +260,40 @@ styles:
 `label` and `showValue` are independent — you can use both. Over a coloured progress fill you may
 need to set the label `color` for contrast. On a short or vertical slider the thumb can overlap the
 text; nudge `left`/`top` via `styles: label:` if needed.
+
+## Colour from the entity
+
+`colorFromEntity: true` paints the progress bar with the light's actual colour, so a
+brightness slider for an RGB bulb fills in whatever colour the bulb is currently showing:
+
+```yaml
+type: custom:my-slider-v2
+entity: light.living_room
+colorFromEntity: true
+```
+
+- Uses `rgb_color` when the light exposes it; otherwise approximates from
+  `color_temp_kelvin` (Tanner Helland approximation — close, not colour-accurate).
+- Only applies while the light is **on**. An off light keeps the default fill rather than a
+  stale last-colour.
+- A `background` in `styles: progress:` always takes precedence — `colorFromEntity` is only
+  the fallback.
+
+**No upgrade needed:** this was already possible with a template, and still is if you want
+full control (e.g. an alpha channel, a gradient, or a non-light entity):
+
+```yaml
+styles:
+  progress:
+    - background: '[[[ return `rgb(${entity.attributes.rgb_color})` ]]]'
+```
+
+`colorFromEntity` is just the one-line convenience form of that recipe.
+
+> **Looking ahead (v3):** the planned colour-picker sliders (rgb / hue / saturation /
+> temperature modes) will own the track and progress visuals themselves, so from v3
+> `colorFromEntity` applies to brightness-style sliders only. Nothing about the config below
+> changes.
 
 ## Examples
 ![Examples](/docs/images/my-slider-v2/examples.png)

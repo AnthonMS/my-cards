@@ -22,7 +22,7 @@ import { SLIDER_VERSION } from './extras/const'
 import { localize } from '../localize/localize'
 import { getStyle } from './styles/my-slider.styles'
 import { deflate } from '../scripts/deflate'
-import { percentage, roundPercentage, getClickPosRelToTarget, stateActive, deepMerge, miredsToKelvin, kelvinToMireds } from '../scripts/helpers'
+import { percentage, roundPercentage, getClickPosRelToTarget, stateActive, deepMerge, miredsToKelvin, kelvinToMireds, kelvinToRgb } from '../scripts/helpers'
 import { applySliderMin, shiftForHiddenMin, sliderValueToEntity, valueToPercent } from '../scripts/slider-math'
 import { objectEvalTemplate } from '../scripts/templating'
 
@@ -66,6 +66,7 @@ export class MySliderV2 extends LitElement {
     // #13: fan presetMode — warn at most once per instance for a misconfiguration.
     private _presetWarnedInvalid: boolean = false
     private _presetWarnedNonFan: boolean = false
+    private _colorFromEntityWarned: boolean = false
     private setSliderValues(val: number, valPercent: number, alreadyInversed = false): void {
         if (this._config.inverse && !alreadyInversed) {
             this.sliderVal = this._config.max - val;
@@ -371,6 +372,14 @@ export class MySliderV2 extends LitElement {
         const thumbStl = getStyle('thumb', deflatedThumbStl)
         const valueStl = getStyle('value', deflatedValueStl)
 
+        // #28: colorFromEntity — set the progress fill from the light's current colour.
+        // A user-supplied styles.progress background ALWAYS wins (checked on the deflated
+        // style), so this is only a fallback. Absent key => nothing happens (byte-identical).
+        if (this._config.colorFromEntity && deflatedProgressStl.background === undefined) {
+            const entityColor = this._entityColor()
+            if (entityColor) progressStl.background = entityColor
+        }
+
         if (this._config.vertical) {
             progressStl.height = this.sliderValPercent.toString() + '%'
 
@@ -456,6 +465,38 @@ export class MySliderV2 extends LitElement {
                 ${this._config.showValue ? html`<div class="my-slider-custom-value" style="${styleMap(valueStl)}"></div>` : ''}
             </ha-card>
         `
+    }
+
+    /**
+     * #28: the light's current colour as a CSS rgb() string, or null to leave the
+     * progress fill at its default/user style.
+     *
+     * light only (warns once for other domains); on-lights only (an off light often keeps
+     * a stale rgb_color, and the intent is "show the ACTUAL colour", so off => default).
+     * rgb_color wins; else color_temp_kelvin via the Tanner Helland approximation; else null.
+     */
+    private _entityColor(): string | null {
+        const domain = this._config!.entity ? this._config!.entity.split('.')[0] : ''
+        if (domain !== 'light') {
+            if (!this._colorFromEntityWarned) {
+                console.warn(`my-slider-v2: colorFromEntity only applies to light entities; ignoring it for ${this._config!.entity}`)
+                this._colorFromEntityWarned = true
+            }
+            return null
+        }
+        if (!this.entity || this.entity.state !== 'on') return null
+        const attrs = this.entity.attributes || {}
+        if (Array.isArray(attrs.rgb_color) && attrs.rgb_color.length >= 3) {
+            const r = Math.round(attrs.rgb_color[0])
+            const g = Math.round(attrs.rgb_color[1])
+            const b = Math.round(attrs.rgb_color[2])
+            return `rgb(${r}, ${g}, ${b})`
+        }
+        if (typeof attrs.color_temp_kelvin === 'number') {
+            const { r, g, b } = kelvinToRgb(attrs.color_temp_kelvin)
+            return `rgb(${r}, ${g}, ${b})`
+        }
+        return null
     }
 
     /**
@@ -589,6 +630,7 @@ export class MySliderV2 extends LitElement {
             intermediate: this._config!.intermediate !== undefined ? this._config!.intermediate : false,
             intermediateInterval: this._config!.intermediateInterval !== undefined ? this._config!.intermediateInterval : 100,
             min: this._config!.min ? this._config!.min : 0,
+            colorFromEntity: this._config!.colorFromEntity !== undefined ? this._config!.colorFromEntity : false,
             max: this._config!.max ? this._config!.max : 100,
             step: this._config!.step ? this._config!.step : 1,
             mode: this._config!.mode !== undefined ? this._config!.mode :

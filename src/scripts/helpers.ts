@@ -422,3 +422,29 @@ export const miredsToKelvin = (mireds: number): number => Math.round(1000000 / m
  * @returns {number} Color temperature in mireds
  */
 export const kelvinToMireds = (kelvin: number): number => Math.round(1000000 / kelvin)
+
+/**
+ * Approximate an sRGB colour for a colour temperature in Kelvin, using Tanner
+ * Helland's well-known approximation. Used by colorFromEntity (#28) as the
+ * fallback when a light exposes color_temp_kelvin but no rgb_color. Channels are
+ * clamped to 0..255 and rounded. This is an approximation, not colour-accurate.
+ *
+ * @param {number} kelvin - colour temperature in Kelvin (typ. 2000..6500)
+ * @returns {{ r: number; g: number; b: number }} rounded 0..255 channels
+ */
+export const kelvinToRgb = (kelvin: number): { r: number; g: number; b: number } => {
+    const clamp = (v: number) => v < 0 ? 0 : v > 255 ? 255 : Math.round(v)
+    const temp = kelvin / 100
+    let r: number, g: number, b: number
+    // red
+    if (temp <= 66) r = 255
+    else r = 329.698727446 * Math.pow(temp - 60, -0.1332047592)
+    // green
+    if (temp <= 66) g = 99.4708025861 * Math.log(temp) - 161.1195681661
+    else g = 288.1221695283 * Math.pow(temp - 60, -0.0755148492)
+    // blue
+    if (temp >= 66) b = 255
+    else if (temp <= 19) b = 0
+    else b = 138.5177312231 * Math.log(temp - 10) - 305.0447927307
+    return { r: clamp(r), g: clamp(g), b: clamp(b) }
+}
