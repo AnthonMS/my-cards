@@ -49,6 +49,7 @@ It is completely customizable now and fully templatable.
 | max | number | 100 | Maximum value you can set the entity state |
 | sliderMin | number | 0 | The minimum percentage progress to show always |
 | sliderId | string | `slider-<entity>-<mode>` | The `id` of the slider's container element, for targeting a specific slider from CSS/JS. Note the default is built from the RAW config, so without an explicit `mode:` it ends in `-undefined` (e.g. `slider-light-bedroom-undefined`) — set `sliderId` yourself if you rely on it. The container also always carries `data-value` and `data-progress-percent` attributes with the current slider value/progress. |
+| markers | list | none | Draw static reference line(s) on the track, e.g. a visible midpoint on an EQ slider. Each entry is `- value: <n>` on the ENTITY scale (the same scale as `min`/`max`). Positioned exactly where the thumb would sit for that value, so `min`/`showMin`/`sliderMin`/`inverse` are all accounted for. Style every marker with `styles: marker:`; supplying your own `left`/`right` (horizontal) or `top`/`bottom` (vertical) disables the automatic positioning. Absent by default — no element is rendered. See [Markers](#markers). |
 | styles | object | [Default styles](/src/cards/styles/my-slider.styles.ts) | Style each component used in the card. Available components: `card`, `container`, `track`, `progress`, `thumb`. Each takes a list of CSS declarations (see Examples); every value is templatable. |
 
 
@@ -96,6 +97,64 @@ How it works:
 - **Precedence:** when `attribute:` is set it takes precedence over `mode:` and the
   per-domain behavior. All other options (`step`, `sliderMin`, `showMin`, `vertical`,
   templating, `styles`, ...) work as usual.
+
+## Markers
+
+Opt-in static reference lines on the track. The original ask was an EQ-style slider that
+needs a visible 0 dB midpoint, but any "you are here relative to X" marking works.
+
+```yaml
+type: custom:my-slider-v2
+entity: input_number.eq_band_1
+min: -12
+max: 12
+markers:
+  - value: 0        # the 0 dB midpoint
+```
+
+Values are on the **entity scale** — the same numbers you would put in `min`/`max` — and
+each marker is positioned with the same math that places the thumb. A marker at value `V`
+therefore sits exactly where the thumb sits when the entity reads `V`, including when
+`min`, `showMin`, `sliderMin` or `inverse` are in play.
+
+Multiple markers are fine; they are plain static `<div>`s, so an EQ board of 24 sliders
+costs nothing meaningful:
+
+```yaml
+markers:
+  - value: -6
+  - value: 0
+  - value: 6
+```
+
+Style them with `styles: marker:` (applies to every marker on that card):
+
+```yaml
+markers:
+  - value: 50
+styles:
+  marker:
+    - background: red
+    - width: 2px
+```
+
+Marker lines are `pointer-events: none`, so they never block dragging.
+
+A marker is also a neat way to show where a `switch`/`lock`/`script` slider's
+`maxThreshold` sits, so users can see how far they need to slide:
+
+```yaml
+type: custom:my-slider-v2
+entity: script.turn_off_all_lights
+allowTapping: false
+maxThreshold: 95
+markers:
+  - value: 95
+```
+
+**Vertical sliders** get a horizontal line across the track instead (the default
+`width`/`height` swap automatically). **Out-of-range values** are clamped to the ends and
+logged as a warning rather than throwing; a non-numeric value is skipped.
 
 ## Examples
 ![Examples](/docs/images/my-slider-v2/examples.png)

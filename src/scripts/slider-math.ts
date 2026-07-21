@@ -1,4 +1,4 @@
-import { percentage } from './helpers'
+import { percentage, roundPercentage } from './helpers'
 
 // ============================================================================
 // Pure slider math extracted from my-slider-v2's initializeConfig() (Phase 2
@@ -78,4 +78,36 @@ export const sliderValueToEntity = (
         }
     }
     return val
+}
+
+/**
+ * Where an ENTITY-scale value sits on the track, as a 0..100 percentage.
+ *
+ * Mirrors the pipeline initializeConfig() uses for the entity's own value, so a
+ * marker lines up exactly with where the thumb sits at that value: hidden-min
+ * shift -> sliderMin rescale -> percentage of the (already shrunk) max ->
+ * inverse mirror. Used by the `markers:` feature (#56).
+ *
+ * NOTE cfg.max is the STORED max, which initializeConfig has already shrunk by
+ * min when showMin is false — so only the value is shifted here, not the range.
+ * Pinned by the characterization case: brightness with min 10 at entity value 50
+ * is slider value 40 of range 90 = 44.44%.
+ */
+export const valueToPercent = (
+    value: number,
+    cfg: { showMin?: boolean; min?: number; max?: number; sliderMin?: number; inverse?: boolean; vertical?: boolean }
+): number => {
+    const min = cfg.min || 0
+    const max = cfg.max || 100
+    const sliderMin = cfg.sliderMin || 0
+    let val = value
+    if (!cfg.showMin && min) {
+        val = val - min
+    }
+    val = applySliderMin(val, sliderMin)
+    let pct = roundPercentage(percentage(val, max))
+    if (cfg.inverse) {
+        pct = roundPercentage(100 - pct)
+    }
+    return pct < 0 ? 0 : pct > 100 ? 100 : pct
 }
