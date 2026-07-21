@@ -49,6 +49,7 @@ export interface MySliderConfig extends MyCardConfig {
   max?: number;
   sliderMin?: number;
   sliderId?: string;
+  presetMode?: string;
   markers?: MarkerConfig[];
 
   styles?: MySliderStylesConfig;

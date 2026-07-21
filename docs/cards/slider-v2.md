@@ -45,6 +45,7 @@ It is completely customizable now and fully templatable.
 | showValue | boolean | false | Show a floating bubble with the value the slider points at WHILE dragging/tapping (hidden otherwise), like the native HA slider: it sits just above the card and follows the thumb (vertical sliders: to the right of the card, following vertically). It is `position: absolute`, so it overlaps neighbours instead of shifting layout. The value shown is the REAL entity value — the same number the card writes to Home Assistant, with the `min` offset and any `sliderMin`/`inverse` adjustment already accounted for — after `step` rounding, without a unit. Look/offsets can be overridden with `styles: value:`; setting your own `left` (horizontal) or `top` (vertical) disables the thumb-tracking for fully static placement. **Bubble not showing up at all?** Don't set `overflow: hidden` on `styles: card:` — the bubble sits OUTSIDE the card box, so the card's own overflow clips it away entirely. Put `overflow: hidden` on `styles: container:` instead; that is the right place for it anyway (it clips the progress bar's corners into your border-radius) and does not affect the bubble. The same applies to any ancestor with `overflow: hidden` around the card (themes, layout wrappers, custom_fields of other cards). |
 | minThreshold | number | 15 | Only used for determining how much progress should be shown on a switch, lock or script |
 | maxThreshold | number | 75 | Only used to determine how far users have to slide to activate toggle commands for switch, lock and script |
+| presetMode | string | none | **Fan only.** Name of a fan preset to switch into *before* writing the percentage (e.g. `Favorite`). Some fans only accept a stepless percentage in a specific preset; in another preset the speed is stepped or ignored. When set, and the fan isn't already in that preset, the card calls `fan.set_preset_mode` and then `fan.set_percentage`. If the fan lists its `preset_modes` and the value isn't among them, the card logs a warning and just sets the percentage. Absent by default — nothing changes for fans that don't set it. See [Fan preset modes](#fan-preset-modes). |
 | min | number | 0 | Minimum value you can set the entity state |
 | max | number | 100 | Maximum value you can set the entity state |
 | sliderMin | number | 0 | The minimum percentage progress to show always |
@@ -185,6 +186,40 @@ scripts.
 
 **Script variables are not supported.** The card calls `script.turn_on` with only
 `entity_id`. If you need to pass fields, wrap the call in a second script for now.
+
+## Fan preset modes
+
+Some fans — notably Xiaomi purifiers (Purifier 3H etc.) — only accept a **stepless**
+percentage while they are in a particular preset (often `Favorite`). In their other preset
+(`Fan`) the speed is stepped, so a plain `fan.set_percentage` either snaps to coarse steps
+or is ignored. There was previously no way to make the slider drive such a fan smoothly.
+
+Set `presetMode` to the preset the fan needs, and the card switches into it before writing
+the percentage:
+
+```yaml
+type: custom:my-slider-v2
+entity: fan.xiaomi_air_purifier_3h
+presetMode: Favorite
+```
+
+On each change, if the fan is not already in `Favorite`, the card calls `fan.set_preset_mode`
+and — once that resolves — `fan.set_percentage`. Chaining the two (rather than firing them
+together) means integrations that reset the percentage when the preset changes don't clobber
+the value you just set. Once the fan is in the preset, only the percentage is written.
+
+The slider itself is the normal fan slider: 0–100 %, one step at a time.
+
+Notes:
+
+- **Opt-in.** Without `presetMode`, fan sliders behave exactly as before (percentage only).
+- If the fan publishes its `preset_modes` and your value isn't in the list, the card logs a
+  warning and falls back to setting the percentage only — it won't fire a doomed call.
+- Some integrations don't publish `preset_modes` at all; in that case the preset is still
+  attempted.
+- `presetMode` only applies to `fan` entities; setting it on anything else logs a warning
+  and is ignored.
+- No fan variables/parameters are passed — just the preset name and the percentage.
 
 ## Examples
 ![Examples](/docs/images/my-slider-v2/examples.png)
