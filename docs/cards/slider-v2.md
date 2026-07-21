@@ -3,12 +3,12 @@
 
 ## Description
 
-My Slider V2 is a customizable card for light, input_number, number, covers, fans, switches, input_boolean, locks & media_player volume_level entity sliders, for the Home Assistant Lovelace frontend.
+My Slider V2 is a customizable card for light, input_number, number, covers, fans, switches, input_boolean, locks, scripts & media_player volume_level entity sliders, for the Home Assistant Lovelace frontend.
 
 It is completely customizable now and fully templatable.
 
 ### Features
-- Fully customizable slider card for lights, input_numbers/numbers, media_players, covers, fans, switches, input_booleans and locks
+- Fully customizable slider card for lights, input_numbers/numbers, media_players, covers, fans, switches, input_booleans, locks and scripts
 - Templating
 - Styles can be fully customized easily within the card itself
 - Vertical
@@ -43,8 +43,8 @@ It is completely customizable now and fully templatable.
 | slideDistance | number | 10 | Distance input has to travel in slider direction for allowSliding to take effect |
 | showMin | boolean | false | Show the minimum on the slider. If false, the min will be far left (if not flipped or vertical) |
 | showValue | boolean | false | Show a floating bubble with the value the slider points at WHILE dragging/tapping (hidden otherwise), like the native HA slider: it sits just above the card and follows the thumb (vertical sliders: to the right of the card, following vertically). It is `position: absolute`, so it overlaps neighbours instead of shifting layout. The value shown is the REAL entity value — the same number the card writes to Home Assistant, with the `min` offset and any `sliderMin`/`inverse` adjustment already accounted for — after `step` rounding, without a unit. Look/offsets can be overridden with `styles: value:`; setting your own `left` (horizontal) or `top` (vertical) disables the thumb-tracking for fully static placement. **Bubble not showing up at all?** Don't set `overflow: hidden` on `styles: card:` — the bubble sits OUTSIDE the card box, so the card's own overflow clips it away entirely. Put `overflow: hidden` on `styles: container:` instead; that is the right place for it anyway (it clips the progress bar's corners into your border-radius) and does not affect the bubble. The same applies to any ancestor with `overflow: hidden` around the card (themes, layout wrappers, custom_fields of other cards). |
-| minThreshold | number | 15 | Only used for determining how much progress should be shown on a switch or lock |
-| maxThreshold | number | 75 | Only used to determine how far users have to slide to activate toggle commands for switch and lock |
+| minThreshold | number | 15 | Only used for determining how much progress should be shown on a switch, lock or script |
+| maxThreshold | number | 75 | Only used to determine how far users have to slide to activate toggle commands for switch, lock and script |
 | min | number | 0 | Minimum value you can set the entity state |
 | max | number | 100 | Maximum value you can set the entity state |
 | sliderMin | number | 0 | The minimum percentage progress to show always |
@@ -155,6 +155,36 @@ markers:
 **Vertical sliders** get a horizontal line across the track instead (the default
 `width`/`height` swap automatically). **Out-of-range values** are clamped to the ends and
 logged as a warning rather than throwing; a non-numeric value is skipped.
+
+## Script sliders
+
+`entity: script.<name>` turns the slider into a **slide-to-run** control, the same shape as
+switch and lock sliders: the bar rests at `minThreshold`, sliding past `maxThreshold` calls
+`script.turn_on`, and the slider snaps back. The point is that a script that shouldn't fire
+by accident needs a deliberate gesture rather than a tap.
+
+The slider does **not** track the script's state — a script reports `on` while it runs, but
+this is a momentary control, so the bar always returns to rest.
+
+```yaml
+type: custom:my-slider-v2
+entity: script.turn_off_all_lights
+allowTapping: false     # require a real slide; a tap does nothing
+maxThreshold: 95        # how far right you must slide to fire it
+minThreshold: 15        # where the bar rests
+```
+
+`allowTapping: false` is the accident-proof configuration and is why this feature exists.
+With the default `allowTapping: true` a tap at the far right fires the script immediately,
+exactly like switch and lock sliders behave today.
+
+**Do not combine `intermediate: true` with script, switch or lock sliders.** `intermediate`
+dispatches on every pointer move, so dragging across the threshold would fire the script
+repeatedly. This is pre-existing behavior shared with switch and lock, not specific to
+scripts.
+
+**Script variables are not supported.** The card calls `script.turn_on` with only
+`entity_id`. If you need to pass fields, wrap the call in a second script for now.
 
 ## Examples
 ![Examples](/docs/images/my-slider-v2/examples.png)

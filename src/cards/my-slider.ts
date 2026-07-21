@@ -97,7 +97,8 @@ export class MySliderV2 extends LitElement {
             'fan',
             'switch',
             'input_boolean',
-            'lock'
+            'lock',
+            'script'
         ]
 
         if (!config.entity) {
@@ -765,6 +766,10 @@ export class MySliderV2 extends LitElement {
                 break
             case 'input_boolean':
                 break
+            case 'script': /* ------------ SCRIPT (#58) ------------ */
+                // Momentary control, same shape as lock: the slider does NOT track the
+                // entity state (a script reports on/off while running). It rests at
+                // minThreshold and snaps back after firing.
             case 'lock': /* ------------ LOCK ------------ */
                 defaultConfig.minThreshold = this._config!.minThreshold ? this._config!.minThreshold : 15
                 defaultConfig.maxThreshold = this._config!.maxThreshold ? this._config!.maxThreshold : 95
@@ -1006,6 +1011,9 @@ export class MySliderV2 extends LitElement {
             case 'lock':
                 this._setLock(this.entity, val)
                 break
+            case 'script':
+                this._setScript(this.entity, val)
+                break
             case 'switch':
             case 'input_boolean':
                 this._setSwitch(this.entity, val)
@@ -1178,6 +1186,38 @@ export class MySliderV2 extends LitElement {
         }, 200)
     }
 
+    /**
+     * #58: slide-to-run. Sliding past maxThreshold fires the script, then the slider
+     * snaps back to minThreshold. Shaped exactly like _setLock - momentary, does not
+     * track entity state. script.turn_on with entity_id works for every script,
+     * including ones in parallel/queued mode. No variables are passed (see the
+     * tap_action plan, FABLE_72, as the future vehicle for that).
+     */
+    private _setScript(entity, value): void {
+        var threshold = Math.min(this._config.max, this._config.maxThreshold) //pick lesser of the two
+        if (Number(threshold) <= value) {
+            this.hass.callService("script", "turn_on", {
+                entity_id: entity.entity_id
+            })
+        }
+
+        const val = Number(Math.max(this.zero, this._config.minThreshold))
+        const valPercent = roundPercentage(percentage(val, this._config.max))
+        const progressEl: HTMLElement | null = this.sliderEl!.querySelector('.my-slider-custom-progress')
+
+        if (!this._config.vertical) {
+            progressEl!.style.transition = 'width 0.2s ease 0s'
+        }
+        else {
+            progressEl!.style.transition = 'height 0.2s ease 0s'
+        }
+        this.setSliderValues(val, valPercent)
+        this.setProgress(this.sliderEl, val, 'setScript')
+        setTimeout(() => { // Remove transition when done
+            progressEl!.style.transition = this.initialTransition
+        }, 200)
+    }
+
 
     // https://lit-element.polymer-project.org/guide/styles
     static get styles(): CSSResult {
@@ -1205,8 +1245,8 @@ disableScroll: true (Disable scrolling on touch devices when starting the touchm
 allowTapping: true (Tap anywhere on the slider to set that value. If false you can only drag from thumb.)
 showMin: false
 showValue: false (Show a floating label with the current value while dragging. Style via styles.value. See docs/cards/slider-v2.md)
-minThreshold: 15 (Only used for determining how much progress should be shown on a switch or lock)
-maxThreshold: 75 (Only used to determine how far users have to slide to activate toggle commands for switch and lock)
+minThreshold: 15 (Only used for determining how much progress should be shown on a switch, lock or script)
+maxThreshold: 75 (Only used to determine how far users have to slide to activate toggle commands for switch, lock and script)
 styles:
   card:
     - height: 50px
