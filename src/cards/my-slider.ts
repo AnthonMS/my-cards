@@ -432,6 +432,9 @@ export class MySliderV2 extends LitElement {
         // ENTITY-scale value using the same math that places the thumb.
         const markerStyles = this._buildMarkerStyles(deflate(this._config!.styles?.marker) || {})
 
+        // #5: optional text label inside the slider (friendly_name / custom / templated).
+        const labelData = this._buildLabel(deflate(this._config!.styles?.label) || {})
+
         return html`
             <ha-card class="my-slider-custom-card" style="${styleMap(cardStl)}">
                 <div class="my-slider-custom-container" id="${this._config.sliderId}" style="${styleMap(containerStl)}" data-value="${this.sliderVal}" data-progress-percent="${this.sliderValPercent}"
@@ -448,10 +451,41 @@ export class MySliderV2 extends LitElement {
                             <div class="my-slider-custom-thumb" style="${styleMap(thumbStl)}"></div>
                         </div>
                     </div>
+                    ${labelData ? html`<div class="my-slider-custom-label" style="${styleMap(labelData.style)}">${labelData.text}</div>` : ''}
                 </div>
                 ${this._config.showValue ? html`<div class="my-slider-custom-value" style="${styleMap(valueStl)}"></div>` : ''}
             </ha-card>
         `
+    }
+
+    /**
+     * #5: build the in-slider text label. Returns null (no element) when `label` is
+     * absent/false, so the DOM contract is unchanged for existing configs.
+     *
+     * label: true          -> the entity's friendly_name, falling back to the entity_id
+     *                         tail (never the literal string "undefined").
+     * label: "some text"   -> that text.
+     * label: "[[[ ... ]]]" -> already evaluated by objectEvalTemplate before we get here;
+     *                         String()'d in case a template returns a number.
+     */
+    private _buildLabel(deflatedLabelStl: any): { text: string; style: any } | null {
+        const label = this._config!.label
+        if (!label) return null
+        let text: string
+        if (label === true) {
+            const fn = this.entity && this.entity.attributes ? this.entity.attributes.friendly_name : undefined
+            if (fn !== undefined && fn !== null && String(fn) !== '') {
+                text = String(fn)
+            } else {
+                const tail = this._config!.entity ? this._config!.entity.split('.')[1] : ''
+                text = tail || ''
+            }
+        } else {
+            text = String(label)
+        }
+        const style = getStyle('label', deflatedLabelStl)
+        if (!style) return null
+        return { text, style }
     }
 
     /**

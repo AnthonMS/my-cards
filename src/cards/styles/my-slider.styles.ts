@@ -55,6 +55,24 @@ const styles = {
             'pointer-events': 'none',
             'z-index': '2',
     },
+    // #5: text label rendered INSIDE the slider (opt-in via `label:`). Sits inside the
+    // overflow-clipped container (unlike the showValue bubble), left-aligned and vertically
+    // centred, above the progress fill but not intercepting input. Fully overridable via
+    // styles.label.
+    label: {
+            position: 'absolute',
+            left: '10px',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            color: 'var(--primary-text-color)',
+            'font-size': '14px',
+            'pointer-events': 'none',
+            'white-space': 'nowrap',
+            overflow: 'hidden',
+            'text-overflow': 'ellipsis',
+            'max-width': 'calc(100% - 20px)',
+            'z-index': '1',
+    },
     // #23: floating value bubble shown while dragging when showValue is enabled.
     // It sits ABOVE the card at the thumb position and follows the thumb (the card
     // drives `left`/`top` and toggles `display`); everything else can be overridden

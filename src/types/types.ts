@@ -50,6 +50,7 @@ export interface MySliderConfig extends MyCardConfig {
   sliderMin?: number;
   sliderId?: string;
   presetMode?: string;
+  label?: boolean | string;
   markers?: MarkerConfig[];
 
   styles?: MySliderStylesConfig;
@@ -139,6 +140,7 @@ export interface MySliderStylesConfig {
   progress?: CssStyleConfig;
   thumb?: CssStyleConfig;
   value?: CssStyleConfig;
+  label?: CssStyleConfig;
 }
 export interface MyButtonStylesConfig {
   card?: CssStyleConfig;
