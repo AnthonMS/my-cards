@@ -199,8 +199,12 @@ export class MySliderV2 extends LitElement {
     private startInput = (event) => {
         if (this.actionTaken) return
 
-        const clickX = event.clientX || event.touches[0].clientX
-        const clickY = event.clientY || event.touches[0].clientY
+        // F-12: `||` treats a legitimate 0 coordinate as missing, so a mouse press on
+        // the exact left edge (clientX 0) or the exact top edge (clientY 0) fell through
+        // to event.touches, which does not exist on a MouseEvent -> TypeError. Test for
+        // the property instead of its truthiness.
+        const clickX = event.clientX !== undefined ? event.clientX : event.touches[0].clientX
+        const clickY = event.clientY !== undefined ? event.clientY : event.touches[0].clientY
         if (this.clientXLast === 0) {
             this.clientXLast = clickX
         }
@@ -295,8 +299,9 @@ export class MySliderV2 extends LitElement {
             progressEl!.style.transition = ''
 
 
-            const clickX = event.clientX || event.touches[0].clientX
-            const clickY = event.clientY || event.touches[0].clientY
+            // F-12: see startInput — `||` misreads a real 0 coordinate as absent.
+            const clickX = event.clientX !== undefined ? event.clientX : event.touches[0].clientX
+            const clickY = event.clientY !== undefined ? event.clientY : event.touches[0].clientY
             if (this._config.allowTapping || this.isSliding ||
                 (!this._config.allowTapping && this.thumbTapped)) {
                 this.calcProgress(event)
