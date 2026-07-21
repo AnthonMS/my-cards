@@ -717,6 +717,15 @@ export class MySliderV2 extends LitElement {
         }
 
         this._config = deepMerge(defaultConfig, this._config)
+        // #75: min/max are COMPUTED above - the user's config is already folded in (:488-489
+        // and again in each domain branch), and shiftForHiddenMin() may have shrunk max so
+        // that slider-0 maps to the entity minimum. deepMerge lets the RAW user config win,
+        // which undid that shrink whenever min/max were set explicitly in YAML: max went back
+        // to its raw value while setValue() still added min back, emitting values up to
+        // max + min (HA rejects them: "Invalid value ... (range ...)"). Restore the computed
+        // pair. No-op when min/max come from entity attributes (nothing to clobber with).
+        this._config.min = defaultConfig.min
+        this._config.max = defaultConfig.max
         this.setSliderValues(sliderVal1, sliderVal2, alreadyInversed)
         
         if (defaultConfig.mode === 'seekbar' && this.entity.state === 'playing') {
