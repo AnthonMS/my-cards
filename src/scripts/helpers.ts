@@ -448,3 +448,67 @@ export const kelvinToRgb = (kelvin: number): { r: number; g: number; b: number }
     else b = 138.5177312231 * Math.log(temp - 10) - 305.0447927307
     return { r: clamp(r), g: clamp(g), b: clamp(b) }
 }
+
+// ============================================================================
+// #20 / #28 color-picker track helpers. Pure functions so they can be unit
+// tested; the card wires them into render()/setProgress() when colorTrack is on
+// (or mode: rgb). "value" is on the mode's own scale: a hue in degrees for
+// rgb/hue, 0..100 for saturation, mireds for temperature.
+// ============================================================================
+
+export type ColorTrackMode = 'rgb' | 'hue' | 'saturation' | 'temperature'
+
+/**
+ * CSS colour for a single value on a colour-mode scale.
+ * - rgb / hue: `value` is a hue in degrees -> hsl(H,100%,50%).
+ * - saturation: `value` is 0..100, `hue` is the light's current hue.
+ * - temperature: `value` is mireds -> kelvin -> kelvinToRgb.
+ */
+export const colorForValue = (mode: ColorTrackMode, value: number, hue = 0): string => {
+    if (mode === 'temperature') {
+        const kelvin = value > 0 ? 1000000 / value : 6500
+        const { r, g, b } = kelvinToRgb(kelvin)
+        return `rgb(${r}, ${g}, ${b})`
+    }
+    if (mode === 'saturation') {
+        const s = value < 0 ? 0 : value > 100 ? 100 : value
+        return `hsl(${hue}, ${s}%, ${100 - s / 2}%)`
+    }
+    return `hsl(${value}, 100%, 50%)`
+}
+
+/**
+ * CSS gradient direction for the track, matching how the value maps to the axis.
+ * horizontal -> to right (flipped: to left); vertical -> to top (flipped: to
+ * bottom); `inverse` reverses the value mapping so it reverses the direction once
+ * more. Gradient stops are always emitted realMin (0%) -> realMax (100%).
+ */
+export const colorTrackDirection = (vertical: boolean, flipped: boolean, inverse: boolean): string => {
+    let dir = vertical ? (flipped ? 'to bottom' : 'to top') : (flipped ? 'to left' : 'to right')
+    if (inverse) {
+        const rev: Record<string, string> = {
+            'to right': 'to left', 'to left': 'to right',
+            'to top': 'to bottom', 'to bottom': 'to top',
+        }
+        dir = rev[dir]
+    }
+    return dir
+}
+
+/**
+ * The full `linear-gradient(...)` for a colour-track. Samples colorForValue()
+ * across [realMin, realMax] (7 stops for hue/rgb, 5 for temperature, 2 for
+ * saturation) and lays them out realMin -> realMax; `direction` orients it.
+ */
+export const colorTrackGradient = (
+    mode: ColorTrackMode, realMin: number, realMax: number, hue: number, direction: string,
+): string => {
+    const stops = mode === 'saturation' ? 2 : mode === 'temperature' ? 5 : 7
+    const parts: string[] = []
+    for (let i = 0; i < stops; i++) {
+        const f = i / (stops - 1)
+        const value = realMin + f * (realMax - realMin)
+        parts.push(`${colorForValue(mode, value, hue)} ${Math.round(f * 100)}%`)
+    }
+    return `linear-gradient(${direction}, ${parts.join(', ')})`
+}
