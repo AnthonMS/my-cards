@@ -22,7 +22,7 @@ import { SLIDER_VERSION } from './extras/const'
 import { localize } from '../localize/localize'
 import { getStyle } from './styles/my-slider.styles'
 import { deflate } from '../scripts/deflate'
-import { percentage, roundPercentage, getClickPosRelToTarget, stateActive, deepMerge, miredsToKelvin, kelvinToMireds, kelvinToRgb } from '../scripts/helpers'
+import { percentage, roundPercentage, getClickPosRelToTarget, stateActive, deepMerge, miredsToKelvin, kelvinToMireds, kelvinToRgb, colorTrackDirection, colorTrackGradient, ColorTrackMode } from '../scripts/helpers'
 import { applySliderMin, shiftForHiddenMin, sliderValueToEntity, valueToPercent } from '../scripts/slider-math'
 import { objectEvalTemplate } from '../scripts/templating'
 
@@ -380,6 +380,29 @@ export class MySliderV2 extends LitElement {
             if (entityColor) progressStl.background = entityColor
         }
 
+        // #20/#28: colour-picker track. Opt-in via colorTrack (default true for mode: rgb).
+        // The track becomes the colour scale and the progress goes transparent (position,
+        // not fill, carries the meaning); the thumb is restyled into a slim see-through
+        // handle after the geometry block below. Every piece is a fallback: a user
+        // styles.track / styles.progress / styles.thumb wins.
+        const colorModes = ['rgb', 'hue', 'saturation', 'temperature']
+        const pickerDomain = this._config.entity ? this._config.entity.split('.')[0] : ''
+        const pickerActive = pickerDomain === 'light' && colorModes.includes(this._config.mode) && this._config.colorTrack === true
+        if (pickerActive) {
+            const mode = this._config.mode as ColorTrackMode
+            const realMin = this._config.min || 0
+            const realMax = this._config.showMin ? this._config.max : this._config.max + realMin
+            const hue = this.entity && this.entity.attributes && this.entity.attributes.hs_color !== undefined
+                ? parseFloat(this.entity.attributes.hs_color[0]) : 0
+            const direction = colorTrackDirection(!!this._config.vertical, !!this._config.flipped, !!this._config.inverse)
+            if (deflatedTrackStl.background === undefined) {
+                trackStl.background = colorTrackGradient(mode, realMin, realMax, hue, direction)
+            }
+            if (deflatedProgressStl.background === undefined) {
+                progressStl.background = 'transparent'
+            }
+        }
+
         if (this._config.vertical) {
             progressStl.height = this.sliderValPercent.toString() + '%'
 
@@ -409,6 +432,28 @@ export class MySliderV2 extends LitElement {
                 progressStl.right = deflatedProgressStl.right ? deflatedProgressStl.right : '0'
                 thumbStl.right = deflatedThumbStl.right ? deflatedThumbStl.right : 'auto'
                 thumbStl.left = deflatedThumbStl.left ? deflatedThumbStl.left : '-5px'
+            }
+        }
+
+        // #20/#28: slim see-through picker handle (default when colorTrack is on and the
+        // user supplied no styles.thumb). Transparent centre shows the gradient through it;
+        // a white border plus a dark hairline shadow keep it visible on any colour. Runs
+        // AFTER the geometry block so it overrides the default thumb size/offset. The 6px
+        // "thickness" is along the slider axis: height for vertical, width for horizontal.
+        if (pickerActive && Object.keys(deflatedThumbStl).length === 0) {
+            thumbStl.background = 'transparent'
+            thumbStl.border = '1px solid #fff'
+            thumbStl['border-radius'] = '3px'
+            thumbStl['box-sizing'] = 'border-box'
+            thumbStl['box-shadow'] = '0 0 0 1px rgba(0,0,0,0.3), 0 1px 3px rgba(0,0,0,0.4)'
+            if (this._config.vertical) {
+                thumbStl.height = '6px'
+                if (this._config.flipped) thumbStl.bottom = '-3px'
+                else thumbStl.top = '-3px'
+            } else {
+                thumbStl.width = '6px'
+                if (this._config.flipped) thumbStl.left = '-3px'
+                else thumbStl.right = '-3px'
             }
         }
 
@@ -611,6 +656,14 @@ export class MySliderV2 extends LitElement {
         if (!this._config) return html`Error with evaluated _config`
         const entityType = this._config.entity ? this._config.entity?.split('.')[0] : this._config!.entity ? this._config!.entity.split('.')[0] : 'none'
 
+        const resolvedMode = this._config!.mode !== undefined ? this._config!.mode :
+            this._config!.colorMode !== undefined ? this._config!.colorMode :
+                this._config!.coverMode !== undefined ? this._config!.coverMode :
+                    entityType === 'light' ? 'brightness' :
+                        entityType === 'cover' ? 'position' :
+                            entityType === 'media_player' ? 'volume' :
+                                'brightness'
+
         const defaultConfig:MySliderConfig = {
             sliderId: `slider-${this._config!.entity.replace('.', '-')}-${this._config.mode}`,
             type: this._config.type,
@@ -633,13 +686,10 @@ export class MySliderV2 extends LitElement {
             colorFromEntity: this._config!.colorFromEntity !== undefined ? this._config!.colorFromEntity : false,
             max: this._config!.max ? this._config!.max : 100,
             step: this._config!.step ? this._config!.step : 1,
-            mode: this._config!.mode !== undefined ? this._config!.mode :
-                this._config!.colorMode !== undefined ? this._config!.colorMode :
-                    this._config!.coverMode !== undefined ? this._config!.coverMode :
-                        entityType === 'light' ? 'brightness' :
-                            entityType === 'cover' ? 'position' :
-                                entityType === 'media_player' ? 'volume' :
-                                    'brightness',
+            mode: resolvedMode,
+            // #20/#28: opt-in colour-picker track. Default true for the new rgb mode
+            // (it only makes sense as a picker), opt-in for hue/saturation/temperature.
+            colorTrack: this._config!.colorTrack !== undefined ? this._config!.colorTrack : resolvedMode === 'rgb',
         }
 
         let tmpVal = 0
@@ -732,6 +782,20 @@ export class MySliderV2 extends LitElement {
 
                     tmpVal = parseFloat(this.entity.attributes.hs_color[1])
                     if (!defaultConfig.showMin) { // Subtracting savedMin to make slider 0 be far left
+                        ({ max: defaultConfig.max, val: tmpVal } = shiftForHiddenMin(defaultConfig.min, defaultConfig.max, tmpVal))
+                    }
+                    tmpVal = applySliderMin(tmpVal, defaultConfig.sliderMin)
+                }
+                else if (defaultConfig.mode === 'rgb') {
+                    // #20: NEW light mode. Picks a HUE (full saturation). Lenient colour
+                    // check unlike hue/saturation (HA derives hs_color for xy/rgb modes too).
+                    if (this.entity.state !== 'on') break
+                    if (this.entity.attributes.hs_color === undefined) break
+                    defaultConfig.min = this._config!.min ? this._config!.min : 0
+                    defaultConfig.max = this._config!.max ? this._config!.max : 360
+                    this.oldVal = parseFloat(this.entity.attributes.hs_color[0])
+                    tmpVal = parseFloat(this.entity.attributes.hs_color[0])
+                    if (!defaultConfig.showMin) {
                         ({ max: defaultConfig.max, val: tmpVal } = shiftForHiddenMin(defaultConfig.min, defaultConfig.max, tmpVal))
                     }
                     tmpVal = applySliderMin(tmpVal, defaultConfig.sliderMin)
@@ -1070,6 +1134,9 @@ export class MySliderV2 extends LitElement {
                 else if (this._config.mode === 'saturation') {
                     this._setSaturation(this.entity, val)
                 }
+                else if (this._config.mode === 'rgb') {
+                    this._setRgbColor(this.entity, val)
+                }
                 break
             case 'input_number':
             case 'number':
@@ -1161,6 +1228,17 @@ export class MySliderV2 extends LitElement {
             hs_color: [currentHue, value]
         })
         this.oldVal = value
+    }
+    private _setRgbColor(entity, value): void {
+        // #20: rgb mode writes a hue at full saturation (that is what the visible scale
+        // shows). Differs from hue mode, which preserves the light's current saturation.
+        let hue = parseFloat(parseFloat(value).toFixed(2))
+        hue = hue < 0 ? 0 : hue > 360 ? 360 : hue
+        this.hass.callService("light", "turn_on", {
+            entity_id: entity.entity_id,
+            hs_color: [hue, 100]
+        })
+        this.oldVal = hue
     }
 
     private _setAttribute(entity, value): void {

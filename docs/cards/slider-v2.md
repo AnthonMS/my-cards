@@ -30,7 +30,7 @@ It is completely customizable now and fully templatable.
 | step | string | "1" | Number of steps to take (For input number, if step is not specified, it will use step from attributes.) (For media_player, if step is not specified it will step by 0.01. (It will actually step by 1, but it will convert 27 to 0.27. So if you set a custom step, set it between 0 and 100.)) |
 | colorMode (Deprecated: Use 'mode' instead) | string | brightness | Can be brightness, temperature, hue, saturation |
 | coverMode (Deprecated: Use 'mode' instead) | string | position | Can be position or tilt |
-| mode | string | cover:position, light:brightness | Can be position, tilt, brightness, temperature, hue, saturation, volume & seekbar |
+| mode | string | cover:position, light:brightness | Can be position, tilt, brightness, temperature, hue, saturation, rgb, volume & seekbar. `rgb` (light) is a hue colour-picker (see [Colour picker sliders](#colour-picker-sliders)). |
 | vertical | boolean | false | This will set the slider to be vertical and handled from bottom to top. Default on covers |
 | flipped | boolean | false | This will just flip the slider to go from right to left or top to bottom. Default on covers |
 | inverse | boolean | false | Will inverse how far the slider has progressed compared to value. so if brightness is 75%, then it will only be 25% progressed. This is useful for cover, where it is Default. |
@@ -51,6 +51,7 @@ It is completely customizable now and fully templatable.
 | sliderMin | number | 0 | The minimum percentage progress to show always |
 | label | boolean or string | none | Show a text label INSIDE the slider. `true` uses the entity's `friendly_name` (falling back to the entity id). A string is shown verbatim, and templates work: `label: '[[[ return entity.state + " %" ]]]'` puts the live value on the slider. Absent/`false` renders nothing. Style it with `styles: label:`. See [Label](#label). |
 | colorFromEntity | boolean | false | **Light only.** Set the progress fill to the light's *current* colour each render — `rgb_color` if present, otherwise an approximation from `color_temp_kelvin`. Only while the light is on (an off light keeps the default fill). A `background` you set in `styles: progress:` always wins. See [Colour from the entity](#colour-from-the-entity). |
+| colorTrack | boolean | false (true for mode: rgb) | **Light colour modes only.** Turn `temperature`, `hue` or `saturation` into a colour picker: the track shows the colour scale as a gradient, the progress fill goes transparent, and the thumb shows the colour at the selected point. Off by default so existing sliders are unchanged; `mode: rgb` defaults it on. Your own `styles: track/progress/thumb` still win. See [Colour picker sliders](#colour-picker-sliders). |
 | sliderId | string | `slider-<entity>-<mode>` | The `id` of the slider's container element, for targeting a specific slider from CSS/JS. Note the default is built from the RAW config, so without an explicit `mode:` it ends in `-undefined` (e.g. `slider-light-bedroom-undefined`) — set `sliderId` yourself if you rely on it. The container also always carries `data-value` and `data-progress-percent` attributes with the current slider value/progress. |
 | markers | list | none | Draw static reference line(s) on the track, e.g. a visible midpoint on an EQ slider. Each entry is `- value: <n>` on the ENTITY scale (the same scale as `min`/`max`). Positioned exactly where the thumb would sit for that value, so `min`/`showMin`/`sliderMin`/`inverse` are all accounted for. Style every marker with `styles: marker:`; supplying your own `left`/`right` (horizontal) or `top`/`bottom` (vertical) disables the automatic positioning. Absent by default — no element is rendered. See [Markers](#markers). |
 | styles | object | [Default styles](/src/cards/styles/my-slider.styles.ts) | Style each component used in the card. Available components: `card`, `container`, `track`, `progress`, `thumb`. Each takes a list of CSS declarations (see Examples); every value is templatable. |
@@ -294,6 +295,46 @@ styles:
 > temperature modes) will own the track and progress visuals themselves, so from v3
 > `colorFromEntity` applies to brightness-style sliders only. Nothing about the config below
 > changes.
+
+## Colour picker sliders
+
+For light colour modes the slider can become a colour picker: the track itself shows the
+colour scale, so you can see what you are selecting before you drag.
+
+```yaml
+# a full hue picker (rainbow track)
+type: custom:my-slider-v2
+entity: light.living_room
+mode: rgb
+
+# a warm/cool temperature picker
+type: custom:my-slider-v2
+entity: light.living_room
+mode: temperature
+colorTrack: true
+```
+
+Turn it on with `colorTrack: true` on a `temperature`, `hue` or `saturation` slider, or use
+the new `mode: rgb` (which is a picker by default). When active:
+
+- **Track** becomes the colour scale: a hue rainbow for `rgb`/`hue`, warm-to-cool for
+  `temperature`, white-to-colour for `saturation`.
+- **Progress fill** goes transparent. "How full" is meaningless when picking a colour; the
+  thumb position carries the meaning.
+- **Thumb** is a slim see-through handle: the gradient shows through it, so you see the colour you are selecting, with a white/dark ring that stays visible on any colour.
+
+Notes:
+
+- **Opt-in and non-breaking.** Without `colorTrack`, `temperature`/`hue`/`saturation` sliders
+  look and behave exactly as before. `mode: rgb` is the only one that defaults to the picker.
+- `rgb` vs `hue`: `rgb` writes the hue at **full saturation** (matching the visible rainbow);
+  `hue` preserves the light's current saturation. Use `saturation` to control saturation.
+- The direction follows the slider: horizontal, `vertical`, `flipped` and `inverse` all
+  orient the gradient to match the thumb.
+- Every visual is a fallback. A `background` in `styles: track:` or `styles: progress:`, or
+  any `styles: thumb:` key, overrides the generated picker visuals.
+- Colour-capable light required for `rgb`/`hue`/`saturation` (they write `hs_color`); use a
+  colour-temperature-capable light for `temperature`.
 
 ## Examples
 ![Examples](/docs/images/my-slider-v2/examples.png)
