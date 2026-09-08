@@ -1,10 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { LovelaceCardConfig, LovelaceCard, LovelaceCardEditor } from './lovelace';
 
-import { 
+import {
   HassEntity,
-    // @ts-ignore
-    HassServiceTarget 
+  HassServiceTarget // exported properly since home-assistant-js-websocket 5.x; ts-ignore no longer needed
 } from 'home-assistant-js-websocket';
 
 // import { LovelaceCard, LovelaceCardConfig, LovelaceCardEditor } from 'custom-card-helpers';
@@ -21,7 +20,13 @@ export interface MyCardConfig extends LovelaceCardConfig {
   entity?: string;
 }
 
+/** #56: one marker line on the track, positioned at an ENTITY-scale value. */
+export interface MarkerConfig {
+  value: number | string;
+}
+
 export interface MySliderConfig extends MyCardConfig {
+  attribute?: string;
   step?: number;
   colorMode?: string;
   coverMode?: string;
@@ -30,18 +35,25 @@ export interface MySliderConfig extends MyCardConfig {
   flipped?: boolean;
   inverse?: boolean;
   intermediate?: boolean;
+  intermediateInterval?: number;
   disableScroll?: boolean;
   allowTapping?: boolean;
   marginOfError?: number;
   allowSliding?: boolean;
   slideDistance?: number;
   showMin?: boolean;
+  showValue?: boolean;
   minThreshold?: number;
   maxThreshold?: number;
   min?: number;
   max?: number;
   sliderMin?: number;
   sliderId?: string;
+  presetMode?: string;
+  label?: boolean | string;
+  colorFromEntity?: boolean;
+  colorTrack?: boolean;
+  markers?: MarkerConfig[];
 
   styles?: MySliderStylesConfig;
 }
@@ -124,10 +136,13 @@ export interface StatsStylesConfig {
 
 export interface MySliderStylesConfig {
   card?: CssStyleConfig;
+  marker?: CssStyleConfig;
   container?: CssStyleConfig;
   track?: CssStyleConfig;
   progress?: CssStyleConfig;
   thumb?: CssStyleConfig;
+  value?: CssStyleConfig;
+  label?: CssStyleConfig;
 }
 export interface MyButtonStylesConfig {
   card?: CssStyleConfig;

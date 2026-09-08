@@ -3,14 +3,14 @@
 // ---- It will be like a bundle of all my cards. I know this is not ideal for some people ---- //
 // ---- But then they can manually install each indivdual card from dist directory ---//
 
-import { CARD_VERSION } from './cards/extras/const';
-import { localize } from './localize/localize';
+// import { CARD_VERSION } from './cards/extras/const';
+// import { localize } from './localize/localize';
 
-console.info(
-	`%c  ---- MY-CARDS ---- \n%c  ${localize('common.version')} ${CARD_VERSION}    `,
-	'color: orange; font-weight: bold; background: black',
-	'color: white; font-weight: bold; background: green',
-);
+// console.info(
+// 	`%c  ---- MY-CARDS ---- \n%c  ${localize('common.version')} ${CARD_VERSION}    `,
+// 	'color: orange; font-weight: bold; background: black',
+// 	'color: white; font-weight: bold; background: green',
+// );
 
 
 export { MySlider } from './old-cards/my-slider'

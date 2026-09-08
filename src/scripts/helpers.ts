@@ -293,34 +293,6 @@ export function stateActive(stateObj: HassEntity | undefined, state?: string): b
     return true;
 }
 
-/**
- * Performs a deep merge of objects and returns new object. Does not modify
- * objects (immutable) and merges arrays via concatenation and filtering.
- *
- * @param {...object} objects - Objects to merge
- * @returns {object} New object with merged key/values
- */
-export function mergeDeep(...objects: any): any {
-    const isObject = (obj: any) => obj && typeof obj === 'object';
-
-    return objects.reduce((prev: any, obj: any) => {
-        Object.keys(obj).forEach((key) => {
-            const pVal = prev[key];
-            const oVal = obj[key];
-
-            if (Array.isArray(pVal) && Array.isArray(oVal)) {
-                /* eslint no-param-reassign: 0 */
-                prev[key] = pVal.concat(...oVal);
-            } else if (isObject(pVal) && isObject(oVal)) {
-                prev[key] = mergeDeep(pVal, oVal);
-            } else {
-                prev[key] = oVal;
-            }
-        });
-
-        return prev;
-    }, {});
-}
 
 // From https://github.com/epoberezkin/fast-deep-equal
 // MIT License - Copyright (c) 2017 Evgeny Poberezkin
@@ -431,3 +403,112 @@ export const deepEqual = (a: any, b: any): boolean => {
     // eslint-disable-next-line no-self-compare
     return a !== a && b !== b;
 };
+
+
+/**
+ * Converts mireds to Kelvin (rounded). The two scales are reciprocal:
+ * K = 1,000,000 / mireds.
+ *
+ * @param {number} mireds - Color temperature in mireds
+ * @returns {number} Color temperature in Kelvin
+ */
+export const miredsToKelvin = (mireds: number): number => Math.round(1000000 / mireds)
+
+/**
+ * Converts Kelvin to mireds (rounded): mireds = 1,000,000 / K.
+ * Note the scales are inverted: MIN kelvin corresponds to MAX mireds and vice versa.
+ *
+ * @param {number} kelvin - Color temperature in Kelvin
+ * @returns {number} Color temperature in mireds
+ */
+export const kelvinToMireds = (kelvin: number): number => Math.round(1000000 / kelvin)
+
+/**
+ * Approximate an sRGB colour for a colour temperature in Kelvin, using Tanner
+ * Helland's well-known approximation. Used by colorFromEntity (#28) as the
+ * fallback when a light exposes color_temp_kelvin but no rgb_color. Channels are
+ * clamped to 0..255 and rounded. This is an approximation, not colour-accurate.
+ *
+ * @param {number} kelvin - colour temperature in Kelvin (typ. 2000..6500)
+ * @returns {{ r: number; g: number; b: number }} rounded 0..255 channels
+ */
+export const kelvinToRgb = (kelvin: number): { r: number; g: number; b: number } => {
+    const clamp = (v: number) => v < 0 ? 0 : v > 255 ? 255 : Math.round(v)
+    const temp = kelvin / 100
+    let r: number, g: number, b: number
+    // red
+    if (temp <= 66) r = 255
+    else r = 329.698727446 * Math.pow(temp - 60, -0.1332047592)
+    // green
+    if (temp <= 66) g = 99.4708025861 * Math.log(temp) - 161.1195681661
+    else g = 288.1221695283 * Math.pow(temp - 60, -0.0755148492)
+    // blue
+    if (temp >= 66) b = 255
+    else if (temp <= 19) b = 0
+    else b = 138.5177312231 * Math.log(temp - 10) - 305.0447927307
+    return { r: clamp(r), g: clamp(g), b: clamp(b) }
+}
+
+// ============================================================================
+// #20 / #28 color-picker track helpers. Pure functions so they can be unit
+// tested; the card wires them into render()/setProgress() when colorTrack is on
+// (or mode: rgb). "value" is on the mode's own scale: a hue in degrees for
+// rgb/hue, 0..100 for saturation, mireds for temperature.
+// ============================================================================
+
+export type ColorTrackMode = 'rgb' | 'hue' | 'saturation' | 'temperature'
+
+/**
+ * CSS colour for a single value on a colour-mode scale.
+ * - rgb / hue: `value` is a hue in degrees -> hsl(H,100%,50%).
+ * - saturation: `value` is 0..100, `hue` is the light's current hue.
+ * - temperature: `value` is mireds -> kelvin -> kelvinToRgb.
+ */
+export const colorForValue = (mode: ColorTrackMode, value: number, hue = 0): string => {
+    if (mode === 'temperature') {
+        const kelvin = value > 0 ? 1000000 / value : 6500
+        const { r, g, b } = kelvinToRgb(kelvin)
+        return `rgb(${r}, ${g}, ${b})`
+    }
+    if (mode === 'saturation') {
+        const s = value < 0 ? 0 : value > 100 ? 100 : value
+        return `hsl(${hue}, ${s}%, ${100 - s / 2}%)`
+    }
+    return `hsl(${value}, 100%, 50%)`
+}
+
+/**
+ * CSS gradient direction for the track, matching how the value maps to the axis.
+ * horizontal -> to right (flipped: to left); vertical -> to top (flipped: to
+ * bottom); `inverse` reverses the value mapping so it reverses the direction once
+ * more. Gradient stops are always emitted realMin (0%) -> realMax (100%).
+ */
+export const colorTrackDirection = (vertical: boolean, flipped: boolean, inverse: boolean): string => {
+    let dir = vertical ? (flipped ? 'to bottom' : 'to top') : (flipped ? 'to left' : 'to right')
+    if (inverse) {
+        const rev: Record<string, string> = {
+            'to right': 'to left', 'to left': 'to right',
+            'to top': 'to bottom', 'to bottom': 'to top',
+        }
+        dir = rev[dir]
+    }
+    return dir
+}
+
+/**
+ * The full `linear-gradient(...)` for a colour-track. Samples colorForValue()
+ * across [realMin, realMax] (7 stops for hue/rgb, 5 for temperature, 2 for
+ * saturation) and lays them out realMin -> realMax; `direction` orients it.
+ */
+export const colorTrackGradient = (
+    mode: ColorTrackMode, realMin: number, realMax: number, hue: number, direction: string,
+): string => {
+    const stops = mode === 'saturation' ? 2 : mode === 'temperature' ? 5 : 7
+    const parts: string[] = []
+    for (let i = 0; i < stops; i++) {
+        const f = i / (stops - 1)
+        const value = realMin + f * (realMax - realMin)
+        parts.push(`${colorForValue(mode, value, hue)} ${Math.round(f * 100)}%`)
+    }
+    return `linear-gradient(${direction}, ${parts.join(', ')})`
+}

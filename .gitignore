@@ -2,3 +2,10 @@ node_modules/
 
 package-lock.json
 yarn.lock
+
+FABLE_*.md
+docs/handoff/
+AI/
+
+# Dev build output (npm start watch) — not shipped; HACS uses dist/my-cards.js
+dist/dev/

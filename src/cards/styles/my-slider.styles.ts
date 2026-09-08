@@ -43,5 +43,55 @@ const styles = {
             right: '-5px',
             width: '10px',
             //'pointer-events': 'none',
+    },
+    // #56: static marker line(s) on the track, one per `markers:` entry. Positioned
+    // by the card along the slider axis; everything else can be overridden through
+    // styles.marker. Sits above the progress bar but below the thumb.
+    marker: {
+            position: 'absolute',
+            width: '2px',
+            height: '100%',
+            background: 'rgba(0, 0, 0, 0.35)',
+            'pointer-events': 'none',
+            'z-index': '2',
+    },
+    // #5: text label rendered INSIDE the slider (opt-in via `label:`). Sits inside the
+    // overflow-clipped container (unlike the showValue bubble), left-aligned and vertically
+    // centred, above the progress fill but not intercepting input. Fully overridable via
+    // styles.label.
+    label: {
+            position: 'absolute',
+            left: '10px',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            color: 'var(--primary-text-color)',
+            'font-size': '14px',
+            'pointer-events': 'none',
+            'white-space': 'nowrap',
+            overflow: 'hidden',
+            'text-overflow': 'ellipsis',
+            'max-width': 'calc(100% - 20px)',
+            'z-index': '1',
+    },
+    // #23: floating value bubble shown while dragging when showValue is enabled.
+    // It sits ABOVE the card at the thumb position and follows the thumb (the card
+    // drives `left`/`top` and toggles `display`); everything else can be overridden
+    // through styles.value. Setting your own left (horizontal) / top (vertical)
+    // disables the tracking.
+    value: {
+            position: 'absolute',
+            bottom: 'calc(100% + 8px)',
+            left: '0%',
+            transform: 'translate(-50%, 0)',
+            padding: '2px 8px',
+            'border-radius': '4px',
+            background: 'rgba(0, 0, 0, 0.6)',
+            color: 'white',
+            'font-size': '12px',
+            'line-height': 'normal',
+            'white-space': 'nowrap',
+            'pointer-events': 'none',
+            display: 'none',
+            'z-index': '10',
     }
 }
