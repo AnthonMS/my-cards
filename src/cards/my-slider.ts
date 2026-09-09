@@ -45,7 +45,17 @@ console.info(
 export class MySliderV2 extends LitElement {
     @property() private _config?: MySliderConfig
     private entity: HassEntity | undefined
-    private sliderEl: HTMLElement | undefined
+    // #78: widened to include `null` (querySelector's actual return type) so a
+    // future non-null assertion on this field is a deliberate choice, not an
+    // accident the compiler can't see. Semantics are unchanged: `undefined` means
+    // "not yet acquired" (retry later); once set, it is always a real element -
+    // see updated() below, which never assigns null.
+    private sliderEl: HTMLElement | null | undefined
+    // #78: acquire-once-WITH-RETRY latch for the touchmove listener - see updated()
+    // below. Tracked separately from sliderEl because the two are acquired on
+    // different timing (this one synchronously in updated(), sliderEl inside a
+    // requestAnimationFrame) so one cannot double as the other's "done" flag.
+    private _touchMoveAttached: boolean = false
     private touchInput: boolean = false
     private thumbTapped: boolean = false
     private isSliding: boolean = false
@@ -144,22 +154,48 @@ export class MySliderV2 extends LitElement {
     // A once-registered listener on the persistent container node is immune to render churn
     // and keeps the implicit touch capture flowing. passive mirrors the old binding so #64's
     // scroll-blocking violation stays fixed (non-passive only when disableScroll is on).
-    firstUpdated(changedProperties: PropertyValues) {
-        super.firstUpdated(changedProperties)
-        const container = this.shadowRoot?.querySelector('.my-slider-custom-container')
-        if (container) {
-            container.addEventListener('touchmove', this.sliderHandler, { passive: !this._config.disableScroll })
-        }
-    }
+    //
+    // #78: this attachment used to live in firstUpdated(), which lit calls exactly once -
+    // including when that one-and-only successful render is the <hui-error-card> fallback
+    // (the configured entity was still missing from hass.states, e.g. right after a Home
+    // Assistant restart). There is no '.my-slider-custom-container' on the error card, so
+    // the listener silently never got attached, and firstUpdated never runs again to retry
+    // it - touch devices stayed permanently dead even once the entity showed up and a real
+    // slider rendered. It now attaches from updated() instead, guarded by
+    // _touchMoveAttached: still exactly one addEventListener call for the whole lifetime of
+    // the card (no churn, so the regression above cannot come back), but on whichever
+    // update first actually finds a container instead of unconditionally on the first one.
+    // Kept synchronous (not deferred into the sliderEl rAF below) so it lands within the
+    // same update transaction updateComplete resolves on, matching firstUpdated's old timing.
+    //
     // After your component has been rendered
     updated(changedProperties: PropertyValues) {
         super.updated(changedProperties);
-        requestAnimationFrame(() => {
-            if (this.sliderEl === undefined && this.shadowRoot !== null) {
-                this.sliderEl = this.shadowRoot.querySelector('.my-slider-custom-container');
-                const progressEl: HTMLElement | null = this.sliderEl.querySelector('.my-slider-custom-progress')
-                this.initialTransition = progressEl!.style.transition
+
+        if (!this._touchMoveAttached && this.shadowRoot !== null) {
+            const container = this.shadowRoot.querySelector<HTMLElement>('.my-slider-custom-container')
+            if (container !== null) {
+                container.addEventListener('touchmove', this.sliderHandler, { passive: !this._config.disableScroll })
+                this._touchMoveAttached = true
             }
+        }
+
+        // Acquire-once-WITH-RETRY: once sliderEl has been successfully acquired, every
+        // later updated() is a no-op - the rAF below never runs again. Until then (e.g.
+        // the entity was missing on this render, so initializeConfig() bailed out to the
+        // error card and there is no container in the shadow root yet), a later updated()
+        // call retries. sliderEl is only ever assigned a real element, never null - a
+        // failed lookup here previously latched sliderEl to null forever (the retry guard
+        // tested `=== undefined`, which a null never satisfies again), which is #78's root
+        // cause: drags after the entity appeared kept silently doing nothing.
+        if (this.sliderEl) return
+        requestAnimationFrame(() => {
+            if (this.sliderEl || this.shadowRoot === null) return
+            const container = this.shadowRoot.querySelector<HTMLElement>('.my-slider-custom-container')
+            if (container === null) return // still no slider markup rendered (e.g. error card) - retry next updated()
+            this.sliderEl = container
+            const progressEl: HTMLElement | null = container.querySelector('.my-slider-custom-progress')
+            this.initialTransition = progressEl ? progressEl.style.transition : ''
         })
     }
 
@@ -955,7 +991,7 @@ export class MySliderV2 extends LitElement {
 
     private async updateSeekbar() {
         // if (this.sliderEl === undefined) return
-        if (this.sliderEl === undefined) {
+        if (!this.sliderEl) { // #78: also guard null, not just undefined - see updated()
             setTimeout(() => this.updateSeekbar(), 500);
             return
         }
@@ -1342,20 +1378,26 @@ export class MySliderV2 extends LitElement {
 
         const val = Number(Math.max(this.zero, this._config.minThreshold))
         const valPercent = roundPercentage(percentage(val, this._config.max))
+        this.setSliderValues(val, valPercent)
 
-        const progressEl: HTMLElement | null = this.sliderEl!.querySelector('.my-slider-custom-progress')
+        // #78: sliderEl may still be unacquired here (e.g. a slide-to-toggle
+        // interaction landing before the container has been found - see updated()).
+        // The entity write above has already happened; there's just no rendered
+        // progress bar to animate, so skip the DOM bookkeeping instead of throwing.
+        if (!this.sliderEl) return
+        const progressEl: HTMLElement | null = this.sliderEl.querySelector('.my-slider-custom-progress')
+        if (!progressEl) return
 
         if (!this._config.vertical) {
-            progressEl!.style.transition = 'width 0.2s ease 0s'
+            progressEl.style.transition = 'width 0.2s ease 0s'
         }
         else {
-            progressEl!.style.transition = 'height 0.2s ease 0s'
+            progressEl.style.transition = 'height 0.2s ease 0s'
         }
 
-        this.setSliderValues(val, valPercent)
         this.setProgress(this.sliderEl, val, 'setSwitch')
         setTimeout(() => { // Remove transition when done
-            progressEl!.style.transition = this.initialTransition
+            progressEl.style.transition = this.initialTransition
         }, 200)
     }
     private _setLock(entity, value): void {
@@ -1369,18 +1411,23 @@ export class MySliderV2 extends LitElement {
 
         const val = Number(Math.max(this.zero, this._config.minThreshold))
         const valPercent = roundPercentage(percentage(val, this._config.max))
-        const progressEl: HTMLElement | null = this.sliderEl!.querySelector('.my-slider-custom-progress')
+        this.setSliderValues(val, valPercent)
+
+        // #78: see the matching guard in _setSwitch - sliderEl may not be acquired
+        // yet; the entity write above already happened, just skip the DOM update.
+        if (!this.sliderEl) return
+        const progressEl: HTMLElement | null = this.sliderEl.querySelector('.my-slider-custom-progress')
+        if (!progressEl) return
 
         if (!this._config.vertical) {
-            progressEl!.style.transition = 'width 0.2s ease 0s'
+            progressEl.style.transition = 'width 0.2s ease 0s'
         }
         else {
-            progressEl!.style.transition = 'height 0.2s ease 0s'
+            progressEl.style.transition = 'height 0.2s ease 0s'
         }
-        this.setSliderValues(val, valPercent)
         this.setProgress(this.sliderEl, val, 'setLock')
         setTimeout(() => { // Remove transition when done
-            progressEl!.style.transition = this.initialTransition
+            progressEl.style.transition = this.initialTransition
         }, 200)
     }
 
@@ -1401,18 +1448,23 @@ export class MySliderV2 extends LitElement {
 
         const val = Number(Math.max(this.zero, this._config.minThreshold))
         const valPercent = roundPercentage(percentage(val, this._config.max))
-        const progressEl: HTMLElement | null = this.sliderEl!.querySelector('.my-slider-custom-progress')
+        this.setSliderValues(val, valPercent)
+
+        // #78: see the matching guard in _setSwitch - sliderEl may not be acquired
+        // yet; the entity write above already happened, just skip the DOM update.
+        if (!this.sliderEl) return
+        const progressEl: HTMLElement | null = this.sliderEl.querySelector('.my-slider-custom-progress')
+        if (!progressEl) return
 
         if (!this._config.vertical) {
-            progressEl!.style.transition = 'width 0.2s ease 0s'
+            progressEl.style.transition = 'width 0.2s ease 0s'
         }
         else {
-            progressEl!.style.transition = 'height 0.2s ease 0s'
+            progressEl.style.transition = 'height 0.2s ease 0s'
         }
-        this.setSliderValues(val, valPercent)
         this.setProgress(this.sliderEl, val, 'setScript')
         setTimeout(() => { // Remove transition when done
-            progressEl!.style.transition = this.initialTransition
+            progressEl.style.transition = this.initialTransition
         }, 200)
     }
 
