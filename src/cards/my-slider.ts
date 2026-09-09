@@ -11,6 +11,7 @@ import {
     state
 } from 'lit-element'
 import { styleMap } from 'lit-html/directives/style-map'
+import { classMap } from 'lit-html/directives/class-map'
 import { HassEntity } from 'home-assistant-js-websocket'
 import { hasConfigOrEntityChanged } from 'custom-card-helpers'; // community maintained npm module with common helper functions/types
 
@@ -18,11 +19,11 @@ import type { LovelaceCard } from '../types/lovelace';
 import type { HomeAssistant } from '../types/homeassistant';
 import type { MySliderConfig } from '../types/types'
 
-import { SLIDER_VERSION } from './extras/const'
+import { SLIDER_VERSION, isUnavailableState } from './extras/const'
 import { localize } from '../localize/localize'
 import { getStyle } from './styles/my-slider.styles'
 import { deflate } from '../scripts/deflate'
-import { percentage, roundPercentage, getClickPosRelToTarget, stateActive, deepMerge, miredsToKelvin, kelvinToMireds, kelvinToRgb, colorTrackDirection, colorTrackGradient, ColorTrackMode } from '../scripts/helpers'
+import { percentage, roundPercentage, getClickPosRelToTarget, deepMerge, miredsToKelvin, kelvinToMireds, kelvinToRgb, colorTrackDirection, colorTrackGradient, ColorTrackMode } from '../scripts/helpers'
 import { applySliderMin, shiftForHiddenMin, sliderValueToEntity, valueToPercent } from '../scripts/slider-math'
 import { objectEvalTemplate } from '../scripts/templating'
 
@@ -85,6 +86,20 @@ export class MySliderV2 extends LitElement {
             this.sliderVal = val;
             this.sliderValPercent = valPercent;
         }
+    }
+
+    // #77: single source of truth for "is this slider's entity unavailable/unknown
+    // right now". Deliberately NOT stateActive() from helpers.ts: stateActive answers
+    // "is this state the domain's active/on-ish state", and for most domains it treats
+    // 'off' (and cover 'closed', lock 'locked', etc.) as inactive too - exactly the
+    // states this slider must stay fully interactive for (dragging a light's brightness
+    // from an off state is the normal way to turn it on). Using stateActive here would
+    // disable the slider any time the entity is merely off, not just when it is actually
+    // unavailable. isUnavailableState is the raw, domain-agnostic check (state is exactly
+    // 'unavailable' or 'unknown') that both stateActive and this method are built on, so
+    // reusing it directly avoids a parallel ad-hoc string comparison.
+    private _isUnavailable(): boolean {
+        return this.entity !== undefined && isUnavailableState(this.entity.state)
     }
 
     public static getStubConfig(): object {
@@ -239,6 +254,12 @@ export class MySliderV2 extends LitElement {
 
     private startInput = (event) => {
         if (this.actionTaken) return
+        // #77: block the gesture from ever starting (tap-to-set, thumb drag, and
+        // allowSliding all begin here) while the entity is unavailable/unknown.
+        // actionTaken never becomes true, so moveInput's own `if (this.actionTaken)`
+        // guard keeps the rest of a mouse/touch gesture inert too, and stopInput's
+        // `if (!this.actionTaken) return` makes the eventual mouseup/touchend a no-op.
+        if (this._isUnavailable()) return
 
         // F-12: `||` treats a legitimate 0 coordinate as missing, so a mouse press on
         // the exact left edge (clientX 0) or the exact top edge (clientY 0) fell through
@@ -330,6 +351,10 @@ export class MySliderV2 extends LitElement {
     }
 
     private moveInput = (event) => {
+        // #77: defense in depth for the entity going unavailable mid-gesture (e.g. it
+        // drops off mid-drag) - startInput already stops a NEW gesture from ever
+        // setting actionTaken, but this covers a drag that was already in progress.
+        if (this._isUnavailable()) return
         if (this.actionTaken) {
             // sliderEl is grabbed in a requestAnimationFrame after first render (updated()).
             // A drag that begins before that frame reaches here with sliderEl undefined and
@@ -387,6 +412,11 @@ export class MySliderV2 extends LitElement {
     protected render(): TemplateResult | void {
         const initFailed = this.initializeConfig()
         if (initFailed !== null) return initFailed
+
+        // #77: always-on, no config key - the slider must visibly and functionally act
+        // disabled while its entity is unavailable/unknown. See _isUnavailable() for why
+        // this checks the raw state instead of reusing stateActive().
+        const isUnavailable = this._isUnavailable()
 
         const defaultProgressStyle = [
             { 'transition': this._config.vertical ? 'height 0.2s ease 0s' : 'width 0.2s ease 0s' },
@@ -527,7 +557,7 @@ export class MySliderV2 extends LitElement {
 
         return html`
             <ha-card class="my-slider-custom-card" style="${styleMap(cardStl)}">
-                <div class="my-slider-custom-container" id="${this._config.sliderId}" style="${styleMap(containerStl)}" data-value="${this.sliderVal}" data-progress-percent="${this.sliderValPercent}"
+                <div class="${classMap({ 'my-slider-custom-container': true, 'my-slider-unavailable': isUnavailable })}" id="${this._config.sliderId}" style="${styleMap(containerStl)}" data-value="${this.sliderVal}" data-progress-percent="${this.sliderValPercent}"
                     @mousedown="${this.sliderHandler}"
                     @mouseup="${this.sliderHandler}"
                     @mousemove="${this.sliderHandler}"
@@ -1136,6 +1166,16 @@ export class MySliderV2 extends LitElement {
 
     private setValue(val, valPercent) {
         if (!this.entity) return
+        // #77: ultimate safety net - every hass.callService call the card makes (light,
+        // input_number, cover, fan, switch, lock, script, attribute writes, ...) funnels
+        // through this method's switch statement below. Bailing out here, on top of the
+        // startInput/moveInput guards that stop a gesture from getting this far in the
+        // first place, means an entity that goes unavailable mid-interaction (or is
+        // reached by any path we didn't think of) can never result in a service call.
+        if (this._isUnavailable()) {
+            this.actionTaken = false
+            return
+        }
         this.setSliderValues(val, valPercent)
 
         // We do not want to set any values based on pure movement of slider. Only set it
@@ -1472,6 +1512,16 @@ export class MySliderV2 extends LitElement {
     // https://lit-element.polymer-project.org/guide/styles
     static get styles(): CSSResult {
         return css`
+            /* #77: default treatment for an unavailable/unknown entity. A single class
+               selector keeps specificity as low as it can be while still targeting the
+               class, so a user's own styles.container CSS (card-mod, a theme, etc.) -
+               anything at equal or higher specificity - overrides it. Restrained on
+               purpose (opacity + cursor only): visible enough to notice, easy to hide
+               entirely with e.g. "opacity: 1 !important" if you don't want it. */
+            .my-slider-unavailable {
+                opacity: 0.5;
+                cursor: not-allowed;
+            }
 		`;
     }
 }
