@@ -1,5 +1,5 @@
 // export const CARD_VERSION = '2.2.0'
-export const SLIDER_VERSION = '3.5.0'
+export const SLIDER_VERSION = '3.5.1'
 export const BUTTON_VERSION = '1.1.0'
 
 
